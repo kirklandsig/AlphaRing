@@ -1,5 +1,7 @@
 #include "Splitscreen.h"
 
+#include "mcc/settings/Settings.h"
+
 #include "common.h"
 
 #include "global/Global.h"
@@ -107,22 +109,48 @@ namespace MCC::Splitscreen {
     }
 
     void RealContext() {
+        bool dirty = false;
         char buffer[10];
         auto p_setting = AlphaRing::Global::MCC::Splitscreen();
 
         if (ImGui::BeginMenuBar()) {
-            ImGui::MenuItem(p_setting->b_override ? "Disable" : "Enable", nullptr, &p_setting->b_override);
+            // ImGui::MenuItem(p_setting->b_override ? "Disable" : "Enable", nullptr, &p_setting->b_override);
+            dirty |= ImGui::MenuItem(
+                p_setting->b_override ? "Disable" : "Enable",
+                nullptr,
+                &p_setting->b_override
+            );
             if (ImGui::BeginMenu("Options")) {
-                ImGui::MenuItem("Use player1's profile", nullptr, &p_setting->b_use_player0_profile);
-                ImGui::MenuItem("Enable K/M for player1", nullptr, &p_setting->b_player0_use_km);
-                ImGui::MenuItem("Override profile", nullptr, &p_setting->b_override_profile);
+                // ImGui::MenuItem("Use player1's profile", nullptr, &p_setting->b_use_player0_profile);
+                dirty |= ImGui::MenuItem(
+                    "Use player1's profile", 
+                    nullptr, 
+                    &p_setting->b_use_player0_profile
+                );
+                // ImGui::MenuItem("Enable K/M for player1", nullptr, &p_setting->b_player0_use_km);
+                dirty |= ImGui::MenuItem(
+                    "Enable K/M for player1", 
+                    nullptr, 
+                    &p_setting->b_player0_use_km
+                );
+                // ImGui::MenuItem("Override profile", nullptr, &p_setting->b_override_profile);
+                dirty |= ImGui::MenuItem(
+                    "Override profile", 
+                    nullptr, 
+                    &p_setting->b_override_profile
+                );
                 ImGui::EndMenu();
             }
 #pragma region player count
             ImGui::PushItemWidth(200);
+            // int count = p_setting->player_count;
+            // if (ImGui::InputInt("Players", &count) && count >= 1 && count <=4) {
+            //     p_setting->player_count = count;
+            // }
             int count = p_setting->player_count;
-            if (ImGui::InputInt("Players", &count) && count >= 1 && count <=4) {
+            if (ImGui::InputInt("Players", &count) && count >= 1 && count <= 4) {
                 p_setting->player_count = count;
+                dirty = true;
             }
             ImGui::PopItemWidth();
             ImGui::EndMenuBar();
@@ -138,6 +166,11 @@ namespace MCC::Splitscreen {
                 }
             }
             ImGui::EndTabBar();
+        }
+
+        if (dirty) {
+            MCC::Settings::Splitscreen::CaptureFromRuntime();
+            MCC::Settings::Splitscreen::Save();
         }
     }
 }

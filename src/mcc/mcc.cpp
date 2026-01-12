@@ -8,6 +8,7 @@
 #include "mcc/module/Module.h"
 #include "mcc/network/Network.h"
 #include "mcc/splitscreen/Splitscreen.h"
+#include "mcc/settings/Settings.h"
 
 namespace MCC {
     static bool* bIsInGame;
@@ -65,6 +66,9 @@ namespace MCC {
 			MessageBox(nullptr, "MCC: failed to initialize Splitscreen", "Error", MB_OK);
             return false;
         }
+
+        MCC::Settings::Splitscreen::Load();
+        MCC::Settings::Splitscreen::ApplyToRuntime();
 
 		////Ask user if they want to enable network
   //      if (MessageBox(nullptr, "Would you like to enable network?", "Network", MB_YESNO) == IDYES)

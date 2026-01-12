@@ -22,27 +22,28 @@ include_directories(${CMAKE_SOURCE_DIR}/lib/json/include)
 # imgui
 add_library(imgui SHARED IMPORTED)
 include_directories(${CMAKE_SOURCE_DIR}/lib/imgui/inc)
-set_target_properties(imgui PROPERTIES IMPORTED_IMPLIB "${CMAKE_SOURCE_DIR}/lib/imgui/lib/${CMAKE_BUILD_TYPE}/imgui.lib")
+set_target_properties(imgui PROPERTIES IMPORTED_IMPLIB "${CMAKE_SOURCE_DIR}/lib/imgui/lib/release/imgui.lib")
 
 # lua
 add_library(lua SHARED IMPORTED)
 include_directories(${CMAKE_SOURCE_DIR}/lib/lua/inc)
-set_target_properties(lua PROPERTIES IMPORTED_IMPLIB "${CMAKE_SOURCE_DIR}/lib/lua/lib/${CMAKE_BUILD_TYPE}/lua.lib")
+set_target_properties(lua PROPERTIES IMPORTED_IMPLIB "${CMAKE_SOURCE_DIR}/lib/lua/lib/release/lua.lib")
 
 # spdlog
 add_library(spdlog SHARED IMPORTED)
 include_directories(${CMAKE_SOURCE_DIR}/lib/spdlog/inc)
-set_target_properties(spdlog PROPERTIES IMPORTED_IMPLIB "${CMAKE_SOURCE_DIR}/lib/spdlog/lib/${CMAKE_BUILD_TYPE}/spdlog.lib")
+set_target_properties(spdlog PROPERTIES IMPORTED_IMPLIB "${CMAKE_SOURCE_DIR}/lib/spdlog/lib/release/spdlog.lib")
 
 # tinyxml2
 add_library(tinyxml2 SHARED IMPORTED)
 include_directories(${CMAKE_SOURCE_DIR}/lib/tinyxml2/inc)
-set_target_properties(tinyxml2 PROPERTIES IMPORTED_IMPLIB "${CMAKE_SOURCE_DIR}/lib/tinyxml2/lib/${CMAKE_BUILD_TYPE}/tinyxml2.lib")
+set_target_properties(tinyxml2 PROPERTIES IMPORTED_IMPLIB "${CMAKE_SOURCE_DIR}/lib/tinyxml2/lib/release/tinyxml2.lib")
 
 # minhook
 add_library(minhook SHARED IMPORTED)
 include_directories(${CMAKE_SOURCE_DIR}/lib/minhook/inc)
-set_target_properties(minhook PROPERTIES IMPORTED_IMPLIB "${CMAKE_SOURCE_DIR}/lib/minhook/lib/${CMAKE_BUILD_TYPE}/libMinhook.x64.lib")
+# set_target_properties(minhook PROPERTIES IMPORTED_IMPLIB "${CMAKE_SOURCE_DIR}/lib/minhook/lib/${CMAKE_BUILD_TYPE}/libMinHook.x64.lib")
+set_target_properties(minhook PROPERTIES IMPORTED_IMPLIB "${CMAKE_SOURCE_DIR}/lib/minhook/lib/release/libMinHook.x64.lib")
 
 # utils
 file(GLOB_RECURSE UTILS_SRC ${CMAKE_SOURCE_DIR}/lib/utils/src/*.cpp)
