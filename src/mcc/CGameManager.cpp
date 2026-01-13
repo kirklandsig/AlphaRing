@@ -12,7 +12,7 @@ CGameManager::Profile_t* CGameManager::get_profile(int index) {return container.
 
 ProfileContainer_t::ProfileContainer_t() {
     __int64 guid[2];
-    const int controller_map[4] {3, 0, 1, 2};
+    const int controller_map[4] {0, 1, 2, 3};
     memset(this, 0, sizeof(ProfileContainer_t));
 
     CoCreateGuid((GUID*)guid);

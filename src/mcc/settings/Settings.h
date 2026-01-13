@@ -1,12 +1,11 @@
 #pragma once
 
 #include <string>
+#include "../CGameManager.h"
 
 namespace MCC::Settings {
 
     struct SplitscreenConfig {
-        std::string version = "1.3528.0.0";
-
         bool b_override = false;
         int  player_count = 1;
         bool b_use_player0_profile = true;
@@ -22,5 +21,13 @@ namespace MCC::Settings {
         void CaptureFromRuntime();
 
         const SplitscreenConfig& Get();
+    }
+
+    namespace Profile {
+        bool Load();
+        bool Save();
+
+        void ApplyToRuntime();
+        void CaptureFromRuntime();
     }
 }
