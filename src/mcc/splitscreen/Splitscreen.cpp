@@ -170,7 +170,9 @@ namespace MCC::Splitscreen {
 
         if (dirty) {
             MCC::Settings::Splitscreen::CaptureFromRuntime();
+            MCC::Settings::Profile::CaptureFromRuntime();
             MCC::Settings::Splitscreen::Save();
+            MCC::Settings::Profile::Save();
         }
     }
 }
