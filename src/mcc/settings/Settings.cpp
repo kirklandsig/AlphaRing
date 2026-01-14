@@ -393,13 +393,13 @@ namespace MCC::Settings {
 
     void Profile::CaptureFromRuntime() {
         for (int i = 0; i < 4; ++i) {
-            auto dst = CGameManager::get_profile(i); 
-            auto& src = g_Profiles[i];            
+            auto src = CGameManager::get_profile(i);
+            auto& dst = g_Profiles[i];
 
-            dst->controller_index = src.controller_index;
-            dst->id = src.id;
-            wcscpy_s(dst->name, _countof(dst->name), src.name);
-            dst->profile = src.profile;
+            dst.controller_index = src->controller_index;
+            dst.id = src->id;
+            wcscpy_s(dst.name, src->name);
+            dst.profile = src->profile;
         }
     }
 }

@@ -75,7 +75,7 @@ namespace MCC::Splitscreen {
         ImGui::PushItemWidth(200);ImGui::Combo("Input", &p_profile->controller_index, items, IM_ARRAYSIZE(items));ImGui::PopItemWidth();
         ImGui::EndDisabled();
 
-        if (ImGui::Button("Load Profile")) {
+        if (ImGui::Button("Apply Profile")) {
             __int64 xuid;
             auto p_mng = GameManager();
             auto p_engine = GameEngine();
@@ -88,6 +88,10 @@ namespace MCC::Splitscreen {
         }
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Use this in game!!!");
+        if (ImGui::Button("Save Profile")) {
+            MCC::Settings::Profile::CaptureFromRuntime();
+            MCC::Settings::Profile::Save();
+        }
 
         bool is_disabled = (!index && !p_setting->b_override_profile) || (index && p_setting->b_use_player0_profile);
 
@@ -170,9 +174,9 @@ namespace MCC::Splitscreen {
 
         if (dirty) {
             MCC::Settings::Splitscreen::CaptureFromRuntime();
-            MCC::Settings::Profile::CaptureFromRuntime();
+            // MCC::Settings::Profile::CaptureFromRuntime();
             MCC::Settings::Splitscreen::Save();
-            MCC::Settings::Profile::Save();
+            // MCC::Settings::Profile::Save();
         }
     }
 }
