@@ -68,9 +68,12 @@ namespace MCC {
         }
 
         MCC::Settings::Splitscreen::Load();
-        MCC::Settings::Profile::Load();
+        bool profileLoad = MCC::Settings::Profile::Load();
+        if(profileLoad) {
+            MCC::Settings::Profile::ApplyToRuntime();
+            // MCC::Settings::Profile::Initialize(game_manager);
+        }
         MCC::Settings::Splitscreen::ApplyToRuntime();
-        MCC::Settings::Profile::ApplyToRuntime();
 
 		////Ask user if they want to enable network
   //      if (MessageBox(nullptr, "Would you like to enable network?", "Network", MB_YESNO) == IDYES)

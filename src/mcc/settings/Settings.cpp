@@ -68,10 +68,10 @@ namespace MCC::Settings {
             json j;
             file >> j;
 
-            if (!j.contains("profile"))
+            if (!j.contains("profile_t"))
                 return false;
 
-            auto& p = j["profile"];
+            auto& p = j["profile_t"];
             for (int i = 0; i < 4; ++i) {
                 if (!p.contains(std::to_string(i)))
                     continue;
@@ -87,6 +87,7 @@ namespace MCC::Settings {
 
                 auto& prof = entry["profile"];
                 auto& dst = g_Profiles[i].profile;
+                auto& dst2 = g_Profiles[i].mapping;
 
                 dst.SubtitleSetting = prof.value("SubtitleSetting", dst.SubtitleSetting);
                 dst.SubtitleSizeSetting = prof.value("SubtitleSizeSetting", dst.SubtitleSizeSetting);
@@ -151,11 +152,16 @@ namespace MCC::Settings {
                 dst.PlayerModelTertiaryColor = prof.value("PlayerModelTertiaryColor", dst.PlayerModelTertiaryColor);
                 dst.SpartanPose = prof.value("SpartanPose", dst.SpartanPose);
                 dst.ElitePose = prof.value("ElitePose", dst.ElitePose);
-                //TODO: implement Skin_t property 
-                const std::string& s = prof["ServiceTag"].get<std::string>();
+                auto& skinArray = prof["Skins"];
+                for (size_t o = 0; o < skinArray.size() && o < 32; ++o) {
+                    auto& s = skinArray[o];
+                    dst.Skins[o].object = s.value("object", dst.Skins[o].object);
+                    dst.Skins[o].skin   = s.value("skin", dst.Skins[o].skin);
+                }
+                const std::string s = prof.value("ServiceTag", "");
                 wmemset(dst.ServiceTag, 0, 4);
                 if (!s.empty()) {
-                    mbstowcs(dst.ServiceTag, s.c_str(), 4);
+                    mbstowcs_s(nullptr, dst.ServiceTag, 4, s.c_str(), _TRUNCATE);
                 }
                 dst.OnlineMedalFlasher = prof.value("OnlineMedalFlasher", dst.OnlineMedalFlasher);
                 dst.VerticalLookSensitivity = prof.value("VerticalLookSensitivity", dst.VerticalLookSensitivity);
@@ -190,6 +196,67 @@ namespace MCC::Settings {
                 dst.ColorCorrection = prof.value("ColorCorrection", dst.ColorCorrection);
                 dst.EnemyPlayerNameColor = prof.value("EnemyPlayerNameColor", dst.EnemyPlayerNameColor);
                 dst.GameEngineTimer = prof.value("GameEngineTimer", dst.GameEngineTimer);
+                auto& loadoutArray = prof["LoadoutSlots"];
+                for (size_t o = 0; o < loadoutArray.size() && o < 5; ++o) {
+                    auto& slot = loadoutArray[o];
+                    dst.LoadoutSlots[o].TacticalPackageIndex    = slot.value("TacticalPackageIndex", dst.LoadoutSlots[o].TacticalPackageIndex);
+                    dst.LoadoutSlots[o].SupportUpgradeIndex     = slot.value("SupportUpgradeIndex", dst.LoadoutSlots[o].SupportUpgradeIndex);
+                    dst.LoadoutSlots[o].PrimaryWeaponIndex      = slot.value("PrimaryWeaponIndex", dst.LoadoutSlots[o].PrimaryWeaponIndex);
+                    dst.LoadoutSlots[o].SecondaryWeaponIndex    = slot.value("SecondaryWeaponIndex", dst.LoadoutSlots[o].SecondaryWeaponIndex);
+                    dst.LoadoutSlots[o].PrimaryWeaponVariantIndex   = slot.value("PrimaryWeaponVariantIndex", dst.LoadoutSlots[o].PrimaryWeaponVariantIndex);
+                    dst.LoadoutSlots[o].SecondaryWeaponVariantIndex = slot.value("SecondaryWeaponVariantIndex", dst.LoadoutSlots[o].SecondaryWeaponVariantIndex);
+                    dst.LoadoutSlots[o].EquipmentIndex          = slot.value("EquipmentIndex", dst.LoadoutSlots[o].EquipmentIndex);
+                    dst.LoadoutSlots[o].GrenadeIndex            = slot.value("GrenadeIndex", dst.LoadoutSlots[o].GrenadeIndex);
+                    std::string name = slot.value("Name", "");
+                    wmemset(dst.LoadoutSlots[o].Name, 0, 14);
+                    mbstowcs(dst.LoadoutSlots[o].Name, name.c_str(), 14);
+                }
+                std::string gs = prof.value("GameSpecific", std::string{});
+                std::memset(dst.GameSpecific, 0, sizeof(dst.GameSpecific));
+                std::strncpy(dst.GameSpecific, gs.c_str(), sizeof(dst.GameSpecific) - 1);
+                dst.MouseSensitivity = prof.value("MouseSensitivity", dst.MouseSensitivity);
+                dst.MouseSmoothing = prof.value("MouseSmoothing", dst.MouseSmoothing);
+                dst.MouseAcceleration = prof.value("MouseAcceleration", dst.MouseAcceleration);
+                dst.PixelPerfectHudScale = prof.value("PixelPerfectHudScale", dst.PixelPerfectHudScale);
+                dst.MouseAccelerationMinRate = prof.value("MouseAccelerationMinRate", dst.MouseAccelerationMinRate);
+                dst.MouseAccelerationMaxAccel = prof.value("MouseAccelerationMaxAccel", dst.MouseAccelerationMaxAccel);
+                dst.MouseAccelerationScale = prof.value("MouseAccelerationScale", dst.MouseAccelerationScale);
+                dst.MouseAccelerationExp = prof.value("MouseAccelerationExp", dst.MouseAccelerationExp);
+                dst.KeyboardMouseButtonPreset = prof.value("KeyboardMouseButtonPreset", dst.KeyboardMouseButtonPreset);
+                auto& mappings = prof["CustomKeyboardMouseMappingV2"];
+                for (size_t o = 0; o < mappings.size() && o < 66; ++o) {
+                    auto& srcMap = mappings[o];
+                    auto& dstMap = dst.CustomKeyboardMouseMappingV2[o];
+                    dstMap.AbstractButton = srcMap.value("AbstractButton", dstMap.AbstractButton);
+                    auto& keys = srcMap["VirtualKeyCodes"];
+                    for (size_t k = 0; k < keys.size() && k < 5; ++k) {
+                        dstMap.VirtualKeyCodes[k] = keys[k].get<int>();
+                    }
+                }
+                dst.MasterVolume = prof.value("MasterVolume", dst.MasterVolume);
+                dst.MusicVolume = prof.value("MusicVolume", dst.MusicVolume);
+                dst.SfxVolume = prof.value("SfxVolume", dst.SfxVolume);
+                std::string buf = prof.value("buffer4", std::string{});
+                std::memset(dst.buffer4, 0, sizeof(dst.buffer4));
+                std::strncpy(dst.buffer4, buf.c_str(), sizeof(dst.buffer4) - 1);
+                dst.Brightness = prof.value("Brightness", dst.Brightness);
+                auto& offsets = prof["WeaponDisplayOffset"];
+                for (size_t o = 0; o < offsets.size() && o < 5; ++o) {
+                    auto& off = offsets[o];
+                    dst.WeaponDisplayOffset[o].x = off.value("x", dst.WeaponDisplayOffset[o].x);
+                    dst.WeaponDisplayOffset[o].y = off.value("y", dst.WeaponDisplayOffset[o].y);
+                    dst.WeaponDisplayOffset[o].z = off.value("z", dst.WeaponDisplayOffset[o].z);
+                }
+                dst.ColorBlindMode = prof.value("ColorBlindMode", dst.ColorBlindMode);
+                dst.ColorBlindStrength = prof.value("ColorBlindStrength", dst.ColorBlindStrength);
+                dst.ColorBlindBrightness = prof.value("ColorBlindBrightness", dst.ColorBlindBrightness);
+                dst.ColorBlindContrast = prof.value("ColorBlindContrast", dst.ColorBlindContrast);
+                dst.RemasteredHUDSetting = prof.value("RemasteredHUDSetting", dst.RemasteredHUDSetting);
+                dst.HUDScale = prof.value("HUDScale", dst.HUDScale);
+                auto& actionsJson = entry["mapping"]["actions"];
+                for (size_t a = 0; a < actionsJson.size() && a < 66; ++a) {
+                    dst2.actions[a] = static_cast<CGamepadMapping::eButton>(actionsJson[a].get<int>());
+                }
             }
 
             return true;
@@ -235,7 +302,9 @@ namespace MCC::Settings {
                 wcstombs(name.data(), g_Profiles[i].name, len);
 
                 json prof;
+                json mapp;
                 auto& src = g_Profiles[i].profile;
+                auto& src2 = g_Profiles[i].mapping;
 
                 prof["SubtitleSetting"] = src.SubtitleSetting;
                 prof["SubtitleSizeSetting"] = src.SubtitleSizeSetting;
@@ -301,7 +370,14 @@ namespace MCC::Settings {
                 prof["PlayerModelTertiaryColor"] = src.PlayerModelTertiaryColor;
                 prof["SpartanPose"] = src.SpartanPose;
                 prof["ElitePose"] = src.ElitePose;
-                //TODO: implement Skin_t parameter
+                json skinArray = json::array();
+                for (int o = 0; o < 32; ++o) {
+                    json skin;
+                    skin["object"] = src.Skins[o].object;
+                    skin["skin"]   = src.Skins[o].skin;
+                    skinArray.push_back(skin);
+                }
+                prof["Skins"] = skinArray;
                 char buf[5] = {};
                 wcstombs(buf, src.ServiceTag, 4);
                 prof["ServiceTag"] = std::string(buf, strnlen(buf, 4));
@@ -338,12 +414,79 @@ namespace MCC::Settings {
                 prof["ColorCorrection"] = src.ColorCorrection;
                 prof["EnemyPlayerNameColor"] = src.EnemyPlayerNameColor;
                 prof["GameEngineTimer"] = src.GameEngineTimer;
+                json loadoutArray = json::array();
+                for (int o = 0; o < 5; ++o) {
+                    json slot;
+                    slot["TacticalPackageIndex"]    = src.LoadoutSlots[o].TacticalPackageIndex;
+                    slot["SupportUpgradeIndex"]     = src.LoadoutSlots[o].SupportUpgradeIndex;
+                    slot["PrimaryWeaponIndex"]      = src.LoadoutSlots[o].PrimaryWeaponIndex;
+                    slot["SecondaryWeaponIndex"]    = src.LoadoutSlots[o].SecondaryWeaponIndex;
+                    slot["PrimaryWeaponVariantIndex"]   = src.LoadoutSlots[o].PrimaryWeaponVariantIndex;
+                    slot["SecondaryWeaponVariantIndex"] = src.LoadoutSlots[o].SecondaryWeaponVariantIndex;
+                    slot["EquipmentIndex"]          = src.LoadoutSlots[o].EquipmentIndex;
+                    slot["GrenadeIndex"]            = src.LoadoutSlots[o].GrenadeIndex;
 
-                j["profile"][std::to_string(i)] = {
+                    char buf[15] = {};
+                    wcstombs(buf, src.LoadoutSlots[o].Name, 14);
+                    slot["Name"] = std::string(buf);
+
+                    loadoutArray.push_back(slot);
+                }
+                prof["LoadoutSlots"] = loadoutArray;
+                prof["GameSpecific"] = std::string(src.GameSpecific, strnlen(src.GameSpecific, sizeof(src.GameSpecific)));
+                prof["MouseSensitivity"] = src.MouseSensitivity;
+                prof["MouseSmoothing"] = src.MouseSmoothing;
+                prof["MouseAcceleration"] = src.MouseAcceleration;
+                prof["PixelPerfectHudScale"] = src.PixelPerfectHudScale;
+                prof["MouseAccelerationMinRate"] = src.MouseAccelerationMinRate;
+                prof["MouseAccelerationMaxAccel"] = src.MouseAccelerationMaxAccel;
+                prof["MouseAccelerationScale"] = src.MouseAccelerationScale;
+                prof["MouseAccelerationExp"] = src.MouseAccelerationExp;
+                prof["KeyboardMouseButtonPreset"] = src.KeyboardMouseButtonPreset;
+                json customKeyboardMouseMappingArray = json::array();
+                for (int o = 0; o < 66; ++o) {
+                    json cKMMObj;
+                    cKMMObj["AbstractButton"] = src.CustomKeyboardMouseMappingV2[o].AbstractButton;
+                    json virtualKeyCodesArray = json::array();
+                    for (int k = 0; k < 5; ++k) {
+                        virtualKeyCodesArray.push_back(src.CustomKeyboardMouseMappingV2[o].VirtualKeyCodes[k]);
+                    }
+                    cKMMObj["VirtualKeyCodes"] = virtualKeyCodesArray;
+                    customKeyboardMouseMappingArray.push_back(cKMMObj);
+                }
+                prof["CustomKeyboardMouseMappingV2"] = customKeyboardMouseMappingArray;
+                prof["MasterVolume"] = src.MasterVolume;
+                prof["MusicVolume"] = src.MusicVolume;
+                prof["SfxVolume"] = src.SfxVolume;
+                prof["buffer4"] = std::string(src.buffer4, strnlen(src.buffer4, sizeof(src.buffer4)));
+                prof["Brightness"] = src.Brightness;
+                json weaponDisplayOffsetArray = json::array();
+                for (int o = 0; o < 5; ++o) {
+                    json offset;
+                    offset["x"] = src.WeaponDisplayOffset[o].x;
+                    offset["y"] = src.WeaponDisplayOffset[o].y;
+                    offset["z"] = src.WeaponDisplayOffset[o].z;
+                    weaponDisplayOffsetArray.push_back(offset);
+                }
+                prof["WeaponDisplayOffset"] = weaponDisplayOffsetArray;
+                prof["ColorBlindMode"] = src.ColorBlindMode;
+                prof["ColorBlindStrength"] = src.ColorBlindStrength;
+                prof["ColorBlindBrightness"] = src.ColorBlindBrightness;
+                prof["ColorBlindContrast"] = src.ColorBlindContrast;
+                prof["RemasteredHUDSetting"] = src.RemasteredHUDSetting;
+                prof["HUDScale"] = src.HUDScale;
+                json mappingJson = json::array();
+                for (int a = 0; a < 66; ++a) {
+                    mappingJson.push_back(static_cast<int>(src2.actions[a]));
+                }
+                mapp["actions"] = mappingJson;
+
+                j["profile_t"][std::to_string(i)] = {
                     {"id", g_Profiles[i].id},
                     {"controller_index", g_Profiles[i].controller_index},
                     {"name", name},
-                    {"profile", prof}
+                    {"profile", prof},
+                    {"mapping", mapp}
                 };
             }
 
@@ -374,8 +517,9 @@ namespace MCC::Settings {
 
             dst->controller_index = src.controller_index;
             dst->id = src.id;
-            wcscpy_s(dst->name, src.name);
+            wcscpy_s(dst->name, _countof(dst->name), src.name);
             dst->profile = src.profile;
+            dst->mapping = src.mapping;
         }
     }
 
@@ -399,7 +543,26 @@ namespace MCC::Settings {
             dst.controller_index = src->controller_index;
             dst.id = src->id;
             wcscpy_s(dst.name, src->name);
-            dst.profile = src->profile;
+            memcpy(&dst.profile, &src->profile, sizeof(dst.profile));
+            memcpy(&dst.mapping, &src->mapping, sizeof(dst.mapping));
         }
     }
+
+    void Profile::Initialize(CGameManager* mng)
+    {
+        pGameManager = mng;
+
+        for (int i = 0; i < 4; ++i)
+        {
+            //sets up id, controller_index, name, profile and mapping
+            auto& dst = g_Profiles[i];
+            auto runtime = CGameManager::get_profile(i);
+
+            dst.controller_index = runtime->controller_index;
+            dst.id = runtime->id;
+            wcscpy_s(dst.name, _countof(dst.name), runtime-> name);
+            __int64 xuid = CGameManager::get_xuid(i);
+        }
+    }
+
 }

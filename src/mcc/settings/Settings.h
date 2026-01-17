@@ -29,5 +29,6 @@ namespace MCC::Settings {
 
         void ApplyToRuntime();
         void CaptureFromRuntime();
+        void Initialize(CGameManager* mng);
     }
 }
