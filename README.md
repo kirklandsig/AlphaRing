@@ -72,6 +72,31 @@ For Running on Steam Deck/Linux, add the following command in the Steam Game Lau
 WINEDLLOVERRIDES="WTSAPI32=n,b" %command%
 ```
 
+#### Batocera Linux
+
+For Batocera Linux users, additional setup is required:
+
+1. **Download Proton GE**: Get the latest `tar.gz` from the [Proton GE releases page](https://github.com/GloriousEggroll/proton-ge-custom/releases) (Proton GE 10-15 or newer recommended)
+
+2. **Install Proton GE**: Unpack the archive to your Steam compatibility tools folder:
+   ```
+   ~/.steam/root/compatibilitytools.d/
+   ```
+
+3. **Restart Steam**: Close and reopen the Steam client for it to detect the new Proton version
+
+4. **Configure the game**:
+   - Right-click MCC → Properties → Compatibility
+   - Enable "Force the use of a specific Steam Play compatibility tool"
+   - Select **Proton GE 10-15** (or your installed version)
+
+5. **Set launch options**: Add the following to Steam Launch Options:
+   ```
+   WINEDLLOVERRIDES="WTSAPI32=n,b" %command%
+   ```
+
+> **Note:** The unofficial Batocera add-ons version of the Steam client has been tested and works with this setup.
+
 ### Usage
 Toggle menu: `F4` or `Controller Back` + `Controller Start`
 
