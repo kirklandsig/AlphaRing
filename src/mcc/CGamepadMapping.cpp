@@ -86,7 +86,10 @@ const std::array<const char *, 66>* CGamepadMapping::ActionNames() {return &acti
 
 #include <imgui.h>
 #include <cstdio>
+#include <string>
+#include <vector>
 #include "input/Input.h"
+#include "mcc/settings/Settings.h"
 
 // Detect which button is currently pressed on a controller
 static int DetectPressedButton(int controllerIndex) {
@@ -127,6 +130,86 @@ void CGamepadMapping::ImGuiContext() {
     ImGui::PushItemWidth(150);
     ImGui::Combo("Bind Controller", &binding_controller, "Controller 1\0Controller 2\0Controller 3\0Controller 4\0");
     ImGui::PopItemWidth();
+    ImGui::Separator();
+
+    // Custom Profile Management
+    static std::vector<std::string> profile_names;
+    static int selected_profile = -1;
+    static char new_profile_name[64] = "";
+    static bool show_save_input = false;
+    static bool needs_refresh = true;
+
+    // Refresh profile list when needed
+    if (needs_refresh) {
+        profile_names = MCC::Settings::CustomMapping::GetProfileNames();
+        needs_refresh = false;
+        // Reset selection if out of bounds
+        if (selected_profile >= (int)profile_names.size()) {
+            selected_profile = profile_names.empty() ? -1 : 0;
+        }
+    }
+
+    ImGui::Text("Custom Profiles:");
+
+    // Profile dropdown
+    ImGui::PushItemWidth(200);
+    const char* preview = (selected_profile >= 0 && selected_profile < (int)profile_names.size())
+        ? profile_names[selected_profile].c_str()
+        : "-- Select Profile --";
+
+    if (ImGui::BeginCombo("##CustomProfile", preview)) {
+        for (int i = 0; i < (int)profile_names.size(); ++i) {
+            bool is_selected = (selected_profile == i);
+            if (ImGui::Selectable(profile_names[i].c_str(), is_selected)) {
+                selected_profile = i;
+            }
+            if (is_selected) {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+    ImGui::PopItemWidth();
+
+    ImGui::SameLine();
+    if (ImGui::Button("Load") && selected_profile >= 0 && selected_profile < (int)profile_names.size()) {
+        if (MCC::Settings::CustomMapping::LoadProfile(profile_names[selected_profile], *this)) {
+            result = true;
+        }
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Delete") && selected_profile >= 0 && selected_profile < (int)profile_names.size()) {
+        MCC::Settings::CustomMapping::DeleteProfile(profile_names[selected_profile]);
+        needs_refresh = true;
+        selected_profile = -1;
+    }
+
+    // Save new profile section
+    if (!show_save_input) {
+        if (ImGui::Button("Save as New Profile...")) {
+            show_save_input = true;
+            new_profile_name[0] = '\0';
+        }
+    } else {
+        ImGui::PushItemWidth(200);
+        ImGui::InputText("##NewProfileName", new_profile_name, sizeof(new_profile_name));
+        ImGui::PopItemWidth();
+
+        ImGui::SameLine();
+        if (ImGui::Button("Save") && new_profile_name[0] != '\0') {
+            if (MCC::Settings::CustomMapping::SaveProfile(new_profile_name, *this)) {
+                needs_refresh = true;
+                show_save_input = false;
+            }
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel##SaveCancel")) {
+            show_save_input = false;
+        }
+    }
+
     ImGui::Separator();
 
     // Check for button press if binding is active

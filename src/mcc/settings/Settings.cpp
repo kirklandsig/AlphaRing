@@ -685,4 +685,143 @@ namespace MCC::Settings {
         }
     }
 
+    // Custom Mapping Profiles
+    static fs::path GetCustomMappingsPath() {
+        char exePath[MAX_PATH] = {0};
+        if (!GetModuleFileNameA(nullptr, exePath, MAX_PATH))
+            return "custom_mappings.json";
+
+        fs::path dir = fs::path(exePath).parent_path();
+        return dir / "custom_mappings.json";
+    }
+
+    std::vector<std::string> CustomMapping::GetProfileNames() {
+        std::vector<std::string> names;
+        fs::path path = GetCustomMappingsPath();
+
+        if (!fs::exists(path))
+            return names;
+
+        std::ifstream file(path);
+        if (!file.is_open())
+            return names;
+
+        try {
+            json j;
+            file >> j;
+
+            if (j.contains("profiles") && j["profiles"].is_object()) {
+                for (auto& [key, value] : j["profiles"].items()) {
+                    names.push_back(key);
+                }
+            }
+        } catch (...) {
+            // Invalid JSON, return empty
+        }
+
+        return names;
+    }
+
+    bool CustomMapping::SaveProfile(const std::string& name, const CGamepadMapping& mapping) {
+        fs::path path = GetCustomMappingsPath();
+
+        json j;
+        // Load existing if present
+        if (fs::exists(path)) {
+            std::ifstream file(path);
+            if (file.is_open()) {
+                try {
+                    file >> j;
+                } catch (...) {
+                    j = json::object();
+                }
+            }
+        }
+
+        // Ensure profiles object exists
+        if (!j.contains("profiles") || !j["profiles"].is_object()) {
+            j["profiles"] = json::object();
+        }
+
+        // Save the mapping actions array
+        json actionsArray = json::array();
+        for (int i = 0; i < 66; ++i) {
+            actionsArray.push_back(static_cast<int>(mapping.actions[i]));
+        }
+
+        j["profiles"][name] = {
+            {"actions", actionsArray}
+        };
+
+        std::ofstream file(path, std::ios::trunc);
+        if (!file.is_open())
+            return false;
+
+        file << j.dump(4);
+        return true;
+    }
+
+    bool CustomMapping::LoadProfile(const std::string& name, CGamepadMapping& mapping) {
+        fs::path path = GetCustomMappingsPath();
+
+        if (!fs::exists(path))
+            return false;
+
+        std::ifstream file(path);
+        if (!file.is_open())
+            return false;
+
+        try {
+            json j;
+            file >> j;
+
+            if (!j.contains("profiles") || !j["profiles"].contains(name))
+                return false;
+
+            auto& profile = j["profiles"][name];
+            if (!profile.contains("actions"))
+                return false;
+
+            auto& actionsArray = profile["actions"];
+            for (size_t i = 0; i < actionsArray.size() && i < 66; ++i) {
+                mapping.actions[i] = static_cast<CGamepadMapping::eButton>(actionsArray[i].get<int>());
+            }
+
+            return true;
+        } catch (...) {
+            return false;
+        }
+    }
+
+    bool CustomMapping::DeleteProfile(const std::string& name) {
+        fs::path path = GetCustomMappingsPath();
+
+        if (!fs::exists(path))
+            return false;
+
+        std::ifstream infile(path);
+        if (!infile.is_open())
+            return false;
+
+        json j;
+        try {
+            infile >> j;
+        } catch (...) {
+            return false;
+        }
+        infile.close();
+
+        if (!j.contains("profiles") || !j["profiles"].contains(name))
+            return false;
+
+        j["profiles"].erase(name);
+
+        std::ofstream outfile(path, std::ios::trunc);
+        if (!outfile.is_open())
+            return false;
+
+        outfile << j.dump(4);
+        return true;
+    }
+
 }
