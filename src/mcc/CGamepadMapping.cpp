@@ -252,7 +252,7 @@ void CGamepadMapping::ImGuiContext() {
     for (int i = 0; i < action_names.size(); ++i) {
         auto name = action_names.at(i);
         if (name == nullptr) {
-            sprintf(buffer, "Action %d", i);
+            snprintf(buffer, sizeof(buffer), "Action %d", i);
             name = buffer;
         }
 
@@ -264,7 +264,7 @@ void CGamepadMapping::ImGuiContext() {
             ImGui::SameLine();
             ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Press button...");
             ImGui::SameLine();
-            sprintf(buffer, "Cancel##%d", i);
+            snprintf(buffer, sizeof(buffer), "Cancel##%d", i);
             if (ImGui::Button(buffer)) {
                 binding_action = -1;
             }
@@ -281,7 +281,7 @@ void CGamepadMapping::ImGuiContext() {
             ImGui::PopItemWidth();
 
             ImGui::SameLine();
-            sprintf(buffer, "Bind##%d", i);
+            snprintf(buffer, sizeof(buffer), "Bind##%d", i);
             if (ImGui::Button(buffer) && binding_action < 0) {
                 binding_action = i;
             }

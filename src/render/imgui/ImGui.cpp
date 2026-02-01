@@ -84,7 +84,8 @@ namespace AlphaRing::Render::ImGui {
 
 
         if (inGame && pGameGlobal != nullptr) {
-            if (pGameGlobal->current_game != 0)
+            // Bounds check: pages array has 7 elements (indices 0-6)
+            if (pGameGlobal->current_game > 0 && pGameGlobal->current_game < 7)
             {
                 auto context = pages[pGameGlobal->current_game];
                 if (context != nullptr)
