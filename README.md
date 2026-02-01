@@ -1,4 +1,48 @@
-## Alpha Ring
+# AlphaRing - kirklandsig Fork
+
+> **This is a personal fork of [thejackbitt/AlphaRing](https://github.com/thejackbitt/AlphaRing) for testing and development.**
+>
+> **Based on:** JackBitt's AlphaRing v1.2.1 (commit `bdad7eb`)
+>
+> For the original project, see [WinterSquire/AlphaRing](https://github.com/WinterSquire/AlphaRing)
+
+---
+
+## What's New in This Fork
+
+### Features Added
+
+#### 1. Controller-to-Player Binding (Splitscreen)
+- Each player now has a **"Bind" button** next to the controller dropdown
+- Click "Bind" → Press any button on a controller → Automatically assigns that controller to the player
+- No more guessing which controller is "Controller 1" vs "Controller 2"
+
+#### 2. Button-to-Action Binding (Gamepad Mapping)
+- Each action in the Gamepad Mapping section has a **"Bind" button**
+- Click "Bind" → Press a button → That button is assigned to the action
+
+#### 3. Fixed Default Gamepad Mappings
+- **Bug fixed:** Previously, all actions defaulted to "Left Trigger" due to uninitialized memory
+- **Now:** New profiles initialize with standard Xbox Halo controls:
+
+| Action | Button |
+|--------|--------|
+| Jump | A |
+| Melee | B |
+| Action/Interact | X |
+| Change Weapon | Y |
+| Reload | RB |
+| Switch Grenades | LB |
+| Shoot | RT |
+| Throw Grenade | LT |
+| Flashlight | D-pad Up |
+| Crouch | Left Stick Click |
+| Zoom | Right Stick Click |
+
+---
+
+## Original Alpha Ring
+
 A Modding Tool for MCC
 
 [![Build status](https://ci.appveyor.com/api/projects/status/o3qbtc7jirw81xmb?svg=true)](https://ci.appveyor.com/project/WinterSquire/alpharing)
@@ -19,12 +63,12 @@ A Modding Tool for MCC
 ### Installation
 Make sure you have the latest [Microsoft Visual C++ Redistributable](https://aka.ms/vs/17/release/vc_redist.x64.exe) installed.
 
-Download the latest stable build from the [Releases](https://github.com/WinterSquire/AlphaRing/releases) page.
+Download the latest stable build from the [Releases](https://github.com/kirklandsig/AlphaRing/releases) page.
 
 Place the DLL into the "Halo The Master Chief Collection\mcc\binaries\win64" directory and launch the game with EAC off.
 
 For Running on Steam Deck/Linux, add the following command in the Steam Game Launch Options:
-``` 
+```
 WINEDLLOVERRIDES="WTSAPI32=n,b" %command%
 ```
 
@@ -35,10 +79,32 @@ To navigate using Controller use the `Right Stick` to move the mouse and `RB` to
 
 When the menu is open, game input is disabled.
 
-### Bugs Report
-Submit it in the [Issues](https://github.com/WinterSquire/AlphaRing/issues) page.
+---
 
-### Credits
+## Building from Source
+
+### Prerequisites
+- Visual Studio 2022 Build Tools
+- CMake 3.27+
+
+### Build Commands
+```bash
+# First time setup
+mkdir build && cd build
+cmake .. -G "Visual Studio 17 2022" -A x64
+
+# Build
+"C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/MSBuild/Current/Bin/MSBuild.exe" WTSAPI32.vcxproj -p:Configuration=Release -p:Platform=x64
+```
+
+Output: `build/Release/WTSAPI32.dll`
+
+---
+
+## Credits
+- **Original AlphaRing:** [WinterSquire](https://github.com/WinterSquire/AlphaRing)
+- **Profile Tweaks Fork:** [thejackbitt](https://github.com/thejackbitt/AlphaRing)
+- **This Fork:** kirklandsig (controller binding features)
 - [Assembly](https://github.com/XboxChaos/Assembly) for the tag group research.
 - [Blender](https://github.com/blender/blender) for the bezier curve calculation.
 - [Priception](https://github.com/Priception) for adding UI controller support and helping with the interface and crash issue.
