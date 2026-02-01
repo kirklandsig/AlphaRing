@@ -76,7 +76,7 @@ WINEDLLOVERRIDES="WTSAPI32=n,b" %command%
 
 For Batocera Linux users, additional setup is required:
 
-1. **Download Proton GE**: Get the latest `tar.gz` from the [Proton GE releases page](https://github.com/GloriousEggroll/proton-ge-custom/releases) (Proton GE 10-15 or newer recommended)
+1. **Download Proton GE**: Get the latest `tar.gz` from the [Proton GE releases page](https://github.com/GloriousEggroll/proton-ge-custom/releases) (Proton GE 10-15 recommended)
 
 2. **Install Proton GE**: Unpack the archive to your Steam compatibility tools folder:
    ```
