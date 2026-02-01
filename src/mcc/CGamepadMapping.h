@@ -16,6 +16,7 @@ struct CGamepadMapping {
     eButton actions[66];
 
     void ImGuiContext();
+    void ResetToDefaults();
 
     static const std::array<const char*, 17>* ButtonNames();
     static const std::array<const char*, 66>* ActionNames();

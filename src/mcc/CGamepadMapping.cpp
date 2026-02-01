@@ -84,6 +84,27 @@ const std::array<const char *, 17>* CGamepadMapping::ButtonNames() {return &butt
 
 const std::array<const char *, 66>* CGamepadMapping::ActionNames() {return &action_names;}
 
+void CGamepadMapping::ResetToDefaults() {
+    // Set all to None (unbound) first
+    for (int i = 0; i < 66; i++) {
+        actions[i] = None;
+    }
+
+    // Standard Xbox Halo controls
+    actions[0]  = A;             // Jump
+    actions[1]  = LeftShoulder;  // Switch Grenades
+    actions[2]  = X;             // Action/Interact
+    actions[3]  = RightShoulder; // Reload Right Weapon
+    actions[4]  = Y;             // Change Weapon
+    actions[5]  = B;             // Melee
+    actions[6]  = DpadUp;        // Toggle Flashlight
+    actions[7]  = LeftTrigger;   // Throw Grenade
+    actions[8]  = RightTrigger;  // Use Right Weapon (Shoot)
+    actions[9]  = LeftThumb;     // Crouch
+    actions[10] = RightThumb;    // Player Zoom
+    actions[20] = Back;          // Multiplayer Scoreboard
+}
+
 #include <imgui.h>
 #include <cstdio>
 #include <string>
@@ -190,6 +211,12 @@ void CGamepadMapping::ImGuiContext() {
         if (ImGui::Button("Save as New Profile...")) {
             show_save_input = true;
             new_profile_name[0] = '\0';
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button("Reset to Defaults")) {
+            ResetToDefaults();
+            result = true;
         }
     } else {
         ImGui::PushItemWidth(200);
