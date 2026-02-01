@@ -85,25 +85,94 @@ const std::array<const char *, 66>* CGamepadMapping::ActionNames() {return &acti
 
 #include <imgui.h>
 #include <cstdio>
+#include "input/Input.h"
+
+// Detect which button is currently pressed on a controller
+static int DetectPressedButton(int controllerIndex) {
+    XINPUT_STATE state;
+    if (!AlphaRing::Input::GetXInputGetState(controllerIndex, &state))
+        return -1;
+
+    // Check triggers first
+    if (state.Gamepad.bLeftTrigger > 30) return CGamepadMapping::LeftTrigger;
+    if (state.Gamepad.bRightTrigger > 30) return CGamepadMapping::RightTrigger;
+
+    // Check buttons
+    if (state.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_UP) return CGamepadMapping::DpadUp;
+    if (state.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN) return CGamepadMapping::DpadDown;
+    if (state.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_LEFT) return CGamepadMapping::DpadLeft;
+    if (state.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT) return CGamepadMapping::DpadRight;
+    if (state.Gamepad.wButtons & XINPUT_GAMEPAD_START) return CGamepadMapping::Start;
+    if (state.Gamepad.wButtons & XINPUT_GAMEPAD_BACK) return CGamepadMapping::Back;
+    if (state.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_THUMB) return CGamepadMapping::LeftThumb;
+    if (state.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_THUMB) return CGamepadMapping::RightThumb;
+    if (state.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER) return CGamepadMapping::LeftShoulder;
+    if (state.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER) return CGamepadMapping::RightShoulder;
+    if (state.Gamepad.wButtons & XINPUT_GAMEPAD_A) return CGamepadMapping::A;
+    if (state.Gamepad.wButtons & XINPUT_GAMEPAD_B) return CGamepadMapping::B;
+    if (state.Gamepad.wButtons & XINPUT_GAMEPAD_X) return CGamepadMapping::X;
+    if (state.Gamepad.wButtons & XINPUT_GAMEPAD_Y) return CGamepadMapping::Y;
+
+    return -1;
+}
 
 void CGamepadMapping::ImGuiContext() {
-    char buffer[10];
+    char buffer[64];
     bool result = false;
+    static int binding_action = -1;  // Which action is being bound (-1 = none)
+    static int binding_controller = 0;  // Which controller to listen to
+
+    // Controller selector for binding
+    ImGui::PushItemWidth(150);
+    ImGui::Combo("Bind Controller", &binding_controller, "Controller 1\0Controller 2\0Controller 3\0Controller 4\0");
+    ImGui::PopItemWidth();
+    ImGui::Separator();
+
+    // Check for button press if binding is active
+    if (binding_action >= 0) {
+        int pressed = DetectPressedButton(binding_controller);
+        if (pressed >= 0) {
+            actions[binding_action] = static_cast<CGamepadMapping::eButton>(pressed);
+            binding_action = -1;
+            result = true;
+        }
+    }
 
     for (int i = 0; i < action_names.size(); ++i) {
         auto name = action_names.at(i);
         if (name == nullptr) {
-            sprintf(buffer, "Button %d", i);
+            sprintf(buffer, "Action %d", i);
             name = buffer;
         }
 
-        ImGui::PushItemWidth(200);
-        int value = actions[i];
-        if (ImGui::Combo(name, &value, button_names.data(), button_names.size())) {
-            actions[i] = static_cast<CGamepadMapping::eButton>(value);
-            result = true;
+        bool is_binding = (binding_action == i);
+
+        if (is_binding) {
+            // Show binding prompt
+            ImGui::Text("%s:", name);
+            ImGui::SameLine();
+            ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Press button...");
+            ImGui::SameLine();
+            sprintf(buffer, "Cancel##%d", i);
+            if (ImGui::Button(buffer)) {
+                binding_action = -1;
+            }
+        } else {
+            // Show current binding with dropdown and bind button
+            ImGui::PushItemWidth(150);
+            int value = actions[i];
+            if (ImGui::Combo(name, &value, button_names.data(), button_names.size())) {
+                actions[i] = static_cast<CGamepadMapping::eButton>(value);
+                result = true;
+            }
+            ImGui::PopItemWidth();
+
+            ImGui::SameLine();
+            sprintf(buffer, "Bind##%d", i);
+            if (ImGui::Button(buffer) && binding_action < 0) {
+                binding_action = i;
+            }
         }
-        ImGui::PopItemWidth();
     }
 
     if (result) {

@@ -10,6 +10,44 @@ static struct ProfileContainer_t {CGameManager::Profile_t profiles[4]; ProfileCo
 
 CGameManager::Profile_t* CGameManager::get_profile(int index) {return container.profiles + index;}
 
+// Initialize default Xbox controller mapping for standard Halo controls
+static void InitializeDefaultMapping(CGamepadMapping& mapping) {
+    // Set all to a safe default first (RightTrigger for unmapped actions)
+    for (int i = 0; i < 66; i++) {
+        mapping.actions[i] = CGamepadMapping::RightTrigger;
+    }
+
+    // Standard Xbox Halo controls
+    mapping.actions[0]  = CGamepadMapping::A;             // Jump
+    mapping.actions[1]  = CGamepadMapping::LeftShoulder;  // Switch Grenades
+    mapping.actions[2]  = CGamepadMapping::X;             // Action/Interact
+    mapping.actions[3]  = CGamepadMapping::RightShoulder; // Reload Right Weapon
+    mapping.actions[4]  = CGamepadMapping::Y;             // Change Weapon
+    mapping.actions[5]  = CGamepadMapping::B;             // Melee
+    mapping.actions[6]  = CGamepadMapping::DpadUp;        // Toggle Flashlight
+    mapping.actions[7]  = CGamepadMapping::LeftTrigger;   // Throw Grenade
+    mapping.actions[8]  = CGamepadMapping::RightTrigger;  // Use Right Weapon (Shoot)
+    mapping.actions[9]  = CGamepadMapping::LeftThumb;     // Crouch
+    mapping.actions[10] = CGamepadMapping::RightThumb;    // Player Zoom
+    // 11, 12 are nullptr/unused
+    mapping.actions[13] = CGamepadMapping::RightShoulder; // Swap/Reload Left Weapon
+    mapping.actions[14] = CGamepadMapping::LeftThumb;     // Sprint (click left stick)
+    mapping.actions[15] = CGamepadMapping::B;             // Banshee Bomb
+    // 16-19 are movement (handled by sticks, not buttons)
+    mapping.actions[20] = CGamepadMapping::Back;          // Multiplayer Scoreboard
+    mapping.actions[21] = CGamepadMapping::DpadDown;      // Vehicle Function 2
+    mapping.actions[22] = CGamepadMapping::DpadLeft;      // Vehicle Function 3
+    mapping.actions[23] = CGamepadMapping::RightShoulder; // Use Equipment
+    mapping.actions[24] = CGamepadMapping::DpadRight;     // Vehicle Function 1
+    mapping.actions[27] = CGamepadMapping::X;             // Drop/Pickup
+    mapping.actions[28] = CGamepadMapping::A;             // Thrust
+    mapping.actions[49] = CGamepadMapping::LeftTrigger;   // Use Left Weapon
+    mapping.actions[57] = CGamepadMapping::X;             // Special Action
+    mapping.actions[58] = CGamepadMapping::Y;             // Open Loadouts Menu
+    mapping.actions[64] = CGamepadMapping::DpadLeft;      // Select Previous Grenades
+    mapping.actions[65] = CGamepadMapping::DpadRight;     // Select Next Grenades
+}
+
 ProfileContainer_t::ProfileContainer_t() {
     __int64 guid[2];
     const int controller_map[4] {0, 1, 2, 3};
@@ -22,6 +60,9 @@ ProfileContainer_t::ProfileContainer_t() {
         profiles[i].controller_index = controller_map[i];
         profiles[i].id = id + i;
         swprintf(profiles[i].name, L"Player %d", i + 1);
+
+        // Initialize with standard Xbox Halo controls
+        InitializeDefaultMapping(profiles[i].mapping);
     }
 }
 
