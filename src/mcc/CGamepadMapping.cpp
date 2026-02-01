@@ -1,13 +1,14 @@
 #include "CGamepadMapping.h"
 #include "CGameEngine.h"
 
-static std::array<const char*, 16> button_names {
+static std::array<const char*, 17> button_names {
         "Left Trigger","Right Trigger",
         "Dpad Up","Dpad Down","Dpad Left","Dpad Right",
         "Start","Back",
         "Left Thumb","Right Thumb",
         "Left Shoulder","Right Shoulder",
-        "A","B","X","Y"
+        "A","B","X","Y",
+        "None"  // Unbound
 };
 
 static std::array<const char*, 66> action_names {
@@ -79,7 +80,7 @@ static std::array<const char*, 66> action_names {
         "Select Next Grenades",
 };
 
-const std::array<const char *, 16>* CGamepadMapping::ButtonNames() {return &button_names;}
+const std::array<const char *, 17>* CGamepadMapping::ButtonNames() {return &button_names;}
 
 const std::array<const char *, 66>* CGamepadMapping::ActionNames() {return &action_names;}
 
@@ -160,9 +161,11 @@ void CGamepadMapping::ImGuiContext() {
         } else {
             // Show current binding with dropdown and bind button
             ImGui::PushItemWidth(150);
-            int value = actions[i];
+            // Convert None (-1) to index 16 for dropdown display
+            int value = (actions[i] == CGamepadMapping::None) ? 16 : static_cast<int>(actions[i]);
             if (ImGui::Combo(name, &value, button_names.data(), button_names.size())) {
-                actions[i] = static_cast<CGamepadMapping::eButton>(value);
+                // Convert index 16 back to None (-1) for storage
+                actions[i] = (value == 16) ? CGamepadMapping::None : static_cast<CGamepadMapping::eButton>(value);
                 result = true;
             }
             ImGui::PopItemWidth();
