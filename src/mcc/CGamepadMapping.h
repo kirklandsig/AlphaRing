@@ -9,13 +9,14 @@ struct CGamepadMapping {
         Start, Back,
         LeftThumb, RightThumb,
         LeftShoulder, RightShoulder,
-        A, B, X, Y
+        A, B, X, Y,
+        None = -1  // Unbound - no button assigned
     };
 
     eButton actions[66];
 
     void ImGuiContext();
 
-    static const std::array<const char*, 16>* ButtonNames();
+    static const std::array<const char*, 17>* ButtonNames();
     static const std::array<const char*, 66>* ActionNames();
 };
