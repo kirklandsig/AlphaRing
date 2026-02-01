@@ -95,6 +95,12 @@ For Batocera Linux users, additional setup is required:
    WINEDLLOVERRIDES="WTSAPI32=n,b" %command%
    ```
 
+6. **Controller Setup (Important for non-Xbox controllers)**:
+   - For 8BitDo and other third-party controllers, enable **Steam Input** for the controller
+   - Go to Steam → Settings → Controller → Enable "Xbox Configuration Support"
+   - This allows Steam to translate your controller inputs to XInput, which MCC and AlphaRing expect
+   - Without this, some buttons (like A or stick clicks) may not be detected
+
 > **Note:** The unofficial Batocera add-ons version of the Steam client has been tested and works with this setup.
 
 ### Usage
