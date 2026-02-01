@@ -51,8 +51,8 @@ namespace AlphaRing::Hook {
 					return true;
             }
 
-            sprintf(buffer, "Version mismatch [%s]:%s", GAME_VERSION, version.toString().c_str());
-            MessageBoxA(nullptr, buffer, "Error", MB_OK);
+            // Use logging instead of MessageBox for Wine/Proton compatibility
+            LOG_ERROR("Version mismatch - Expected [{}], Got [{}]", GAME_VERSION, version.toString());
             return false;
         }
 

@@ -8,7 +8,12 @@
 
 static struct ProfileContainer_t {CGameManager::Profile_t profiles[4]; ProfileContainer_t();} container;
 
-CGameManager::Profile_t* CGameManager::get_profile(int index) {return container.profiles + index;}
+CGameManager::Profile_t* CGameManager::get_profile(int index) {
+    // Bounds check to prevent out-of-bounds access
+    if (index < 0 || index >= 4)
+        return nullptr;
+    return container.profiles + index;
+}
 
 // Initialize default Xbox controller mapping for standard Halo controls
 static void InitializeDefaultMapping(CGamepadMapping& mapping) {
@@ -70,6 +75,10 @@ bool CGameManager::Initialize(CGameManager* mng) {
 __int64 CGameManager::get_xuid(int index) {
     __int64 result;
 
+    // Bounds check
+    if (index < 0 || index >= 4)
+        return 0;
+
     if (index)
         return container.profiles[index].id;
     else
@@ -79,12 +88,18 @@ __int64 CGameManager::get_xuid(int index) {
 CInputDevice *CGameManager::get_controller(int index) {
     auto mng = DeviceManager();
     auto setting = AlphaRing::Global::MCC::Splitscreen();
-    auto controller_index = get_profile(index)->controller_index;
+    auto profile = get_profile(index);
+
+    // Null checks to prevent crashes
+    if (mng == nullptr || setting == nullptr || profile == nullptr)
+        return nullptr;
+
+    auto controller_index = profile->controller_index;
 
     if ((!index && setting->b_player0_use_km) || controller_index >= 4 || controller_index < 0)
         return nullptr;
-    else
-        return mng->p_input_device[controller_index];
+
+    return mng->p_input_device[controller_index];
 }
 
 int CGameManager::get_index(__int64 xuid) {
