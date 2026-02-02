@@ -839,4 +839,505 @@ namespace MCC::Settings {
         return true;
     }
 
+    // Custom Profile Presets (armor, colors, sensitivities, etc.)
+    static fs::path GetCustomProfilesPath() {
+        char exePath[MAX_PATH] = {0};
+        if (!GetModuleFileNameA(nullptr, exePath, MAX_PATH))
+            return "custom_profiles.json";
+
+        fs::path dir = fs::path(exePath).parent_path();
+        return dir / "custom_profiles.json";
+    }
+
+    std::vector<std::string> CustomProfile::GetProfileNames() {
+        std::vector<std::string> names;
+        fs::path path = GetCustomProfilesPath();
+
+        if (!fs::exists(path))
+            return names;
+
+        std::ifstream file(path);
+        if (!file.is_open())
+            return names;
+
+        try {
+            json j;
+            file >> j;
+
+            if (j.contains("profiles") && j["profiles"].is_object()) {
+                for (auto& [key, value] : j["profiles"].items()) {
+                    names.push_back(key);
+                }
+            }
+        } catch (...) {
+            // Invalid JSON, return empty
+        }
+
+        return names;
+    }
+
+    bool CustomProfile::SaveProfile(const std::string& name, const CUserProfile& src) {
+        fs::path path = GetCustomProfilesPath();
+
+        json j;
+        // Load existing if present
+        if (fs::exists(path)) {
+            std::ifstream file(path);
+            if (file.is_open()) {
+                try {
+                    file >> j;
+                } catch (...) {
+                    j = json::object();
+                }
+            }
+        }
+
+        // Ensure profiles object exists
+        if (!j.contains("profiles") || !j["profiles"].is_object()) {
+            j["profiles"] = json::object();
+        }
+
+        // Build profile JSON
+        json prof;
+
+        prof["SubtitleSetting"] = src.SubtitleSetting;
+        prof["SubtitleSizeSetting"] = src.SubtitleSizeSetting;
+        prof["SubtitleBackgroundSetting"] = src.SubtitleBackgroundSetting;
+        prof["SubtitleShadowColorSetting"] = src.SubtitleShadowColorSetting;
+        prof["DialogueColorStyleSetting"] = src.DialogueColorStyleSetting;
+        prof["DialogueColorSetting"] = src.DialogueColorSetting;
+        prof["DialoguePaletteSetting"] = src.DialoguePaletteSetting;
+        prof["SpeakerSetting"] = src.SpeakerSetting;
+        prof["SpeakerColorStyleSetting"] = src.SpeakerColorStyleSetting;
+        prof["SpeakerColorSetting"] = src.SpeakerColorSetting;
+        prof["SpeakerPaletteSetting"] = src.SpeakerPaletteSetting;
+        prof["SubtitleFontSetting"] = src.SubtitleFontSetting;
+        prof["SubtitleBackgroundOpacitySetting"] = src.SubtitleBackgroundOpacitySetting;
+        prof["SubtitleShadowOpacitySetting"] = src.SubtitleShadowOpacitySetting;
+        prof["FOVSetting"] = src.FOVSetting;
+        prof["VehicleFOVSetting"] = src.VehicleFOVSetting;
+        prof["CrosshairLocation"] = src.CrosshairLocation;
+        prof["LookControlsInverted"] = src.LookControlsInverted;
+        prof["MouseLookControlsInverted"] = src.MouseLookControlsInverted;
+        prof["VibrationDisabled"] = src.VibrationDisabled;
+        prof["ImpulseTriggersDisabled"] = src.ImpulseTriggersDisabled;
+        prof["AircraftControlsInverted"] = src.AircraftControlsInverted;
+        prof["MouseAircraftControlsInverted"] = src.MouseAircraftControlsInverted;
+        prof["AutoCenterEnabled"] = src.AutoCenterEnabled;
+        prof["CrouchLockEnabled"] = src.CrouchLockEnabled;
+        prof["MKCrouchLockEnabled"] = src.MKCrouchLockEnabled;
+        prof["ClenchProtectionEnabled"] = src.ClenchProtectionEnabled;
+        prof["UseFemaleVoice"] = src.UseFemaleVoice;
+        prof["HoldToZoom"] = src.HoldToZoom;
+        prof["PlayerModelPrimaryColorIndex"] = src.PlayerModelPrimaryColorIndex;
+        prof["PlayerModelSecondaryColorIndex"] = src.PlayerModelSecondaryColorIndex;
+        prof["PlayerModelTertiaryColorIndex"] = src.PlayerModelTertiaryColorIndex;
+        prof["UseEliteModel"] = src.UseEliteModel;
+        prof["LockMaxAspectRatio"] = src.LockMaxAspectRatio;
+        prof["un"] = src.un;
+        prof["UsersSkinsEnabled"] = src.UsersSkinsEnabled;
+        prof["PlayerModelPermutation"] = src.PlayerModelPermutation;
+        prof["HelmetIndex"] = src.HelmetIndex;
+        prof["LeftShoulderIndex"] = src.LeftShoulderIndex;
+        prof["RightShoulderIndex"] = src.RightShoulderIndex;
+        prof["ChestIndex"] = src.ChestIndex;
+        prof["WristIndex"] = src.WristIndex;
+        prof["UtilityIndex"] = src.UtilityIndex;
+        prof["ArmsIndex"] = src.ArmsIndex;
+        prof["LegsIndex"] = src.LegsIndex;
+        prof["BackpackIndex"] = src.BackpackIndex;
+        prof["SpartanBodyIndex"] = src.SpartanBodyIndex;
+        prof["SpartanArmorEffectIndex"] = src.SpartanArmorEffectIndex;
+        prof["KneesIndex"] = src.KneesIndex;
+        prof["VisorColorIndex"] = src.VisorColorIndex;
+        prof["EliteHelmetIndex"] = src.EliteHelmetIndex;
+        prof["EliteLeftShoulderIndex"] = src.EliteLeftShoulderIndex;
+        prof["EliteRightShoulderIndex"] = src.EliteRightShoulderIndex;
+        prof["EliteChestIndex"] = src.EliteChestIndex;
+        prof["EliteArmsIndex"] = src.EliteArmsIndex;
+        prof["EliteLegsIndex"] = src.EliteLegsIndex;
+        prof["EliteArmorIndex"] = src.EliteArmorIndex;
+        prof["EliteArmorEffectIndex"] = src.EliteArmorEffectIndex;
+        prof["VoiceIndex"] = src.VoiceIndex;
+        prof["PlayerModelPrimaryColor"] = src.PlayerModelPrimaryColor;
+        prof["PlayerModelSecondaryColor"] = src.PlayerModelSecondaryColor;
+        prof["PlayerModelTertiaryColor"] = src.PlayerModelTertiaryColor;
+        prof["SpartanPose"] = src.SpartanPose;
+        prof["ElitePose"] = src.ElitePose;
+
+        // Skins array
+        json skinArray = json::array();
+        for (int i = 0; i < 32; ++i) {
+            json skin;
+            skin["object"] = src.Skins[i].object;
+            skin["skin"] = src.Skins[i].skin;
+            skinArray.push_back(skin);
+        }
+        prof["Skins"] = skinArray;
+
+        // ServiceTag
+        char buf[5] = {};
+        wcstombs(buf, src.ServiceTag, 4);
+        prof["ServiceTag"] = std::string(buf, strnlen(buf, 4));
+
+        prof["OnlineMedalFlasher"] = src.OnlineMedalFlasher;
+        prof["VerticalLookSensitivity"] = src.VerticalLookSensitivity;
+        prof["HorizontalLookSensitivity"] = src.HorizontalLookSensitivity;
+        prof["LookAcceleration"] = src.LookAcceleration;
+        prof["LookAxialDeadZone"] = src.LookAxialDeadZone;
+        prof["LookRadialDeadZone"] = src.LookRadialDeadZone;
+        prof["ZoomLookSensitivityMultiplier"] = src.ZoomLookSensitivityMultiplier;
+        prof["VehicleLookSensitivityMultiplier"] = src.VehicleLookSensitivityMultiplier;
+        prof["ButtonPreset"] = src.ButtonPreset;
+        prof["StickPreset"] = src.StickPreset;
+        prof["LeftyToggle"] = src.LeftyToggle;
+        prof["FlyingCameraTurnSensitivity"] = src.FlyingCameraTurnSensitivity;
+        prof["FlyingCameraPanning"] = src.FlyingCameraPanning;
+        prof["FlyingCameraSpeed"] = src.FlyingCameraSpeed;
+        prof["FlyingCameraThrust"] = src.FlyingCameraThrust;
+        prof["TheaterTurnSensitivity"] = src.TheaterTurnSensitivity;
+        prof["TheaterPanning"] = src.TheaterPanning;
+        prof["TheaterSpeed"] = src.TheaterSpeed;
+        prof["TheaterThrust"] = src.TheaterThrust;
+        prof["MKTheaterTurnSensitivity"] = src.MKTheaterTurnSensitivity;
+        prof["MKTheaterPanning"] = src.MKTheaterPanning;
+        prof["MKTheaterSpeed"] = src.MKTheaterSpeed;
+        prof["MKTheaterThrust"] = src.MKTheaterThrust;
+        prof["SwapTriggersAndBumpers"] = src.SwapTriggersAndBumpers;
+        prof["UseModernAimControl"] = src.UseModernAimControl;
+        prof["UseDoublePressJumpToJetpack"] = src.UseDoublePressJumpToJetpack;
+        prof["DualWieldInverted"] = src.DualWieldInverted;
+        prof["ControllerDualWieldInverted"] = src.ControllerDualWieldInverted;
+        prof["ControllerHornetControlJoystick"] = src.ControllerHornetControlJoystick;
+        prof["ControllerBansheeTrickButtonsSwapped"] = src.ControllerBansheeTrickButtonsSwapped;
+        prof["ColorCorrection"] = src.ColorCorrection;
+        prof["EnemyPlayerNameColor"] = src.EnemyPlayerNameColor;
+        prof["GameEngineTimer"] = src.GameEngineTimer;
+
+        // LoadoutSlots array
+        json loadoutArray = json::array();
+        for (int i = 0; i < 5; ++i) {
+            json slot;
+            slot["TacticalPackageIndex"] = src.LoadoutSlots[i].TacticalPackageIndex;
+            slot["SupportUpgradeIndex"] = src.LoadoutSlots[i].SupportUpgradeIndex;
+            slot["PrimaryWeaponIndex"] = src.LoadoutSlots[i].PrimaryWeaponIndex;
+            slot["SecondaryWeaponIndex"] = src.LoadoutSlots[i].SecondaryWeaponIndex;
+            slot["PrimaryWeaponVariantIndex"] = src.LoadoutSlots[i].PrimaryWeaponVariantIndex;
+            slot["SecondaryWeaponVariantIndex"] = src.LoadoutSlots[i].SecondaryWeaponVariantIndex;
+            slot["EquipmentIndex"] = src.LoadoutSlots[i].EquipmentIndex;
+            slot["GrenadeIndex"] = src.LoadoutSlots[i].GrenadeIndex;
+            char nameBuf[15] = {};
+            wcstombs(nameBuf, src.LoadoutSlots[i].Name, 14);
+            slot["Name"] = std::string(nameBuf);
+            loadoutArray.push_back(slot);
+        }
+        prof["LoadoutSlots"] = loadoutArray;
+
+        prof["GameSpecific"] = std::string(src.GameSpecific, strnlen(src.GameSpecific, sizeof(src.GameSpecific)));
+        prof["MouseSensitivity"] = src.MouseSensitivity;
+        prof["MouseSmoothing"] = src.MouseSmoothing;
+        prof["MouseAcceleration"] = src.MouseAcceleration;
+        prof["PixelPerfectHudScale"] = src.PixelPerfectHudScale;
+        prof["MouseAccelerationMinRate"] = src.MouseAccelerationMinRate;
+        prof["MouseAccelerationMaxAccel"] = src.MouseAccelerationMaxAccel;
+        prof["MouseAccelerationScale"] = src.MouseAccelerationScale;
+        prof["MouseAccelerationExp"] = src.MouseAccelerationExp;
+        prof["KeyboardMouseButtonPreset"] = src.KeyboardMouseButtonPreset;
+
+        // CustomKeyboardMouseMappingV2 array
+        json kbmArray = json::array();
+        for (int i = 0; i < 66; ++i) {
+            json kbm;
+            kbm["AbstractButton"] = src.CustomKeyboardMouseMappingV2[i].AbstractButton;
+            json vkArray = json::array();
+            for (int k = 0; k < 5; ++k) {
+                vkArray.push_back(src.CustomKeyboardMouseMappingV2[i].VirtualKeyCodes[k]);
+            }
+            kbm["VirtualKeyCodes"] = vkArray;
+            kbmArray.push_back(kbm);
+        }
+        prof["CustomKeyboardMouseMappingV2"] = kbmArray;
+
+        prof["MasterVolume"] = src.MasterVolume;
+        prof["MusicVolume"] = src.MusicVolume;
+        prof["SfxVolume"] = src.SfxVolume;
+        prof["buffer4"] = std::string(src.buffer4, strnlen(src.buffer4, sizeof(src.buffer4)));
+        prof["Brightness"] = src.Brightness;
+
+        // WeaponDisplayOffset array
+        json wdoArray = json::array();
+        for (int i = 0; i < 5; ++i) {
+            json offset;
+            offset["x"] = src.WeaponDisplayOffset[i].x;
+            offset["y"] = src.WeaponDisplayOffset[i].y;
+            offset["z"] = src.WeaponDisplayOffset[i].z;
+            wdoArray.push_back(offset);
+        }
+        prof["WeaponDisplayOffset"] = wdoArray;
+
+        prof["ColorBlindMode"] = src.ColorBlindMode;
+        prof["ColorBlindStrength"] = src.ColorBlindStrength;
+        prof["ColorBlindBrightness"] = src.ColorBlindBrightness;
+        prof["ColorBlindContrast"] = src.ColorBlindContrast;
+        prof["RemasteredHUDSetting"] = src.RemasteredHUDSetting;
+        prof["HUDScale"] = src.HUDScale;
+
+        j["profiles"][name] = prof;
+
+        std::ofstream file(path, std::ios::trunc);
+        if (!file.is_open())
+            return false;
+
+        file << j.dump(4);
+        return true;
+    }
+
+    bool CustomProfile::LoadProfile(const std::string& name, CUserProfile& dst) {
+        fs::path path = GetCustomProfilesPath();
+
+        if (!fs::exists(path))
+            return false;
+
+        std::ifstream file(path);
+        if (!file.is_open())
+            return false;
+
+        try {
+            json j;
+            file >> j;
+
+            if (!j.contains("profiles") || !j["profiles"].contains(name))
+                return false;
+
+            auto& prof = j["profiles"][name];
+
+            dst.SubtitleSetting = prof.value("SubtitleSetting", dst.SubtitleSetting);
+            dst.SubtitleSizeSetting = prof.value("SubtitleSizeSetting", dst.SubtitleSizeSetting);
+            dst.SubtitleBackgroundSetting = prof.value("SubtitleBackgroundSetting", dst.SubtitleBackgroundSetting);
+            dst.SubtitleShadowColorSetting = prof.value("SubtitleShadowColorSetting", dst.SubtitleShadowColorSetting);
+            dst.DialogueColorStyleSetting = prof.value("DialogueColorStyleSetting", dst.DialogueColorStyleSetting);
+            dst.DialogueColorSetting = prof.value("DialogueColorSetting", dst.DialogueColorSetting);
+            dst.DialoguePaletteSetting = prof.value("DialoguePaletteSetting", dst.DialoguePaletteSetting);
+            dst.SpeakerSetting = prof.value("SpeakerSetting", dst.SpeakerSetting);
+            dst.SpeakerColorStyleSetting = prof.value("SpeakerColorStyleSetting", dst.SpeakerColorStyleSetting);
+            dst.SpeakerColorSetting = prof.value("SpeakerColorSetting", dst.SpeakerColorSetting);
+            dst.SpeakerPaletteSetting = prof.value("SpeakerPaletteSetting", dst.SpeakerPaletteSetting);
+            dst.SubtitleFontSetting = prof.value("SubtitleFontSetting", dst.SubtitleFontSetting);
+            dst.SubtitleBackgroundOpacitySetting = prof.value("SubtitleBackgroundOpacitySetting", dst.SubtitleBackgroundOpacitySetting);
+            dst.SubtitleShadowOpacitySetting = prof.value("SubtitleShadowOpacitySetting", dst.SubtitleShadowOpacitySetting);
+            dst.FOVSetting = prof.value("FOVSetting", dst.FOVSetting);
+            dst.VehicleFOVSetting = prof.value("VehicleFOVSetting", dst.VehicleFOVSetting);
+            dst.CrosshairLocation = prof.value("CrosshairLocation", dst.CrosshairLocation);
+            dst.LookControlsInverted = prof.value("LookControlsInverted", dst.LookControlsInverted);
+            dst.MouseLookControlsInverted = prof.value("MouseLookControlsInverted", dst.MouseLookControlsInverted);
+            dst.VibrationDisabled = prof.value("VibrationDisabled", dst.VibrationDisabled);
+            dst.ImpulseTriggersDisabled = prof.value("ImpulseTriggersDisabled", dst.ImpulseTriggersDisabled);
+            dst.AircraftControlsInverted = prof.value("AircraftControlsInverted", dst.AircraftControlsInverted);
+            dst.MouseAircraftControlsInverted = prof.value("MouseAircraftControlsInverted", dst.MouseAircraftControlsInverted);
+            dst.AutoCenterEnabled = prof.value("AutoCenterEnabled", dst.AutoCenterEnabled);
+            dst.CrouchLockEnabled = prof.value("CrouchLockEnabled", dst.CrouchLockEnabled);
+            dst.MKCrouchLockEnabled = prof.value("MKCrouchLockEnabled", dst.MKCrouchLockEnabled);
+            dst.ClenchProtectionEnabled = prof.value("ClenchProtectionEnabled", dst.ClenchProtectionEnabled);
+            dst.UseFemaleVoice = prof.value("UseFemaleVoice", dst.UseFemaleVoice);
+            dst.HoldToZoom = prof.value("HoldToZoom", dst.HoldToZoom);
+            dst.PlayerModelPrimaryColorIndex = prof.value("PlayerModelPrimaryColorIndex", dst.PlayerModelPrimaryColorIndex);
+            dst.PlayerModelSecondaryColorIndex = prof.value("PlayerModelSecondaryColorIndex", dst.PlayerModelSecondaryColorIndex);
+            dst.PlayerModelTertiaryColorIndex = prof.value("PlayerModelTertiaryColorIndex", dst.PlayerModelTertiaryColorIndex);
+            dst.UseEliteModel = prof.value("UseEliteModel", dst.UseEliteModel);
+            dst.LockMaxAspectRatio = prof.value("LockMaxAspectRatio", dst.LockMaxAspectRatio);
+            dst.un = prof.value("un", dst.un);
+            dst.UsersSkinsEnabled = prof.value("UsersSkinsEnabled", dst.UsersSkinsEnabled);
+            dst.PlayerModelPermutation = prof.value("PlayerModelPermutation", dst.PlayerModelPermutation);
+            dst.HelmetIndex = prof.value("HelmetIndex", dst.HelmetIndex);
+            dst.LeftShoulderIndex = prof.value("LeftShoulderIndex", dst.LeftShoulderIndex);
+            dst.RightShoulderIndex = prof.value("RightShoulderIndex", dst.RightShoulderIndex);
+            dst.ChestIndex = prof.value("ChestIndex", dst.ChestIndex);
+            dst.WristIndex = prof.value("WristIndex", dst.WristIndex);
+            dst.UtilityIndex = prof.value("UtilityIndex", dst.UtilityIndex);
+            dst.ArmsIndex = prof.value("ArmsIndex", dst.ArmsIndex);
+            dst.LegsIndex = prof.value("LegsIndex", dst.LegsIndex);
+            dst.BackpackIndex = prof.value("BackpackIndex", dst.BackpackIndex);
+            dst.SpartanBodyIndex = prof.value("SpartanBodyIndex", dst.SpartanBodyIndex);
+            dst.SpartanArmorEffectIndex = prof.value("SpartanArmorEffectIndex", dst.SpartanArmorEffectIndex);
+            dst.KneesIndex = prof.value("KneesIndex", dst.KneesIndex);
+            dst.VisorColorIndex = prof.value("VisorColorIndex", dst.VisorColorIndex);
+            dst.EliteHelmetIndex = prof.value("EliteHelmetIndex", dst.EliteHelmetIndex);
+            dst.EliteLeftShoulderIndex = prof.value("EliteLeftShoulderIndex", dst.EliteLeftShoulderIndex);
+            dst.EliteRightShoulderIndex = prof.value("EliteRightShoulderIndex", dst.EliteRightShoulderIndex);
+            dst.EliteChestIndex = prof.value("EliteChestIndex", dst.EliteChestIndex);
+            dst.EliteArmsIndex = prof.value("EliteArmsIndex", dst.EliteArmsIndex);
+            dst.EliteLegsIndex = prof.value("EliteLegsIndex", dst.EliteLegsIndex);
+            dst.EliteArmorIndex = prof.value("EliteArmorIndex", dst.EliteArmorIndex);
+            dst.EliteArmorEffectIndex = prof.value("EliteArmorEffectIndex", dst.EliteArmorEffectIndex);
+            dst.VoiceIndex = prof.value("VoiceIndex", dst.VoiceIndex);
+            dst.PlayerModelPrimaryColor = prof.value("PlayerModelPrimaryColor", dst.PlayerModelPrimaryColor);
+            dst.PlayerModelSecondaryColor = prof.value("PlayerModelSecondaryColor", dst.PlayerModelSecondaryColor);
+            dst.PlayerModelTertiaryColor = prof.value("PlayerModelTertiaryColor", dst.PlayerModelTertiaryColor);
+            dst.SpartanPose = prof.value("SpartanPose", dst.SpartanPose);
+            dst.ElitePose = prof.value("ElitePose", dst.ElitePose);
+
+            // Skins array
+            if (prof.contains("Skins") && prof["Skins"].is_array()) {
+                auto& skinArray = prof["Skins"];
+                for (size_t i = 0; i < skinArray.size() && i < 32; ++i) {
+                    auto& s = skinArray[i];
+                    dst.Skins[i].object = s.value("object", dst.Skins[i].object);
+                    dst.Skins[i].skin = s.value("skin", dst.Skins[i].skin);
+                }
+            }
+
+            // ServiceTag
+            const std::string st = prof.value("ServiceTag", "");
+            wmemset(dst.ServiceTag, 0, 4);
+            if (!st.empty()) {
+                mbstowcs_s(nullptr, dst.ServiceTag, 4, st.c_str(), _TRUNCATE);
+            }
+
+            dst.OnlineMedalFlasher = prof.value("OnlineMedalFlasher", dst.OnlineMedalFlasher);
+            dst.VerticalLookSensitivity = prof.value("VerticalLookSensitivity", dst.VerticalLookSensitivity);
+            dst.HorizontalLookSensitivity = prof.value("HorizontalLookSensitivity", dst.HorizontalLookSensitivity);
+            dst.LookAcceleration = prof.value("LookAcceleration", dst.LookAcceleration);
+            dst.LookAxialDeadZone = prof.value("LookAxialDeadZone", dst.LookAxialDeadZone);
+            dst.LookRadialDeadZone = prof.value("LookRadialDeadZone", dst.LookRadialDeadZone);
+            dst.ZoomLookSensitivityMultiplier = prof.value("ZoomLookSensitivityMultiplier", dst.ZoomLookSensitivityMultiplier);
+            dst.VehicleLookSensitivityMultiplier = prof.value("VehicleLookSensitivityMultiplier", dst.VehicleLookSensitivityMultiplier);
+            dst.ButtonPreset = prof.value("ButtonPreset", dst.ButtonPreset);
+            dst.StickPreset = prof.value("StickPreset", dst.StickPreset);
+            dst.LeftyToggle = prof.value("LeftyToggle", dst.LeftyToggle);
+            dst.FlyingCameraTurnSensitivity = prof.value("FlyingCameraTurnSensitivity", dst.FlyingCameraTurnSensitivity);
+            dst.FlyingCameraPanning = prof.value("FlyingCameraPanning", dst.FlyingCameraPanning);
+            dst.FlyingCameraSpeed = prof.value("FlyingCameraSpeed", dst.FlyingCameraSpeed);
+            dst.FlyingCameraThrust = prof.value("FlyingCameraThrust", dst.FlyingCameraThrust);
+            dst.TheaterTurnSensitivity = prof.value("TheaterTurnSensitivity", dst.TheaterTurnSensitivity);
+            dst.TheaterPanning = prof.value("TheaterPanning", dst.TheaterPanning);
+            dst.TheaterSpeed = prof.value("TheaterSpeed", dst.TheaterSpeed);
+            dst.TheaterThrust = prof.value("TheaterThrust", dst.TheaterThrust);
+            dst.MKTheaterTurnSensitivity = prof.value("MKTheaterTurnSensitivity", dst.MKTheaterTurnSensitivity);
+            dst.MKTheaterPanning = prof.value("MKTheaterPanning", dst.MKTheaterPanning);
+            dst.MKTheaterSpeed = prof.value("MKTheaterSpeed", dst.MKTheaterSpeed);
+            dst.MKTheaterThrust = prof.value("MKTheaterThrust", dst.MKTheaterThrust);
+            dst.SwapTriggersAndBumpers = prof.value("SwapTriggersAndBumpers", dst.SwapTriggersAndBumpers);
+            dst.UseModernAimControl = prof.value("UseModernAimControl", dst.UseModernAimControl);
+            dst.UseDoublePressJumpToJetpack = prof.value("UseDoublePressJumpToJetpack", dst.UseDoublePressJumpToJetpack);
+            dst.DualWieldInverted = prof.value("DualWieldInverted", dst.DualWieldInverted);
+            dst.ControllerDualWieldInverted = prof.value("ControllerDualWieldInverted", dst.ControllerDualWieldInverted);
+            dst.ControllerHornetControlJoystick = prof.value("ControllerHornetControlJoystick", dst.ControllerHornetControlJoystick);
+            dst.ControllerBansheeTrickButtonsSwapped = prof.value("ControllerBansheeTrickButtonsSwapped", dst.ControllerBansheeTrickButtonsSwapped);
+            dst.ColorCorrection = prof.value("ColorCorrection", dst.ColorCorrection);
+            dst.EnemyPlayerNameColor = prof.value("EnemyPlayerNameColor", dst.EnemyPlayerNameColor);
+            dst.GameEngineTimer = prof.value("GameEngineTimer", dst.GameEngineTimer);
+
+            // LoadoutSlots array
+            if (prof.contains("LoadoutSlots") && prof["LoadoutSlots"].is_array()) {
+                auto& loadoutArray = prof["LoadoutSlots"];
+                for (size_t i = 0; i < loadoutArray.size() && i < 5; ++i) {
+                    auto& slot = loadoutArray[i];
+                    dst.LoadoutSlots[i].TacticalPackageIndex = slot.value("TacticalPackageIndex", dst.LoadoutSlots[i].TacticalPackageIndex);
+                    dst.LoadoutSlots[i].SupportUpgradeIndex = slot.value("SupportUpgradeIndex", dst.LoadoutSlots[i].SupportUpgradeIndex);
+                    dst.LoadoutSlots[i].PrimaryWeaponIndex = slot.value("PrimaryWeaponIndex", dst.LoadoutSlots[i].PrimaryWeaponIndex);
+                    dst.LoadoutSlots[i].SecondaryWeaponIndex = slot.value("SecondaryWeaponIndex", dst.LoadoutSlots[i].SecondaryWeaponIndex);
+                    dst.LoadoutSlots[i].PrimaryWeaponVariantIndex = slot.value("PrimaryWeaponVariantIndex", dst.LoadoutSlots[i].PrimaryWeaponVariantIndex);
+                    dst.LoadoutSlots[i].SecondaryWeaponVariantIndex = slot.value("SecondaryWeaponVariantIndex", dst.LoadoutSlots[i].SecondaryWeaponVariantIndex);
+                    dst.LoadoutSlots[i].EquipmentIndex = slot.value("EquipmentIndex", dst.LoadoutSlots[i].EquipmentIndex);
+                    dst.LoadoutSlots[i].GrenadeIndex = slot.value("GrenadeIndex", dst.LoadoutSlots[i].GrenadeIndex);
+                    std::string slotName = slot.value("Name", "");
+                    wmemset(dst.LoadoutSlots[i].Name, 0, 14);
+                    mbstowcs(dst.LoadoutSlots[i].Name, slotName.c_str(), 14);
+                }
+            }
+
+            std::string gs = prof.value("GameSpecific", std::string{});
+            std::memset(dst.GameSpecific, 0, sizeof(dst.GameSpecific));
+            std::strncpy(dst.GameSpecific, gs.c_str(), sizeof(dst.GameSpecific) - 1);
+
+            dst.MouseSensitivity = prof.value("MouseSensitivity", dst.MouseSensitivity);
+            dst.MouseSmoothing = prof.value("MouseSmoothing", dst.MouseSmoothing);
+            dst.MouseAcceleration = prof.value("MouseAcceleration", dst.MouseAcceleration);
+            dst.PixelPerfectHudScale = prof.value("PixelPerfectHudScale", dst.PixelPerfectHudScale);
+            dst.MouseAccelerationMinRate = prof.value("MouseAccelerationMinRate", dst.MouseAccelerationMinRate);
+            dst.MouseAccelerationMaxAccel = prof.value("MouseAccelerationMaxAccel", dst.MouseAccelerationMaxAccel);
+            dst.MouseAccelerationScale = prof.value("MouseAccelerationScale", dst.MouseAccelerationScale);
+            dst.MouseAccelerationExp = prof.value("MouseAccelerationExp", dst.MouseAccelerationExp);
+            dst.KeyboardMouseButtonPreset = prof.value("KeyboardMouseButtonPreset", dst.KeyboardMouseButtonPreset);
+
+            // CustomKeyboardMouseMappingV2 array
+            if (prof.contains("CustomKeyboardMouseMappingV2") && prof["CustomKeyboardMouseMappingV2"].is_array()) {
+                auto& kbmArray = prof["CustomKeyboardMouseMappingV2"];
+                for (size_t i = 0; i < kbmArray.size() && i < 66; ++i) {
+                    auto& kbm = kbmArray[i];
+                    dst.CustomKeyboardMouseMappingV2[i].AbstractButton = kbm.value("AbstractButton", dst.CustomKeyboardMouseMappingV2[i].AbstractButton);
+                    if (kbm.contains("VirtualKeyCodes") && kbm["VirtualKeyCodes"].is_array()) {
+                        auto& vkArray = kbm["VirtualKeyCodes"];
+                        for (size_t k = 0; k < vkArray.size() && k < 5; ++k) {
+                            dst.CustomKeyboardMouseMappingV2[i].VirtualKeyCodes[k] = vkArray[k].get<int>();
+                        }
+                    }
+                }
+            }
+
+            dst.MasterVolume = prof.value("MasterVolume", dst.MasterVolume);
+            dst.MusicVolume = prof.value("MusicVolume", dst.MusicVolume);
+            dst.SfxVolume = prof.value("SfxVolume", dst.SfxVolume);
+
+            std::string b4 = prof.value("buffer4", std::string{});
+            std::memset(dst.buffer4, 0, sizeof(dst.buffer4));
+            std::strncpy(dst.buffer4, b4.c_str(), sizeof(dst.buffer4) - 1);
+
+            dst.Brightness = prof.value("Brightness", dst.Brightness);
+
+            // WeaponDisplayOffset array
+            if (prof.contains("WeaponDisplayOffset") && prof["WeaponDisplayOffset"].is_array()) {
+                auto& wdoArray = prof["WeaponDisplayOffset"];
+                for (size_t i = 0; i < wdoArray.size() && i < 5; ++i) {
+                    auto& off = wdoArray[i];
+                    dst.WeaponDisplayOffset[i].x = off.value("x", dst.WeaponDisplayOffset[i].x);
+                    dst.WeaponDisplayOffset[i].y = off.value("y", dst.WeaponDisplayOffset[i].y);
+                    dst.WeaponDisplayOffset[i].z = off.value("z", dst.WeaponDisplayOffset[i].z);
+                }
+            }
+
+            dst.ColorBlindMode = prof.value("ColorBlindMode", dst.ColorBlindMode);
+            dst.ColorBlindStrength = prof.value("ColorBlindStrength", dst.ColorBlindStrength);
+            dst.ColorBlindBrightness = prof.value("ColorBlindBrightness", dst.ColorBlindBrightness);
+            dst.ColorBlindContrast = prof.value("ColorBlindContrast", dst.ColorBlindContrast);
+            dst.RemasteredHUDSetting = prof.value("RemasteredHUDSetting", dst.RemasteredHUDSetting);
+            dst.HUDScale = prof.value("HUDScale", dst.HUDScale);
+
+            return true;
+        } catch (...) {
+            return false;
+        }
+    }
+
+    bool CustomProfile::DeleteProfile(const std::string& name) {
+        fs::path path = GetCustomProfilesPath();
+
+        if (!fs::exists(path))
+            return false;
+
+        std::ifstream infile(path);
+        if (!infile.is_open())
+            return false;
+
+        json j;
+        try {
+            infile >> j;
+        } catch (...) {
+            return false;
+        }
+        infile.close();
+
+        if (!j.contains("profiles") || !j["profiles"].contains(name))
+            return false;
+
+        j["profiles"].erase(name);
+
+        std::ofstream outfile(path, std::ios::trunc);
+        if (!outfile.is_open())
+            return false;
+
+        outfile << j.dump(4);
+        return true;
+    }
+
 }

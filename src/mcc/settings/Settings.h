@@ -46,4 +46,18 @@ namespace MCC::Settings {
         // Delete a named profile
         bool DeleteProfile(const std::string& name);
     }
+
+    namespace CustomProfile {
+        // Get list of saved custom profile preset names
+        std::vector<std::string> GetProfileNames();
+
+        // Save current profile (armor, colors, sensitivities, etc.) as a named preset
+        bool SaveProfile(const std::string& name, const CUserProfile& profile);
+
+        // Load a named preset into the provided profile
+        bool LoadProfile(const std::string& name, CUserProfile& profile);
+
+        // Delete a named preset
+        bool DeleteProfile(const std::string& name);
+    }
 }

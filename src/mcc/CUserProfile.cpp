@@ -1,13 +1,95 @@
 #include "CUserProfile.h"
 
 #include "CGameEngine.h"
+#include "mcc/settings/Settings.h"
 
 #include "imgui.h"
 #include <cstdio>
+#include <string>
+#include <vector>
 
 void CUserProfile::ImGuiContext() {
     bool result = false;
     char buffer[1024];
+
+    // Custom Profile Presets
+    static std::vector<std::string> profile_names;
+    static int selected_profile = -1;
+    static char new_profile_name[64] = "";
+    static bool show_save_input = false;
+    static bool needs_refresh = true;
+
+    // Refresh profile list when needed
+    if (needs_refresh) {
+        profile_names = MCC::Settings::CustomProfile::GetProfileNames();
+        needs_refresh = false;
+        if (selected_profile >= (int)profile_names.size()) {
+            selected_profile = profile_names.empty() ? -1 : 0;
+        }
+    }
+
+    ImGui::Text("Profile Presets:");
+
+    // Profile dropdown
+    ImGui::PushItemWidth(200);
+    const char* preview = (selected_profile >= 0 && selected_profile < (int)profile_names.size())
+        ? profile_names[selected_profile].c_str()
+        : "-- Select Preset --";
+
+    if (ImGui::BeginCombo("##ProfilePreset", preview)) {
+        for (int i = 0; i < (int)profile_names.size(); ++i) {
+            bool is_selected = (selected_profile == i);
+            if (ImGui::Selectable(profile_names[i].c_str(), is_selected)) {
+                selected_profile = i;
+            }
+            if (is_selected) {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+    ImGui::PopItemWidth();
+
+    ImGui::SameLine();
+    if (ImGui::Button("Load##ProfilePreset") && selected_profile >= 0 && selected_profile < (int)profile_names.size()) {
+        if (MCC::Settings::CustomProfile::LoadProfile(profile_names[selected_profile], *this)) {
+            result = true;
+        }
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Delete##ProfilePreset") && selected_profile >= 0 && selected_profile < (int)profile_names.size()) {
+        MCC::Settings::CustomProfile::DeleteProfile(profile_names[selected_profile]);
+        needs_refresh = true;
+        selected_profile = -1;
+    }
+
+    // Save new preset section
+    if (!show_save_input) {
+        if (ImGui::Button("Save as New Preset...")) {
+            show_save_input = true;
+            new_profile_name[0] = '\0';
+        }
+    } else {
+        ImGui::PushItemWidth(200);
+        ImGui::InputText("##NewPresetName", new_profile_name, sizeof(new_profile_name));
+        ImGui::PopItemWidth();
+
+        ImGui::SameLine();
+        if (ImGui::Button("Save##PresetSave") && new_profile_name[0] != '\0') {
+            if (MCC::Settings::CustomProfile::SaveProfile(new_profile_name, *this)) {
+                needs_refresh = true;
+                show_save_input = false;
+            }
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel##PresetCancel")) {
+            show_save_input = false;
+        }
+    }
+
+    ImGui::Separator();
 
     sprintf(buffer, "%ls", ServiceTag);
     if (ImGui::InputText("ServiceTag", buffer, 5, ImGuiInputTextFlags_CallbackCompletion)) {
