@@ -93,6 +93,7 @@ namespace MCC::Settings {
                 dst.SubtitleSizeSetting = prof.value("SubtitleSizeSetting", dst.SubtitleSizeSetting);
                 dst.SubtitleBackgroundSetting = prof.value("SubtitleBackgroundSetting", dst.SubtitleBackgroundSetting);
                 dst.SubtitleShadowColorSetting = prof.value("SubtitleShadowColorSetting", dst.SubtitleShadowColorSetting);
+                dst.DialogueColorStyleSetting = prof.value("DialogueColorStyleSetting", dst.DialogueColorStyleSetting);
                 dst.DialogueColorSetting = prof.value("DialogueColorSetting", dst.DialogueColorSetting);
                 dst.DialoguePaletteSetting = prof.value("DialoguePaletteSetting", dst.DialoguePaletteSetting);
                 dst.SpeakerSetting = prof.value("SpeakerSetting", dst.SpeakerSetting);
@@ -152,11 +153,13 @@ namespace MCC::Settings {
                 dst.PlayerModelTertiaryColor = prof.value("PlayerModelTertiaryColor", dst.PlayerModelTertiaryColor);
                 dst.SpartanPose = prof.value("SpartanPose", dst.SpartanPose);
                 dst.ElitePose = prof.value("ElitePose", dst.ElitePose);
-                auto& skinArray = prof["Skins"];
-                for (size_t o = 0; o < skinArray.size() && o < 32; ++o) {
-                    auto& s = skinArray[o];
-                    dst.Skins[o].object = s.value("object", dst.Skins[o].object);
-                    dst.Skins[o].skin   = s.value("skin", dst.Skins[o].skin);
+                if (prof.contains("Skins") && prof["Skins"].is_array()) {
+                    auto& skinArray = prof["Skins"];
+                    for (size_t o = 0; o < skinArray.size() && o < 32; ++o) {
+                        auto& s = skinArray[o];
+                        dst.Skins[o].object = s.value("object", dst.Skins[o].object);
+                        dst.Skins[o].skin   = s.value("skin", dst.Skins[o].skin);
+                    }
                 }
                 const std::string s = prof.value("ServiceTag", "");
                 wmemset(dst.ServiceTag, 0, 4);
@@ -196,20 +199,22 @@ namespace MCC::Settings {
                 dst.ColorCorrection = prof.value("ColorCorrection", dst.ColorCorrection);
                 dst.EnemyPlayerNameColor = prof.value("EnemyPlayerNameColor", dst.EnemyPlayerNameColor);
                 dst.GameEngineTimer = prof.value("GameEngineTimer", dst.GameEngineTimer);
-                auto& loadoutArray = prof["LoadoutSlots"];
-                for (size_t o = 0; o < loadoutArray.size() && o < 5; ++o) {
-                    auto& slot = loadoutArray[o];
-                    dst.LoadoutSlots[o].TacticalPackageIndex    = slot.value("TacticalPackageIndex", dst.LoadoutSlots[o].TacticalPackageIndex);
-                    dst.LoadoutSlots[o].SupportUpgradeIndex     = slot.value("SupportUpgradeIndex", dst.LoadoutSlots[o].SupportUpgradeIndex);
-                    dst.LoadoutSlots[o].PrimaryWeaponIndex      = slot.value("PrimaryWeaponIndex", dst.LoadoutSlots[o].PrimaryWeaponIndex);
-                    dst.LoadoutSlots[o].SecondaryWeaponIndex    = slot.value("SecondaryWeaponIndex", dst.LoadoutSlots[o].SecondaryWeaponIndex);
-                    dst.LoadoutSlots[o].PrimaryWeaponVariantIndex   = slot.value("PrimaryWeaponVariantIndex", dst.LoadoutSlots[o].PrimaryWeaponVariantIndex);
-                    dst.LoadoutSlots[o].SecondaryWeaponVariantIndex = slot.value("SecondaryWeaponVariantIndex", dst.LoadoutSlots[o].SecondaryWeaponVariantIndex);
-                    dst.LoadoutSlots[o].EquipmentIndex          = slot.value("EquipmentIndex", dst.LoadoutSlots[o].EquipmentIndex);
-                    dst.LoadoutSlots[o].GrenadeIndex            = slot.value("GrenadeIndex", dst.LoadoutSlots[o].GrenadeIndex);
-                    std::string name = slot.value("Name", "");
-                    wmemset(dst.LoadoutSlots[o].Name, 0, 14);
-                    mbstowcs(dst.LoadoutSlots[o].Name, name.c_str(), 14);
+                if (prof.contains("LoadoutSlots") && prof["LoadoutSlots"].is_array()) {
+                    auto& loadoutArray = prof["LoadoutSlots"];
+                    for (size_t o = 0; o < loadoutArray.size() && o < 5; ++o) {
+                        auto& slot = loadoutArray[o];
+                        dst.LoadoutSlots[o].TacticalPackageIndex    = slot.value("TacticalPackageIndex", dst.LoadoutSlots[o].TacticalPackageIndex);
+                        dst.LoadoutSlots[o].SupportUpgradeIndex     = slot.value("SupportUpgradeIndex", dst.LoadoutSlots[o].SupportUpgradeIndex);
+                        dst.LoadoutSlots[o].PrimaryWeaponIndex      = slot.value("PrimaryWeaponIndex", dst.LoadoutSlots[o].PrimaryWeaponIndex);
+                        dst.LoadoutSlots[o].SecondaryWeaponIndex    = slot.value("SecondaryWeaponIndex", dst.LoadoutSlots[o].SecondaryWeaponIndex);
+                        dst.LoadoutSlots[o].PrimaryWeaponVariantIndex   = slot.value("PrimaryWeaponVariantIndex", dst.LoadoutSlots[o].PrimaryWeaponVariantIndex);
+                        dst.LoadoutSlots[o].SecondaryWeaponVariantIndex = slot.value("SecondaryWeaponVariantIndex", dst.LoadoutSlots[o].SecondaryWeaponVariantIndex);
+                        dst.LoadoutSlots[o].EquipmentIndex          = slot.value("EquipmentIndex", dst.LoadoutSlots[o].EquipmentIndex);
+                        dst.LoadoutSlots[o].GrenadeIndex            = slot.value("GrenadeIndex", dst.LoadoutSlots[o].GrenadeIndex);
+                        std::string name = slot.value("Name", "");
+                        wmemset(dst.LoadoutSlots[o].Name, 0, 14);
+                        mbstowcs(dst.LoadoutSlots[o].Name, name.c_str(), 14);
+                    }
                 }
                 std::string gs = prof.value("GameSpecific", std::string{});
                 std::memset(dst.GameSpecific, 0, sizeof(dst.GameSpecific));
@@ -223,14 +228,18 @@ namespace MCC::Settings {
                 dst.MouseAccelerationScale = prof.value("MouseAccelerationScale", dst.MouseAccelerationScale);
                 dst.MouseAccelerationExp = prof.value("MouseAccelerationExp", dst.MouseAccelerationExp);
                 dst.KeyboardMouseButtonPreset = prof.value("KeyboardMouseButtonPreset", dst.KeyboardMouseButtonPreset);
-                auto& mappings = prof["CustomKeyboardMouseMappingV2"];
-                for (size_t o = 0; o < mappings.size() && o < 66; ++o) {
-                    auto& srcMap = mappings[o];
-                    auto& dstMap = dst.CustomKeyboardMouseMappingV2[o];
-                    dstMap.AbstractButton = srcMap.value("AbstractButton", dstMap.AbstractButton);
-                    auto& keys = srcMap["VirtualKeyCodes"];
-                    for (size_t k = 0; k < keys.size() && k < 5; ++k) {
-                        dstMap.VirtualKeyCodes[k] = keys[k].get<int>();
+                if (prof.contains("CustomKeyboardMouseMappingV2") && prof["CustomKeyboardMouseMappingV2"].is_array()) {
+                    auto& mappings = prof["CustomKeyboardMouseMappingV2"];
+                    for (size_t o = 0; o < mappings.size() && o < 66; ++o) {
+                        auto& srcMap = mappings[o];
+                        auto& dstMap = dst.CustomKeyboardMouseMappingV2[o];
+                        dstMap.AbstractButton = srcMap.value("AbstractButton", dstMap.AbstractButton);
+                        if (srcMap.contains("VirtualKeyCodes") && srcMap["VirtualKeyCodes"].is_array()) {
+                            auto& keys = srcMap["VirtualKeyCodes"];
+                            for (size_t k = 0; k < keys.size() && k < 5; ++k) {
+                                dstMap.VirtualKeyCodes[k] = keys[k].get<int>();
+                            }
+                        }
                     }
                 }
                 dst.MasterVolume = prof.value("MasterVolume", dst.MasterVolume);
@@ -240,12 +249,14 @@ namespace MCC::Settings {
                 std::memset(dst.buffer4, 0, sizeof(dst.buffer4));
                 std::strncpy(dst.buffer4, buf.c_str(), sizeof(dst.buffer4) - 1);
                 dst.Brightness = prof.value("Brightness", dst.Brightness);
-                auto& offsets = prof["WeaponDisplayOffset"];
-                for (size_t o = 0; o < offsets.size() && o < 5; ++o) {
-                    auto& off = offsets[o];
-                    dst.WeaponDisplayOffset[o].x = off.value("x", dst.WeaponDisplayOffset[o].x);
-                    dst.WeaponDisplayOffset[o].y = off.value("y", dst.WeaponDisplayOffset[o].y);
-                    dst.WeaponDisplayOffset[o].z = off.value("z", dst.WeaponDisplayOffset[o].z);
+                if (prof.contains("WeaponDisplayOffset") && prof["WeaponDisplayOffset"].is_array()) {
+                    auto& offsets = prof["WeaponDisplayOffset"];
+                    for (size_t o = 0; o < offsets.size() && o < 5; ++o) {
+                        auto& off = offsets[o];
+                        dst.WeaponDisplayOffset[o].x = off.value("x", dst.WeaponDisplayOffset[o].x);
+                        dst.WeaponDisplayOffset[o].y = off.value("y", dst.WeaponDisplayOffset[o].y);
+                        dst.WeaponDisplayOffset[o].z = off.value("z", dst.WeaponDisplayOffset[o].z);
+                    }
                 }
                 dst.ColorBlindMode = prof.value("ColorBlindMode", dst.ColorBlindMode);
                 dst.ColorBlindStrength = prof.value("ColorBlindStrength", dst.ColorBlindStrength);
@@ -253,9 +264,11 @@ namespace MCC::Settings {
                 dst.ColorBlindContrast = prof.value("ColorBlindContrast", dst.ColorBlindContrast);
                 dst.RemasteredHUDSetting = prof.value("RemasteredHUDSetting", dst.RemasteredHUDSetting);
                 dst.HUDScale = prof.value("HUDScale", dst.HUDScale);
-                auto& actionsJson = entry["mapping"]["actions"];
-                for (size_t a = 0; a < actionsJson.size() && a < 66; ++a) {
-                    dst2.actions[a] = static_cast<CGamepadMapping::eButton>(actionsJson[a].get<int>());
+                if (entry.contains("mapping") && entry["mapping"].contains("actions") && entry["mapping"]["actions"].is_array()) {
+                    auto& actionsJson = entry["mapping"]["actions"];
+                    for (size_t a = 0; a < actionsJson.size() && a < 66; ++a) {
+                        dst2.actions[a] = static_cast<CGamepadMapping::eButton>(actionsJson[a].get<int>());
+                    }
                 }
             }
 
@@ -543,6 +556,7 @@ namespace MCC::Settings {
             dst.controller_index = src->controller_index;
             dst.id = src->id;
             wcscpy_s(dst.name, src->name);
+            dst.profile.SubtitleSetting = src->profile.SubtitleSetting;
             dst.profile.SubtitleSizeSetting = src->profile.SubtitleSizeSetting;
             dst.profile.SubtitleBackgroundSetting = src->profile.SubtitleBackgroundSetting;
             dst.profile.SubtitleShadowColorSetting = src->profile.SubtitleShadowColorSetting;
@@ -564,6 +578,7 @@ namespace MCC::Settings {
             dst.profile.VibrationDisabled = src->profile.VibrationDisabled;
             dst.profile.ImpulseTriggersDisabled = src->profile.ImpulseTriggersDisabled;
             dst.profile.AircraftControlsInverted = src->profile.AircraftControlsInverted;
+            dst.profile.MouseAircraftControlsInverted = src->profile.MouseAircraftControlsInverted;
             dst.profile.AutoCenterEnabled = src->profile.AutoCenterEnabled;
             dst.profile.CrouchLockEnabled = src->profile.CrouchLockEnabled;
             dst.profile.MKCrouchLockEnabled = src->profile.MKCrouchLockEnabled;
@@ -605,8 +620,8 @@ namespace MCC::Settings {
             dst.profile.PlayerModelTertiaryColor = src->profile.PlayerModelTertiaryColor;
             dst.profile.SpartanPose = src->profile.SpartanPose;
             dst.profile.ElitePose = src->profile.ElitePose;
-            // dst.profile.Skins = src->profile.Skins;
-            // dst.profile.ServiceTag = src->profile.ServiceTag;
+            memcpy(dst.profile.Skins, src->profile.Skins, sizeof(dst.profile.Skins));
+            memcpy(dst.profile.ServiceTag, src->profile.ServiceTag, sizeof(dst.profile.ServiceTag));
             dst.profile.OnlineMedalFlasher = src->profile.OnlineMedalFlasher;
             dst.profile.VerticalLookSensitivity = src->profile.VerticalLookSensitivity;
             dst.profile.HorizontalLookSensitivity = src->profile.HorizontalLookSensitivity;
@@ -640,8 +655,8 @@ namespace MCC::Settings {
             dst.profile.ColorCorrection = src->profile.ColorCorrection;
             dst.profile.EnemyPlayerNameColor = src->profile.EnemyPlayerNameColor;
             dst.profile.GameEngineTimer = src->profile.GameEngineTimer;
-            // dst.profile.LoadoutSlots = src->profile.LoadoutSlots;
-            // dst.profile.GameSpecific = src->profile.GameSpecific;
+            memcpy(dst.profile.LoadoutSlots, src->profile.LoadoutSlots, sizeof(dst.profile.LoadoutSlots));
+            memcpy(dst.profile.GameSpecific, src->profile.GameSpecific, sizeof(dst.profile.GameSpecific));
             dst.profile.MouseSensitivity = src->profile.MouseSensitivity;
             dst.profile.MouseSmoothing = src->profile.MouseSmoothing;
             dst.profile.MouseAcceleration = src->profile.MouseAcceleration;
@@ -651,13 +666,13 @@ namespace MCC::Settings {
             dst.profile.MouseAccelerationScale = src->profile.MouseAccelerationScale;
             dst.profile.MouseAccelerationExp = src->profile.MouseAccelerationExp;
             dst.profile.KeyboardMouseButtonPreset = src->profile.KeyboardMouseButtonPreset;
-            // dst.profile.CustomKeyboardMouseMappingV2 = src->profile.CustomKeyboardMouseMappingV2;
+            memcpy(dst.profile.CustomKeyboardMouseMappingV2, src->profile.CustomKeyboardMouseMappingV2, sizeof(dst.profile.CustomKeyboardMouseMappingV2));
             dst.profile.MasterVolume = src->profile.MasterVolume;
             dst.profile.MusicVolume = src->profile.MusicVolume;
             dst.profile.SfxVolume = src->profile.SfxVolume;
-            // dst.profile.buffer4 = src->profile.buffer4;
+            memcpy(dst.profile.buffer4, src->profile.buffer4, sizeof(dst.profile.buffer4));
             dst.profile.Brightness = src->profile.Brightness;
-            // dst.profile.WeaponDisplayOffset = src->profile.WeaponDisplayOffset;
+            memcpy(dst.profile.WeaponDisplayOffset, src->profile.WeaponDisplayOffset, sizeof(dst.profile.WeaponDisplayOffset));
             dst.profile.ColorBlindMode = src->profile.ColorBlindMode;
             dst.profile.ColorBlindStrength = src->profile.ColorBlindStrength;
             dst.profile.ColorBlindBrightness = src->profile.ColorBlindBrightness;
