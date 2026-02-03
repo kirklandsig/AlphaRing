@@ -975,9 +975,12 @@ namespace MCC::Settings {
         }
         prof["Skins"] = skinArray;
 
-        // ServiceTag
+        // ServiceTag - ensure null termination before conversion (src.ServiceTag is wchar_t[4], may not be null-terminated)
+        wchar_t tagCopy[5] = {};
+        memcpy(tagCopy, src.ServiceTag, sizeof(src.ServiceTag));
+        tagCopy[4] = L'\0';
         char buf[5] = {};
-        wcstombs(buf, src.ServiceTag, 4);
+        wcstombs(buf, tagCopy, 4);
         prof["ServiceTag"] = std::string(buf, strnlen(buf, 4));
 
         prof["OnlineMedalFlasher"] = src.OnlineMedalFlasher;
@@ -1026,8 +1029,12 @@ namespace MCC::Settings {
             slot["SecondaryWeaponVariantIndex"] = src.LoadoutSlots[i].SecondaryWeaponVariantIndex;
             slot["EquipmentIndex"] = src.LoadoutSlots[i].EquipmentIndex;
             slot["GrenadeIndex"] = src.LoadoutSlots[i].GrenadeIndex;
+            // Ensure null termination before conversion (Name is wchar_t[14], may not be null-terminated)
+            wchar_t nameCopy[15] = {};
+            memcpy(nameCopy, src.LoadoutSlots[i].Name, sizeof(src.LoadoutSlots[i].Name));
+            nameCopy[14] = L'\0';
             char nameBuf[15] = {};
-            wcstombs(nameBuf, src.LoadoutSlots[i].Name, 14);
+            wcstombs(nameBuf, nameCopy, 14);
             slot["Name"] = std::string(nameBuf);
             loadoutArray.push_back(slot);
         }
