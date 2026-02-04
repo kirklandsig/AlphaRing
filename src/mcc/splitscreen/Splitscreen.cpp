@@ -39,6 +39,7 @@ namespace MCC::Splitscreen {
 #include "imgui.h"
 #include "mcc/mcc.h"
 #include "input/Input.h"
+#include "log/Log.h"
 
 #include <string>
 
@@ -123,14 +124,25 @@ namespace MCC::Splitscreen {
         ImGui::EndDisabled();
 
         if (ImGui::Button("Apply Profile")) {
+            LOG_INFO("Apply Profile clicked for player {}", index);
             __int64 xuid;
             auto p_mng = GameManager();
             auto p_engine = GameEngine();
             if (MCC::IsInGame() && p_mng && (xuid = CGameManager::get_xuid(0))) {
-                memcpy(&p_profile->profile, p_mng->ppOriginal.get_player_profile(p_mng, xuid), sizeof(CUserProfile));
-                memcpy(&p_profile->mapping, p_mng->ppOriginal.retrive_gamepad_mapping(p_mng, xuid), sizeof(CGamepadMapping));
-                if (p_engine)
-                    p_engine->load_setting();
+                auto src_profile = p_mng->ppOriginal.get_player_profile(p_mng, xuid);
+                auto src_mapping = p_mng->ppOriginal.retrive_gamepad_mapping(p_mng, xuid);
+                LOG_DEBUG("Apply Profile: src_profile={:p}, src_mapping={:p}", (void*)src_profile, (void*)src_mapping);
+                if (src_profile && src_mapping) {
+                    memcpy(&p_profile->profile, src_profile, sizeof(CUserProfile));
+                    memcpy(&p_profile->mapping, src_mapping, sizeof(CGamepadMapping));
+                    LOG_INFO("Apply Profile: Copied profile and mapping to player {}", index);
+                    if (p_engine)
+                        p_engine->load_setting();
+                } else {
+                    LOG_ERROR("Apply Profile: Source profile or mapping is null!");
+                }
+            } else {
+                LOG_WARNING("Apply Profile: Not in game or GameManager unavailable");
             }
         }
         if (ImGui::IsItemHovered())

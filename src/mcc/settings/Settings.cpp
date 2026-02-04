@@ -1,6 +1,7 @@
 #include "mcc/settings/Settings.h"
 #include "global/Global.h"
 #include "nlohmann/json.hpp"
+#include "log/Log.h"
 
 #include <offset_mcc.h>
 #include <filesystem>
@@ -877,28 +878,36 @@ namespace MCC::Settings {
     }
 
     bool CustomProfile::SaveProfile(const std::string& name, const CUserProfile& src) {
-        fs::path path = GetCustomProfilesPath();
+        LOG_INFO("SaveProfile: Starting save for preset '{}'", name);
 
-        json j;
-        // Load existing if present
-        if (fs::exists(path)) {
-            std::ifstream file(path);
-            if (file.is_open()) {
-                try {
-                    file >> j;
-                } catch (...) {
-                    j = json::object();
+        try {
+            fs::path path = GetCustomProfilesPath();
+            LOG_DEBUG("SaveProfile: Path = {}", path.string());
+
+            json j;
+            // Load existing if present
+            if (fs::exists(path)) {
+                std::ifstream file(path);
+                if (file.is_open()) {
+                    try {
+                        file >> j;
+                        LOG_DEBUG("SaveProfile: Loaded existing profiles file");
+                    } catch (const std::exception& e) {
+                        LOG_WARNING("SaveProfile: Failed to parse existing file: {}", e.what());
+                        j = json::object();
+                    }
                 }
             }
-        }
 
-        // Ensure profiles object exists
-        if (!j.contains("profiles") || !j["profiles"].is_object()) {
-            j["profiles"] = json::object();
-        }
+            // Ensure profiles object exists
+            if (!j.contains("profiles") || !j["profiles"].is_object()) {
+                j["profiles"] = json::object();
+            }
 
-        // Build profile JSON
-        json prof;
+            LOG_DEBUG("SaveProfile: Building profile JSON...");
+
+            // Build profile JSON
+            json prof;
 
         prof["SubtitleSetting"] = src.SubtitleSetting;
         prof["SubtitleSizeSetting"] = src.SubtitleSizeSetting;
@@ -965,6 +974,8 @@ namespace MCC::Settings {
         prof["SpartanPose"] = src.SpartanPose;
         prof["ElitePose"] = src.ElitePose;
 
+        LOG_DEBUG("SaveProfile: Saving basic fields done, starting Skins array...");
+
         // Skins array
         json skinArray = json::array();
         for (int i = 0; i < 32; ++i) {
@@ -975,6 +986,8 @@ namespace MCC::Settings {
         }
         prof["Skins"] = skinArray;
 
+        LOG_DEBUG("SaveProfile: Skins done, converting ServiceTag...");
+
         // ServiceTag - ensure null termination before conversion (src.ServiceTag is wchar_t[4], may not be null-terminated)
         wchar_t tagCopy[5] = {};
         memcpy(tagCopy, src.ServiceTag, sizeof(src.ServiceTag));
@@ -982,6 +995,7 @@ namespace MCC::Settings {
         char buf[5] = {};
         wcstombs(buf, tagCopy, 4);
         prof["ServiceTag"] = std::string(buf, strnlen(buf, 4));
+        LOG_DEBUG("SaveProfile: ServiceTag = '{}'", buf);
 
         prof["OnlineMedalFlasher"] = src.OnlineMedalFlasher;
         prof["VerticalLookSensitivity"] = src.VerticalLookSensitivity;
@@ -1017,9 +1031,12 @@ namespace MCC::Settings {
         prof["EnemyPlayerNameColor"] = src.EnemyPlayerNameColor;
         prof["GameEngineTimer"] = src.GameEngineTimer;
 
+        LOG_DEBUG("SaveProfile: Starting LoadoutSlots array...");
+
         // LoadoutSlots array
         json loadoutArray = json::array();
         for (int i = 0; i < 5; ++i) {
+            LOG_DEBUG("SaveProfile: LoadoutSlot[{}]...", i);
             json slot;
             slot["TacticalPackageIndex"] = src.LoadoutSlots[i].TacticalPackageIndex;
             slot["SupportUpgradeIndex"] = src.LoadoutSlots[i].SupportUpgradeIndex;
@@ -1039,6 +1056,7 @@ namespace MCC::Settings {
             loadoutArray.push_back(slot);
         }
         prof["LoadoutSlots"] = loadoutArray;
+        LOG_DEBUG("SaveProfile: LoadoutSlots done");
 
         prof["GameSpecific"] = std::string(src.GameSpecific, strnlen(src.GameSpecific, sizeof(src.GameSpecific)));
         prof["MouseSensitivity"] = src.MouseSensitivity;
@@ -1089,14 +1107,27 @@ namespace MCC::Settings {
         prof["RemasteredHUDSetting"] = src.RemasteredHUDSetting;
         prof["HUDScale"] = src.HUDScale;
 
+        LOG_DEBUG("SaveProfile: All fields done, writing to file...");
+
         j["profiles"][name] = prof;
 
         std::ofstream file(path, std::ios::trunc);
-        if (!file.is_open())
+        if (!file.is_open()) {
+            LOG_ERROR("SaveProfile: Failed to open file for writing: {}", path.string());
             return false;
+        }
 
         file << j.dump(4);
+        LOG_INFO("SaveProfile: Successfully saved preset '{}'", name);
         return true;
+
+        } catch (const std::exception& e) {
+            LOG_ERROR("SaveProfile: Exception caught: {}", e.what());
+            return false;
+        } catch (...) {
+            LOG_ERROR("SaveProfile: Unknown exception caught");
+            return false;
+        }
     }
 
     bool CustomProfile::LoadProfile(const std::string& name, CUserProfile& dst) {
