@@ -299,17 +299,26 @@ namespace MCC::Settings {
     }
 
     bool Profile::Save() {
+            LOG_INFO("Profile::Save starting...");
             fs::path path = GetConfigPath();
+            LOG_DEBUG("Profile::Save: Path = {}", path.string());
 
             json j;
             if (fs::exists(path)) {
                 std::ifstream file(path);
                 if (file.is_open()) {
-                    file >> j;
+                    try {
+                        file >> j;
+                        LOG_DEBUG("Profile::Save: Loaded existing settings file");
+                    } catch (const std::exception& e) {
+                        LOG_WARNING("Profile::Save: Failed to parse existing file: {}", e.what());
+                        j = json::object();
+                    }
                 }
             }
 
             for (int i = 0; i < 4; ++i) {
+                LOG_DEBUG("Profile::Save: Processing player {}", i);
                 std::string name;
                 size_t len = wcslen(g_Profiles[i].name);
                 name.resize(len);
@@ -392,8 +401,12 @@ namespace MCC::Settings {
                     skinArray.push_back(skin);
                 }
                 prof["Skins"] = skinArray;
+                // ServiceTag - ensure null termination before conversion
+                wchar_t tagCopy[5] = {};
+                memcpy(tagCopy, src.ServiceTag, sizeof(src.ServiceTag));
+                tagCopy[4] = L'\0';
                 char buf[5] = {};
-                wcstombs(buf, src.ServiceTag, 4);
+                wcstombs(buf, tagCopy, 4);
                 prof["ServiceTag"] = std::string(buf, strnlen(buf, 4));
                 prof["OnlineMedalFlasher"] = src.OnlineMedalFlasher;
                 prof["VerticalLookSensitivity"] = src.VerticalLookSensitivity;
@@ -440,9 +453,13 @@ namespace MCC::Settings {
                     slot["EquipmentIndex"]          = src.LoadoutSlots[o].EquipmentIndex;
                     slot["GrenadeIndex"]            = src.LoadoutSlots[o].GrenadeIndex;
 
-                    char buf[15] = {};
-                    wcstombs(buf, src.LoadoutSlots[o].Name, 14);
-                    slot["Name"] = std::string(buf);
+                    // Ensure null termination before conversion
+                    wchar_t nameCopy[15] = {};
+                    memcpy(nameCopy, src.LoadoutSlots[o].Name, sizeof(src.LoadoutSlots[o].Name));
+                    nameCopy[14] = L'\0';
+                    char nameBuf[15] = {};
+                    wcstombs(nameBuf, nameCopy, 14);
+                    slot["Name"] = std::string(nameBuf);
 
                     loadoutArray.push_back(slot);
                 }
@@ -505,10 +522,13 @@ namespace MCC::Settings {
             }
 
             std::ofstream file(path, std::ios::trunc);
-            if (!file.is_open())
+            if (!file.is_open()) {
+                LOG_ERROR("Profile::Save: Failed to open file for writing");
                 return false;
+            }
 
             file << j.dump(4);
+            LOG_INFO("Profile::Save: Successfully saved all profiles");
             return true;
         }
 
@@ -550,8 +570,14 @@ namespace MCC::Settings {
     }
 
     void Profile::CaptureFromRuntime() {
+        LOG_INFO("Profile::CaptureFromRuntime starting...");
         for (int i = 0; i < 4; ++i) {
+            LOG_DEBUG("CaptureFromRuntime: Processing player {}", i);
             auto src = CGameManager::get_profile(i);
+            if (!src) {
+                LOG_ERROR("CaptureFromRuntime: get_profile({}) returned null!", i);
+                continue;
+            }
             auto& dst = g_Profiles[i];
 
             dst.controller_index = src->controller_index;
@@ -681,7 +707,9 @@ namespace MCC::Settings {
             dst.profile.RemasteredHUDSetting = src->profile.RemasteredHUDSetting;
             dst.profile.HUDScale = src->profile.HUDScale;
             memcpy(&dst.mapping, &src->mapping, sizeof(dst.mapping));
+            LOG_DEBUG("CaptureFromRuntime: Player {} done", i);
         }
+        LOG_INFO("Profile::CaptureFromRuntime complete");
     }
 
     void Profile::Initialize(CGameManager* mng)
