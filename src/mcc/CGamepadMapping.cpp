@@ -1,13 +1,14 @@
 #include "CGamepadMapping.h"
 #include "CGameEngine.h"
 
-static std::array<const char*, 16> button_names {
+static std::array<const char*, 17> button_names {
         "Left Trigger","Right Trigger",
         "Dpad Up","Dpad Down","Dpad Left","Dpad Right",
         "Start","Back",
         "Left Thumb","Right Thumb",
         "Left Shoulder","Right Shoulder",
-        "A","B","X","Y"
+        "A","B","X","Y",
+        "None"  // Unbound
 };
 
 static std::array<const char*, 66> action_names {
@@ -79,31 +80,212 @@ static std::array<const char*, 66> action_names {
         "Select Next Grenades",
 };
 
-const std::array<const char *, 16>* CGamepadMapping::ButtonNames() {return &button_names;}
+const std::array<const char *, 17>* CGamepadMapping::ButtonNames() {return &button_names;}
 
 const std::array<const char *, 66>* CGamepadMapping::ActionNames() {return &action_names;}
 
+void CGamepadMapping::ResetToDefaults() {
+    // Set all to None (unbound) first
+    for (int i = 0; i < 66; i++) {
+        actions[i] = None;
+    }
+
+    // Standard Xbox Halo controls
+    actions[0]  = A;             // Jump
+    actions[1]  = LeftShoulder;  // Switch Grenades
+    actions[2]  = X;             // Action/Interact
+    actions[3]  = RightShoulder; // Reload Right Weapon
+    actions[4]  = Y;             // Change Weapon
+    actions[5]  = B;             // Melee
+    actions[6]  = DpadUp;        // Toggle Flashlight
+    actions[7]  = LeftTrigger;   // Throw Grenade
+    actions[8]  = RightTrigger;  // Use Right Weapon (Shoot)
+    actions[9]  = LeftThumb;     // Crouch
+    actions[10] = RightThumb;    // Player Zoom
+    actions[20] = Back;          // Multiplayer Scoreboard
+}
+
 #include <imgui.h>
 #include <cstdio>
+#include <string>
+#include <vector>
+#include "input/Input.h"
+#include "mcc/settings/Settings.h"
+
+// Detect which button is currently pressed on a controller
+static int DetectPressedButton(int controllerIndex) {
+    XINPUT_STATE state;
+    if (!AlphaRing::Input::GetXInputGetState(controllerIndex, &state))
+        return -1;
+
+    // Check triggers first
+    if (state.Gamepad.bLeftTrigger > 30) return CGamepadMapping::LeftTrigger;
+    if (state.Gamepad.bRightTrigger > 30) return CGamepadMapping::RightTrigger;
+
+    // Check buttons
+    if (state.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_UP) return CGamepadMapping::DpadUp;
+    if (state.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN) return CGamepadMapping::DpadDown;
+    if (state.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_LEFT) return CGamepadMapping::DpadLeft;
+    if (state.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT) return CGamepadMapping::DpadRight;
+    if (state.Gamepad.wButtons & XINPUT_GAMEPAD_START) return CGamepadMapping::Start;
+    if (state.Gamepad.wButtons & XINPUT_GAMEPAD_BACK) return CGamepadMapping::Back;
+    if (state.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_THUMB) return CGamepadMapping::LeftThumb;
+    if (state.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_THUMB) return CGamepadMapping::RightThumb;
+    if (state.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER) return CGamepadMapping::LeftShoulder;
+    if (state.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER) return CGamepadMapping::RightShoulder;
+    if (state.Gamepad.wButtons & XINPUT_GAMEPAD_A) return CGamepadMapping::A;
+    if (state.Gamepad.wButtons & XINPUT_GAMEPAD_B) return CGamepadMapping::B;
+    if (state.Gamepad.wButtons & XINPUT_GAMEPAD_X) return CGamepadMapping::X;
+    if (state.Gamepad.wButtons & XINPUT_GAMEPAD_Y) return CGamepadMapping::Y;
+
+    return -1;
+}
 
 void CGamepadMapping::ImGuiContext() {
-    char buffer[10];
+    char buffer[64];
     bool result = false;
+    static int binding_action = -1;  // Which action is being bound (-1 = none)
+    static int binding_controller = 0;  // Which controller to listen to
+
+    // Controller selector for binding
+    ImGui::PushItemWidth(150);
+    ImGui::Combo("Bind Controller", &binding_controller, "Controller 1\0Controller 2\0Controller 3\0Controller 4\0");
+    ImGui::PopItemWidth();
+    ImGui::Separator();
+
+    // Custom Profile Management
+    static std::vector<std::string> profile_names;
+    static int selected_profile = -1;
+    static char new_profile_name[64] = "";
+    static bool show_save_input = false;
+    static bool needs_refresh = true;
+
+    // Refresh profile list when needed
+    if (needs_refresh) {
+        profile_names = MCC::Settings::CustomMapping::GetProfileNames();
+        needs_refresh = false;
+        // Reset selection if out of bounds
+        if (selected_profile >= (int)profile_names.size()) {
+            selected_profile = profile_names.empty() ? -1 : 0;
+        }
+    }
+
+    ImGui::Text("Custom Profiles:");
+
+    // Profile dropdown
+    ImGui::PushItemWidth(200);
+    const char* preview = (selected_profile >= 0 && selected_profile < (int)profile_names.size())
+        ? profile_names[selected_profile].c_str()
+        : "-- Select Profile --";
+
+    if (ImGui::BeginCombo("##CustomProfile", preview)) {
+        for (int i = 0; i < (int)profile_names.size(); ++i) {
+            bool is_selected = (selected_profile == i);
+            if (ImGui::Selectable(profile_names[i].c_str(), is_selected)) {
+                selected_profile = i;
+            }
+            if (is_selected) {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+    ImGui::PopItemWidth();
+
+    ImGui::SameLine();
+    if (ImGui::Button("Load") && selected_profile >= 0 && selected_profile < (int)profile_names.size()) {
+        if (MCC::Settings::CustomMapping::LoadProfile(profile_names[selected_profile], *this)) {
+            result = true;
+        }
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Delete") && selected_profile >= 0 && selected_profile < (int)profile_names.size()) {
+        MCC::Settings::CustomMapping::DeleteProfile(profile_names[selected_profile]);
+        needs_refresh = true;
+        selected_profile = -1;
+    }
+
+    // Save new profile section
+    if (!show_save_input) {
+        if (ImGui::Button("Save as New Profile...")) {
+            show_save_input = true;
+            new_profile_name[0] = '\0';
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button("Reset to Defaults")) {
+            ResetToDefaults();
+            result = true;
+        }
+    } else {
+        ImGui::PushItemWidth(200);
+        ImGui::InputText("##NewProfileName", new_profile_name, sizeof(new_profile_name));
+        ImGui::PopItemWidth();
+
+        ImGui::SameLine();
+        if (ImGui::Button("Save") && new_profile_name[0] != '\0') {
+            if (MCC::Settings::CustomMapping::SaveProfile(new_profile_name, *this)) {
+                needs_refresh = true;
+                show_save_input = false;
+            }
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel##SaveCancel")) {
+            show_save_input = false;
+        }
+    }
+
+    ImGui::Separator();
+
+    // Check for button press if binding is active
+    if (binding_action >= 0) {
+        int pressed = DetectPressedButton(binding_controller);
+        if (pressed >= 0) {
+            actions[binding_action] = static_cast<CGamepadMapping::eButton>(pressed);
+            binding_action = -1;
+            result = true;
+        }
+    }
 
     for (int i = 0; i < action_names.size(); ++i) {
         auto name = action_names.at(i);
         if (name == nullptr) {
-            sprintf(buffer, "Button %d", i);
+            snprintf(buffer, sizeof(buffer), "Action %d", i);
             name = buffer;
         }
 
-        ImGui::PushItemWidth(200);
-        int value = actions[i];
-        if (ImGui::Combo(name, &value, button_names.data(), button_names.size())) {
-            actions[i] = static_cast<CGamepadMapping::eButton>(value);
-            result = true;
+        bool is_binding = (binding_action == i);
+
+        if (is_binding) {
+            // Show binding prompt
+            ImGui::Text("%s:", name);
+            ImGui::SameLine();
+            ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Press button...");
+            ImGui::SameLine();
+            snprintf(buffer, sizeof(buffer), "Cancel##%d", i);
+            if (ImGui::Button(buffer)) {
+                binding_action = -1;
+            }
+        } else {
+            // Show current binding with dropdown and bind button
+            ImGui::PushItemWidth(150);
+            // Convert None (-1) to index 16 for dropdown display
+            int value = (actions[i] == CGamepadMapping::None) ? 16 : static_cast<int>(actions[i]);
+            if (ImGui::Combo(name, &value, button_names.data(), button_names.size())) {
+                // Convert index 16 back to None (-1) for storage
+                actions[i] = (value == 16) ? CGamepadMapping::None : static_cast<CGamepadMapping::eButton>(value);
+                result = true;
+            }
+            ImGui::PopItemWidth();
+
+            ImGui::SameLine();
+            snprintf(buffer, sizeof(buffer), "Bind##%d", i);
+            if (ImGui::Button(buffer) && binding_action < 0) {
+                binding_action = i;
+            }
         }
-        ImGui::PopItemWidth();
     }
 
     if (result) {

@@ -77,6 +77,10 @@ namespace AlphaRing::Render::D3d11 {
 
         pDXGIAdapter->GetParent(__uuidof(IDXGIFactory), (void **)&Graphics()->pIDXGIFactory);
 
+        // Release temporary COM objects to prevent memory leaks
+        pDXGIAdapter->Release();
+        pDXGIDevice->Release();
+
         // Create Render Target View
         Graphics()->RecreateRenderTargetView();
 
