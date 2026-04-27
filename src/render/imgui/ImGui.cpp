@@ -61,6 +61,13 @@ namespace AlphaRing::Render::ImGui {
     }
 
     void Render() {
+        // Skip ImGui processing entirely when menu is hidden
+        // This prevents ImGui from capturing input and interfering with game menus
+        if (!AlphaRing::Global::Global()->show_imgui) {
+            AlphaRing::Input::Update();
+            return;
+        }
+
         ImGui_ImplDX11_NewFrame();
         ImGui_ImplWin32_NewFrame();
         ::ImGui::NewFrame();
@@ -70,17 +77,15 @@ namespace AlphaRing::Render::ImGui {
 
         AlphaRing::Input::Update();
 
-        if (!AlphaRing::Global::Global()->show_imgui || !AlphaRing::Global::Global()->show_imgui_mouse)
+        if (!AlphaRing::Global::Global()->show_imgui_mouse)
             ::ImGui::SetMouseCursor(ImGuiMouseCursor_None);
-
-        if (!AlphaRing::Global::Global()->show_imgui)
-            return;
 
         g_pMCCContext->render();
 
 
         if (inGame && pGameGlobal != nullptr) {
-            if (pGameGlobal->current_game != 0)
+            // Bounds check: pages array has 7 elements (indices 0-6)
+            if (pGameGlobal->current_game > 0 && pGameGlobal->current_game < 7)
             {
                 auto context = pages[pGameGlobal->current_game];
                 if (context != nullptr)
