@@ -2,6 +2,8 @@
 
 #include "../imgui/imgui_manager.h"
 
+#include <MinHook.h>
+
 int c_d3d11_manager::initialize(){
 	// Initailize d3d11
 	// Load d3d11.dll
@@ -19,15 +21,29 @@ int c_d3d11_manager::initialize(){
 	// Cannot detour the device and device_context, cause their vftables are dynamic changed
 	d3d11_get_vftables(&m_swapchain_vtbl);
 
-	vftable_manager()->create(
-		m_swapchain_vtbl, 
-		(const void**)&g_swapchain_vtbl, 
-		sizeof(g_swapchain_vtbl), 
-		(void**) &g_swapchain_vtbl_original);
+	// Inline-hook Present/ResizeBuffers via MinHook.
+	//
+	// Vtable patching is unusable here: this dxgi build re-dispatches Present through
+	// the swapchain vtable, so calling the saved pointer (or even restoring the slot)
+	// re-enters our detour -> infinite recursion. MinHook patches the function
+	// prologue with a proper relocating trampoline, so calling the original never
+	// routes back through the vtable.
+	auto present = reinterpret_cast<LPVOID>(m_swapchain_vtbl->Present);
+	auto resize  = reinterpret_cast<LPVOID>(m_swapchain_vtbl->ResizeBuffers);
 
-	auto status = vftable_manager()->enable(m_swapchain_vtbl);
+	auto mh = MH_Initialize();
+	CHECK(mh == MH_OK || mh == MH_ERROR_ALREADY_INITIALIZED, "MH_Initialize failed");
 
-	CHECK(status == 0, "Failed to override swapchain vftable!");
+	auto c1 = MH_CreateHook(present, reinterpret_cast<LPVOID>(g_swapchain_vtbl.Present),
+		reinterpret_cast<LPVOID*>(&g_swapchain_vtbl_original.Present));
+	auto c2 = MH_CreateHook(resize, reinterpret_cast<LPVOID>(g_swapchain_vtbl.ResizeBuffers),
+		reinterpret_cast<LPVOID*>(&g_swapchain_vtbl_original.ResizeBuffers));
+
+	auto e1 = MH_EnableHook(present);
+	auto e2 = MH_EnableHook(resize);
+
+	CHECK(c1 == MH_OK && e1 == MH_OK, "Failed to hook Present via MinHook!");
+	CHECK(c2 == MH_OK && e2 == MH_OK, "Failed to hook ResizeBuffers via MinHook!");
 
 	return 0;
 }
@@ -46,9 +62,9 @@ int c_d3d11_manager::check_swap_chain(IDXGISwapChain* pSwapChain) {
 	}
 
 	// Update Swap Chain
-	m_swapchain = pSwapChain; 
+	m_swapchain = pSwapChain;
 
-	// Destory Imgui Context 
+	// Destory Imgui Context
 	imgui_manager()->shutdown();
 
 	// Get HWND

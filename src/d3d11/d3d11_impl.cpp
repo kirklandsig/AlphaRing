@@ -58,6 +58,8 @@ HRDEF Present(IDXGISwapChain* This, UINT SyncInterval, UINT Flags) {
 		imgui_manager()->end_frame();
 	}
 
+	// Call the MinHook trampoline (relocated original prologue + jump past our hook).
+	// This does not route back through the swapchain vtable, so it cannot recurse.
 	return g_swapchain_vtbl_original.Present(This, SyncInterval, Flags);
 }
 

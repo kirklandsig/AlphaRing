@@ -50,16 +50,29 @@ int c_mcc_manager::initialize() {
 	LOG_INFO("{}:[{}]", (int)m_mcc_module, m_version.to_string());
 
 	// override game manager vftable
-	auto vftable = *get_runtime_address(g_mcc_offset_map.game_manager_vftable);
+	//
+	// The game-manager object at this offset is constructed by the game during
+	// startup; its vftable pointer (the object's first field) is null until then.
+	// Our init thread runs at DLL attach and can win the race, so wait for the
+	// game to populate it before overriding (mirrors the game_globals wait below).
+	i_game_manager_vftable* vftable = nullptr;
+
+	while ((vftable = *get_runtime_address(g_mcc_offset_map.game_manager_vftable)) == nullptr) {
+		Sleep(100);
+	}
 
 	vftable_manager()->create(
-		vftable, 
-		(const void**)&g_game_manager_vftable, 
-		sizeof(i_game_manager_vftable), 
+		vftable,
+		(const void**)&g_game_manager_vftable,
+		sizeof(i_game_manager_vftable),
 		(void**)&g_game_manager_vftable_original);
 
 	vftable_manager()->enable(vftable);
 
+	// TODO(1.3528): set_player_gamepad's offset (0x8CEF8C) has no AOB signature and
+	// the .text section shifted between 1.3495 and 1.3528, so this hook needs a
+	// re-derived offset before it can be re-enabled. Disabled for now.
+#if 0
 	auto func = get_runtime_address(g_mcc_offset_map.set_player_input);
 
 	hook_manager()->create(
@@ -69,6 +82,7 @@ int c_mcc_manager::initialize() {
 	);
 
 	hook_manager()->enable(func);
+#endif
 
 	// Initialize the player manager
 	player_manager()->initialize();

@@ -19,6 +19,16 @@ set(SPDLOG_DIR ${CMAKE_SOURCE_DIR}/dep/spdlog)
 set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/dep/imgui)
 set(LIBMCC_DIR ${CMAKE_SOURCE_DIR}/dep/libmcc)
 set(JSON_DIR ${CMAKE_SOURCE_DIR}/dep/json)
+set(MINHOOK_DIR ${CMAKE_SOURCE_DIR}/dep/minhook)
+
+# build MinHook from source (avoids its own CMake min-version requirement)
+add_library(minhook STATIC
+	${MINHOOK_DIR}/src/buffer.c
+	${MINHOOK_DIR}/src/hook.c
+	${MINHOOK_DIR}/src/trampoline.c
+	${MINHOOK_DIR}/src/hde/hde64.c
+)
+target_include_directories(minhook PUBLIC ${MINHOOK_DIR}/include)
 
 # manually add imgui source files
 set(IMGUI_SRC 
@@ -40,6 +50,7 @@ include_directories(${SPDLOG_DIR}/include)
 include_directories(${IMGUI_DIR})
 include_directories(${LIBMCC_DIR}/include)
 include_directories(${JSON_DIR}/single_include)
+include_directories(${MINHOOK_DIR}/include)
 
 # add source files
 file(GLOB_RECURSE SRC ${CMAKE_SOURCE_DIR}/src/*.c ${CMAKE_SOURCE_DIR}/src/*.cpp)
@@ -52,7 +63,7 @@ target_compile_definitions(${WRAPPER_NAME} PUBLIC CINTERFACE D3D11_NO_HELPERS)
 
 # link libraries
 target_link_libraries(${WRAPPER_NAME}
-	dxguid imgui Synchronization
+	dxguid imgui minhook Synchronization
 )
 
 # install 
