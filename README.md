@@ -12,7 +12,7 @@
 
 ## The Plan For This Fork
 
-### Improve UI to be more user controller/user friendly.
+### Improve UI to be more controller/user friendly.
 
 #### 1. Adding player simplification
  - Instead of drop downs, we will have 4 slots in the top right to represent each player.
