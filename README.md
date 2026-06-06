@@ -1,3 +1,35 @@
+(NO WORK HAS BEEN COMPLETED ON THIS FORK YET. PROGRESS WILL BE EXTREMELY SLOW.)
+
+# Halo Split Screen PC - MyPantsAreCheese Fork
+
+> **This is a personal fork of [kirklandsig/AlphaRing](https://github.com/kirklandsig/AlphaRing) to experiment with an improved UI for controllers.
+> 
+> **Based on:** kirklandsig's AlphaRing v1.4.4-experimental.
+> 
+> For the original project, see [WinterSquire/AlphaRing](https://github.com/WinterSquire/AlphaRing)
+
+---
+
+## The Plan For This Fork
+
+### Improve UI to be more user controller/user friendly.
+
+#### 1. Adding player simplification
+ - Instead of drop downs, we will have 4 slots in the top right to represent each player.
+ - Update controller binding to be always listening while UI is up. If player presses "A" then they will join.
+ - Listen for "B" press to have a player leave.
+ - User bumpers to navigate through saved players.
+ - Press "X" to go to player creation.
+ - Press "Y" to go to other options.
+
+#### 2. Player creation simplification
+ - Options to alter player appearance are controller navigatable.
+ - Entering a players name will bring up with windows keyboard to allow the controller to type in a name.
+
+#### 3. Other Options
+ - This will include all other tools that were already included in the mod.
+ - These will be treated with a lower priority of making controller friendly.
+
 # AlphaRing - kirklandsig Fork
 
 > **This is a personal fork of [thejackbitt/AlphaRing](https://github.com/thejackbitt/AlphaRing) for testing and development.**
