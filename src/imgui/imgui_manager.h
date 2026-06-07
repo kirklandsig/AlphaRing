@@ -29,8 +29,8 @@ public:
 private:
 	bool m_initialized = false;
 	bool m_game_render = false;
-	bool m_visibility = true;
-	bool m_cached_visibility = true;
+	bool m_visibility = false;
+	bool m_cached_visibility = false;
 	ID3D11RenderTargetView* m_imgui_view;
 };
 

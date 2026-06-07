@@ -53,10 +53,18 @@ public:
 	inline e_player_input_device get_input_device(int player) { return m_input_devices[player]; }
 	inline void set_input_device(int player, e_player_input_device device) { m_input_devices[player] = device; }
 
+	inline e_player_input_device device_at(int slot) { return m_input_devices[slot]; }
+
+	int find_slot(e_player_input_device device);
+
+	int join(e_player_input_device device);
+
+	void leave(int slot);
+
 private:
-	int m_local_player_count = 1;
-	e_player_input_device m_input_devices[k_player_input_device_count];
-	libmcc::XUID m_xuids[libmcc::k_game_count];
+	int m_local_player_count = 0;
+	e_player_input_device m_input_devices[libmcc::k_local_player_count];
+	libmcc::XUID m_xuids[libmcc::k_local_player_count];
 	s_player_profiles* m_profiles;
 
 	static constexpr size_t k_player_profiles_size = sizeof(s_player_profiles[libmcc::k_local_player_count]);

@@ -71,14 +71,6 @@ int c_imgui_manager::shutdown() {
 }
 
 int c_imgui_manager::begin_frame() {
-    critical_section_manager()->enter(_critical_section_imgui);
-    m_cached_visibility = get_visibility();
-    critical_section_manager()->leave(_critical_section_imgui);
-
-	if (m_cached_visibility == false) {
-		return 2;
-	}
-
     ImGui_ImplDX11_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
@@ -87,10 +79,6 @@ int c_imgui_manager::begin_frame() {
 }
 
 int c_imgui_manager::end_frame() {
-    if (m_cached_visibility == false) {
-        return 2;
-    }
-
     auto context = d3d11_manager()->context();
 
 	context->lpVtbl->OMSetRenderTargets(context, 1, &m_imgui_view, nullptr);

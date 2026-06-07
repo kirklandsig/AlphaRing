@@ -45,15 +45,69 @@ int c_player_manager::initialize_xuid() {
 
 	for (int i = 0; i < k_local_player_count; i++) {
 		m_xuids[i] = id.xuid + i;
+		m_input_devices[i] = _player_input_device_km;
+	}
 
-		if (i == 0) {
-			m_input_devices[0] = _player_input_device_km;
-		} else {
-			m_input_devices[i] = static_cast<e_player_input_device>(i - 1);
+	m_local_player_count = 0;
+
+	return 0;
+}
+
+int c_player_manager::find_slot(e_player_input_device device) {
+	for (int i = 0; i < m_local_player_count; i++) {
+		if (m_input_devices[i] == device) {
+			return i;
 		}
 	}
 
-	return 0;
+	return -1;
+}
+
+int c_player_manager::join(e_player_input_device device) {
+	c_critical_section cs(_critical_section_player);
+
+	if (find_slot(device) != k_player_input_device_none) {
+		return -1;
+	}
+
+	if (device == _player_input_device_km) {
+		if (m_local_player_count != 0) {
+			return -1;
+		}
+
+		m_input_devices[0] = _player_input_device_km;
+		m_local_player_count = 1;
+
+		return 0;
+	}
+
+	if (m_local_player_count >= libmcc::k_local_player_count) {
+		return -1;
+	}
+
+	int slot = m_local_player_count;
+	m_input_devices[slot] = device;
+	m_local_player_count++;
+
+	return slot;
+}
+
+void c_player_manager::leave(int slot) {
+	c_critical_section cs(_critical_section_player);
+
+	if (slot < 0 || slot >= m_local_player_count) {
+		return;
+	}
+
+	for (int i = slot; i < m_local_player_count - 1; i++) {
+		m_input_devices[i] = m_input_devices[i + 1];
+	}
+
+	m_local_player_count--;
+
+	if (m_local_player_count == 0) {
+		m_input_devices[0] = _player_input_device_km;
+	}
 }
 
 int c_player_manager::initialize_profile() {

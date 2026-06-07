@@ -3,6 +3,7 @@
 class c_imgui_render {
 public:
 	static void main();
+	static void join();
 	static void halo1();
 	static void halo2();
 	static void halo3();
