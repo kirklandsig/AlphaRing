@@ -27,8 +27,8 @@ void drawPage(
             menuPosY,
             tabWidth,
             menuHeight,
-            IM_COL32(255, 255, 255, opacity),
-            IM_COL32(224, 223, 222, opacity),
+            IM_COL32(255, 255, 255, 255),
+            IM_COL32(224, 223, 222, 255),
             true
         );
 

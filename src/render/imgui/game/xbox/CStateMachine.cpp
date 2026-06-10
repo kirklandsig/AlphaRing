@@ -99,7 +99,7 @@ void StateMachine::handleLeft() {
 
     if (opt.type == OptionType::Increment) {
         Mix_PlayChannel(-1, currentState.sounds[2], 0);
-        currentState.optionIndex = std::max(0, currentState.optionIndex - 2);
+        currentState.optionIndex = (std::max)(0, currentState.optionIndex - 2);
     } else {
         Mix_PlayChannel(-1, currentState.sounds[3], 0);
         if (currentState.pageIndex > 0) {
@@ -117,7 +117,7 @@ void StateMachine::handleRight() {
 
     if (opt.type == OptionType::Decrement) {
         Mix_PlayChannel(-1, currentState.sounds[3], 0);
-        currentState.optionIndex = std::min(
+        currentState.optionIndex = (std::min)(
             (int)currentState.menu.pages[currentState.pageIndex].options.size() - 1,
             currentState.optionIndex + 2
         );
@@ -140,13 +140,13 @@ void StateMachine::handleUp() {
             Mix_PlayChannel(-1, currentState.sounds[5], 0);
         } else {
             Mix_PlayChannel(-1, currentState.sounds[2], 0);
-            currentState.optionIndex = std::max(0, currentState.optionIndex - 1);
+            currentState.optionIndex = (std::max)(0, currentState.optionIndex - 1);
         }
     }
 
     if (currentState.phase == Phase::InIdle) {
         Mix_PlayChannel(-1, currentState.sounds[2], 0);
-        currentState.subOptionIndex = std::max(0, currentState.subOptionIndex - 1);
+        currentState.subOptionIndex = (std::max)(0, currentState.subOptionIndex - 1);
 
         if (currentState.subOptionIndex < currentState.subOptionWindow[0]) {
             Mix_PlayChannel(-1, currentState.sounds[2], 0);
@@ -166,9 +166,9 @@ void StateMachine::handleDown() {
                         .options[currentState.optionIndex];
 
         if (opt.type == OptionType::Decrement) {
-            currentState.optionIndex = std::min(maxOption - 1, currentState.optionIndex + 3);
+            currentState.optionIndex = (std::min)(maxOption - 1, currentState.optionIndex + 3);
         } else {
-            currentState.optionIndex = std::min(maxOption - 1, currentState.optionIndex + 1);
+            currentState.optionIndex = (std::min)(maxOption - 1, currentState.optionIndex + 1);
         }
     }
 
@@ -179,7 +179,7 @@ void StateMachine::handleDown() {
                         .options[currentState.optionIndex]
                         .subOptions.size();
 
-        currentState.subOptionIndex = std::min(maxSub - 1, currentState.subOptionIndex + 1);
+        currentState.subOptionIndex = (std::min)(maxSub - 1, currentState.subOptionIndex + 1);
 
         int maxWin = (int)currentState.subOptionWindow.size();
         if (currentState.subOptionIndex > currentState.subOptionWindow[maxWin - 1]) {
@@ -281,14 +281,14 @@ void StateMachine::update(float dt)
                 currentState.optionIndex = 0;
                 currentState.phase = Phase::FadeIn;
                 int maxPage = State().menu.MAX_PAGES;
-                currentState.pageIndex = std::min(maxPage - 1, currentState.pageIndex + 1);
+                currentState.pageIndex = (std::min)(maxPage - 1, currentState.pageIndex + 1);
                 break;
             }
 
             case Phase::ShiftLeft:
                 currentState.optionIndex = 0;
                 currentState.phase = Phase::FadeIn;
-                currentState.pageIndex = std::max(0, currentState.pageIndex - 1);
+                currentState.pageIndex = (std::max)(0, currentState.pageIndex - 1);
                 break;
 
             case Phase::ShiftUp:
