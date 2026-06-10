@@ -4,6 +4,7 @@
 
 #include "imgui.h"
 #include "global/Global.h"
+#include "render/imgui/game/xbox/CXboxContext.h"
 
 static HMODULE hModule;
 static DWORD (WINAPI* g_pXInputGetState)(_In_  DWORD dwUserIndex, _Out_ XINPUT_STATE* pState) WIN_NOEXCEPT;
@@ -41,12 +42,18 @@ namespace AlphaRing::Input {
     bool Update() {
         static bool b_toggled = false;
         static bool b_pressed = false;
+        static WORD prevButtons = 0;
         XINPUT_STATE state;
 
         if (!GetXInputGetState(0, &state))
             return false;
 
-        if (state.Gamepad.wButtons & XINPUT_GAMEPAD_START && state.Gamepad.wButtons & XINPUT_GAMEPAD_BACK) {
+        WORD buttons = state.Gamepad.wButtons;
+        WORD justPressed = buttons & ~prevButtons;
+        prevButtons = buttons;
+
+        // Start+Back: toggle debug UI
+        if (buttons & XINPUT_GAMEPAD_START && buttons & XINPUT_GAMEPAD_BACK) {
             if (!b_toggled) {
                 AlphaRing::Global::Global()->show_imgui = !AlphaRing::Global::Global()->show_imgui;
                 b_toggled = true;
@@ -56,22 +63,41 @@ namespace AlphaRing::Input {
             b_toggled = false;
         }
 
-        if (AlphaRing::Global::Global()->show_imgui) {
+        // Back alone: toggle Xbox overlay menu
+        if ((justPressed & XINPUT_GAMEPAD_BACK) && !(buttons & XINPUT_GAMEPAD_START)) {
+            if (g_pXboxContext) {
+                if (g_pXboxContext->isOpen()) g_pXboxContext->close();
+                else g_pXboxContext->open();
+            }
+        }
+
+        // D-pad and face buttons drive Xbox menu navigation
+        if (g_pXboxContext && g_pXboxContext->isOpen()) {
+            const auto send = [&](WORD btn, InputCommand cmd) {
+                if (justPressed & btn) g_pXboxContext->handleInput(cmd);
+            };
+            send(XINPUT_GAMEPAD_DPAD_UP,    InputCommand::Up);
+            send(XINPUT_GAMEPAD_DPAD_DOWN,  InputCommand::Down);
+            send(XINPUT_GAMEPAD_DPAD_LEFT,  InputCommand::Left);
+            send(XINPUT_GAMEPAD_DPAD_RIGHT, InputCommand::Right);
+            send(XINPUT_GAMEPAD_A,          InputCommand::Select);
+            send(XINPUT_GAMEPAD_B,          InputCommand::Back);
+        }
+
+        // Thumbstick mouse control for debug UI (suppressed while Xbox menu is open)
+        if (AlphaRing::Global::Global()->show_imgui && !(g_pXboxContext && g_pXboxContext->isOpen())) {
             const auto f_speed = [](SHORT x, SHORT y) -> ImVec2 {
-                // Mouse Move Speed for Gamepad
                 const auto speed = 5.0f;
-                // Normalize Move Speed
                 const auto f_normalize = [](SHORT sThumb) -> float {
                     const auto deadZone = XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE;
                     return (abs(sThumb) > deadZone) ? (sThumb / 32767.0f) : 0.0f;
                 };
-                // Get Final Move Speed
                 return {f_normalize(x) * speed, -f_normalize(y) * speed};
             };
 
             ImGuiIO& io = ImGui::GetIO();
 
-            if (state.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER) {
+            if (buttons & XINPUT_GAMEPAD_RIGHT_SHOULDER) {
                 if (!b_pressed) {
                     io.MouseDown[0] = true;
                     b_pressed = true;
