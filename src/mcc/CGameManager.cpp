@@ -9,7 +9,7 @@
 #include <guiddef.h>
 #include <combaseapi.h>
 
-static constexpr const char* k_menuStateBinPath = "./alpha_ring/xbox_menu_state.bin";
+static constexpr const char* k_menuStateBinPath = "./MCC/Binaries/Win64/alpha_ring_menu.bin";
 
 static struct ProfileContainer_t {CGameManager::Profile_t profiles[4]; ProfileContainer_t();} container;
 
