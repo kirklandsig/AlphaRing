@@ -29,7 +29,8 @@ namespace AlphaRing::Hook {
         assertm(result, "failed to initialize minhook");
 
 		LOG_INFO("Initializing AlphaRing...");
-        LOG_INFO("Created by WinterSquire, updated by xTrxplex\n");
+        LOG_INFO("Created by WinterSquire, updated by thejackbitt\n");
+		LOG_WARNING("** CURRENTLY IN BETA - STRAP IN FOR A BUMPY RIDE **");
 		LOG_WARNING(" == This version only supports the steam version of the game ==");
 
         if ((hModule = (__int64)GetModuleHandleA("MCC-Win64-Shipping.exe")) != 0) {

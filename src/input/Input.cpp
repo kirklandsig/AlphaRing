@@ -12,9 +12,6 @@ static HMODULE hModule;
 static DWORD (WINAPI* g_pXInputGetState)(_In_ DWORD dwUserIndex, _Out_ XINPUT_STATE* pState) WIN_NOEXCEPT;
 static DWORD (WINAPI* g_pXInputSetState)(_In_ DWORD dwUserIndex, _In_ XINPUT_VIBRATION* pVibration) WIN_NOEXCEPT;
 
-// MinHook detour: zeros gamepad state for the game when the Xbox menu is open.
-// g_pXInputGetState is overwritten with the MinHook trampoline after Init(), so
-// calling it here bypasses the hook and reads the real hardware state.
 static DWORD WINAPI XInputGetStateDetour(DWORD dwUserIndex, XINPUT_STATE* pState) {
     DWORD result = g_pXInputGetState(dwUserIndex, pState);
     if (result == ERROR_SUCCESS && pState && g_pXboxContext && g_pXboxContext->isOpen())
@@ -33,9 +30,6 @@ namespace AlphaRing::Input {
 
         assertm(hModule != nullptr, "failed to find xinput module");
 
-        // Hook XInputGetState so the game sees a zeroed gamepad while the Xbox
-        // menu is open. After MH_CreateHook, g_pXInputGetState becomes the
-        // trampoline (calls original directly), keeping AlphaRing's own reads unaffected.
         auto xInputAddr = (LPVOID)GetProcAddress(hModule, "XInputGetState");
         MH_STATUS mhStatus = MH_Initialize();
         if (mhStatus == MH_OK || mhStatus == MH_ERROR_ALREADY_INITIALIZED) {
@@ -70,7 +64,7 @@ namespace AlphaRing::Input {
         static WORD prevButtons  = 0;
         static bool stickActive[4] = {};  // up, down, left, right
 
-        // Keyboard nav state — tracks rising edge for each key
+        // keyboard nav state — tracks rising edge for each key
         struct NavKey { int vk; InputCommand cmd; bool wasDown; };
         static NavKey navKeys[] = {
             {'W',       InputCommand::Up,     false},
@@ -93,14 +87,21 @@ namespace AlphaRing::Input {
         WORD justPressed = buttons & ~prevButtons;
         prevButtons      = buttons;
 
-        // Configurable debug UI combo
+        // configurable debug UI keyboard key
+        int debugKey = g_menuConfig.debugKeyboardVKey;
+        if (GetAsyncKeyState(debugKey) & 0x8000) {
+            AlphaRing::Global::Global()->show_imgui = !AlphaRing::Global::Global()->show_imgui;
+            return false;
+        }
+        
+        // configurable debug UI combo
         WORD debugCombo = g_menuConfig.debugComboMask;
         if ((buttons & debugCombo) == debugCombo && (justPressed & debugCombo) != 0) {
             AlphaRing::Global::Global()->show_imgui = !AlphaRing::Global::Global()->show_imgui;
             return false;
         }
 
-        // Configurable Xbox menu combo
+        // configurable xbox menu combo
         WORD menuCombo = g_menuConfig.controllerComboMask;
         if ((buttons & menuCombo) == menuCombo && (justPressed & menuCombo) != 0) {
             if (g_pXboxContext) {
@@ -109,9 +110,9 @@ namespace AlphaRing::Input {
             }
         }
 
-        // Navigation and input consumption while Xbox menu is open
+        // navigation and input consumption while Xbox menu is open
         if (g_pXboxContext && g_pXboxContext->isOpen()) {
-            // D-pad / face button navigation
+            // d-pad / face button navigation
             const auto send = [&](WORD btn, InputCommand cmd) {
                 if (justPressed & btn) g_pXboxContext->handleInput(cmd);
             };
@@ -122,7 +123,7 @@ namespace AlphaRing::Input {
             send(XINPUT_GAMEPAD_A,          InputCommand::Select);
             send(XINPUT_GAMEPAD_B,          InputCommand::Back);
 
-            // Left stick navigation — edge-triggered on deadzone crossing
+            // left stick navigation — edge-triggered on deadzone crossing
             const SHORT dz = XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE;
             bool upNow    = state.Gamepad.sThumbLY >  dz;
             bool downNow  = state.Gamepad.sThumbLY < -dz;
@@ -139,8 +140,7 @@ namespace AlphaRing::Input {
             stickActive[2] = leftNow;
             stickActive[3] = rightNow;
 
-            // Keyboard navigation via polling (WndProc only blocks the game;
-            // GetAsyncKeyState reads hardware state before WM dispatch)
+            // keyboard navigation via polling
             for (auto& k : navKeys) {
                 bool isDown = (GetAsyncKeyState(k.vk) & 0x8000) != 0;
                 if (isDown && !k.wasDown) g_pXboxContext->handleInput(k.cmd);
@@ -150,11 +150,11 @@ namespace AlphaRing::Input {
             return true; // consume all remaining controller input
         }
 
-        // Reset edge-tracking state when menu is closed
+        // reset edge-tracking state when menu is closed
         stickActive[0] = stickActive[1] = stickActive[2] = stickActive[3] = false;
         for (auto& k : navKeys) k.wasDown = false;
 
-        // Thumbstick mouse control for debug UI
+        // thumbstick mouse control for debug UI
         if (AlphaRing::Global::Global()->show_imgui) {
             const auto f_speed = [](SHORT x, SHORT y) -> ImVec2 {
                 const auto speed = 5.0f;

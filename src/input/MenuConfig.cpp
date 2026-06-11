@@ -80,9 +80,10 @@ void MenuConfig::writeDefault(const std::string& path) {
            "# Keyboard key IDs: F1-F12, ENTER, ESCAPE, SPACE, TAB, A-Z\n"
            "# Note: open_menu_controller and open_debug_controller must not use the same combo.\n"
            "\n"
-           "open_menu_controller=BACK\n"
-           "open_debug_controller=START+BACK\n"
-           "open_menu_keyboard=F4\n";
+           "open_menu_controller=START+LEFT_THUMB\n"
+           "open_debug_controller=START+RIGHT_THUMB\n"
+           "open_menu_keyboard=F4\n"
+           "open_debug_keyboard=F1\n";
 }
 
 MenuConfig MenuConfig::load() {
@@ -128,6 +129,10 @@ MenuConfig MenuConfig::load() {
         else if (key == "open_menu_keyboard") {
             int vk = parseKey(val);
             if (vk != 0) cfg.keyboardVKey = vk;
+        }
+        else if (key == "open_debug_keyboard") {
+            int vk = parseKey(val);
+            if (vk != 0) cfg.debugKeyboardVKey = vk;
         }
     }
 

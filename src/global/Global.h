@@ -14,9 +14,9 @@ namespace AlphaRing::Global {
         bool wireframe;
         bool wireframe_model;
         bool wireframe_structure;
-        bool show_imgui = true;
+        bool show_imgui = false;
         // on menu
-        bool show_imgui_mouse = true;
+        bool show_imgui_mouse = false;
         bool pause_game_on_menu_shown = false;
         bool disable_input_on_menu_shown = true;
     };
@@ -39,7 +39,7 @@ namespace AlphaRing::Global {
 
             // player 0
             bool b_player0_use_km = true;
-            bool b_override_profile = false;
+            bool b_override_profile = true;
             bool b_use_player0_profile = true;
         };
     }

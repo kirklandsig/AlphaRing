@@ -1,10 +1,15 @@
 #include "CGameManager.h"
 
 #include "common.h"
+#include "mcc/mcc.h"
+#include "render/imgui/game/xbox/CXboxMenuState.h"
+#include "render/imgui/game/xbox/CXboxColorMapping.h"
 
 #include <cstdio>
 #include <guiddef.h>
 #include <combaseapi.h>
+
+static constexpr const char* k_menuStateBinPath = "./alpha_ring/xbox_menu_state.bin";
 
 static struct ProfileContainer_t {CGameManager::Profile_t profiles[4]; ProfileContainer_t();} container;
 
@@ -113,17 +118,99 @@ void CGameManager::set_state(CGameManager *self, eState state) {
     auto state_name = "Unknown";
     if (state == Exiting)
         state_name = "Exiting";
-    LOG_INFO("Set Game State[{}]: {}", state, state_name);
     return ppOriginal.set_state(self, state);
 }
 
+void CGameManager::apply_profiles() {
+    auto p_mng = GameManager();
+    if (!MCC::IsInGame() || !p_mng)
+        return;
+    // Always use player 0's real XUID — fake XUIDs for players 1-3 are unknown to the original game functions
+    auto xuid = get_xuid(0);
+    if (!xuid)
+        return;
+    auto* base_profile = p_mng->ppOriginal.get_player_profile(p_mng, xuid);
+    auto* base_mapping  = p_mng->ppOriginal.retrive_gamepad_mapping(p_mng, xuid);
+    if (!base_profile || !base_mapping)
+        return;
+    for (int i = 0; i < 4; ++i) {
+        auto profile = get_profile(i);
+        if (profile) {
+            memcpy(&profile->profile, base_profile, sizeof(CUserProfile));
+            memcpy(&profile->mapping,  base_mapping,  sizeof(CGamepadMapping));
+        }
+    }
+}
+
+static void apply_menu_state_from_bin() {
+    MenuState ms{};
+    ms.playerCount = 1;
+    ms.useKM = false;
+    for (int i = 0; i < 4; ++i) { ms.controllerIndex[i] = i; ms.teamIndex[i] = i % 2; }
+    loadMenuStateBin(ms, k_menuStateBinPath);
+
+    for (int i = 0; i < 4; ++i) {
+        auto profile = CGameManager::get_profile(i);
+        if (profile)
+            profile->controller_index = ms.controllerIndex[i];
+    }
+
+    auto p_setting = AlphaRing::Global::MCC::Splitscreen();
+    if (p_setting) {
+        p_setting->b_override = ms.playerCount > 1;
+        p_setting->player_count = ms.playerCount;
+        p_setting->b_player0_use_km = ms.useKM;
+        p_setting->b_use_player0_profile = (ms.playerCount <= 1);
+    }
+
+    auto* engine = GameEngine();
+    // auto p_mng = GameManager();
+    // auto p_engine = GameEngine();
+    // if (MCC::IsInGame() && p_mng && (xuid = CGameManager::get_xuid(0))) {
+    //     memcpy(&p_profile->profile, p_mng->ppOriginal.get_player_profile(p_mng, xuid), sizeof(CUserProfile));
+    //     memcpy(&p_profile->mapping, p_mng->ppOriginal.retrive_gamepad_mapping(p_mng, xuid), sizeof(CGamepadMapping));
+    //     if (p_engine)
+    //         p_engine->load_setting();
+    // }
+
+    for (int i = 0; i < 4; ++i) {
+        auto xuid = CGameManager::get_xuid(i);
+        if (xuid && engine)
+            engine->change_team(xuid, ms.teamIndex[i]);
+    }
+
+
+
+    auto* gg = GameGlobal();
+    int game = gg ? static_cast<int>(gg->current_game) : static_cast<int>(CGameGlobal::Halo3);
+    for (int i = 0; i < 4; ++i) {
+        auto profile = CGameManager::get_profile(i);
+        if (profile) {
+            int primary   = CXboxColorMapping::GetColorIndex(ms.playerColors[i].colors[0], game);
+            int secondary = CXboxColorMapping::GetColorIndex(ms.playerColors[i].colors[1], game);
+            int tertiary  = CXboxColorMapping::GetColorIndex(ms.playerColors[i].colors[2], game);
+            profile->profile.PlayerModelPrimaryColorIndex   = primary;
+            profile->profile.PlayerModelSecondaryColorIndex = secondary;
+            profile->profile.PlayerModelTertiaryColorIndex  = tertiary;
+            profile->profile.PlayerModelPrimaryColor        = primary;
+            profile->profile.PlayerModelSecondaryColor      = secondary;
+            profile->profile.PlayerModelTertiaryColor       = tertiary;
+        }
+    }
+    if (engine)
+        engine->load_setting();
+}
+
 void *CGameManager::game_restart(CGameManager *self, int type, const char *reason) {
-    auto final_reason = reason ? reason : "NoReason";
-    LOG_INFO("Game Restart[{}]: {}", type, final_reason);
-    return ppOriginal.game_restart(self, type, reason);
+    auto result = ppOriginal.game_restart(self, type, reason);
+    apply_profiles();
+    apply_menu_state_from_bin();
+    return result;
 }
 
 char __fastcall CGameManager::game_setup(CGameManager* self, void* a2) {
-//    LOG_INFO("game setup"); player init/add
-    return ppOriginal.game_setup(self, a2);
+    char result = ppOriginal.game_setup(self, a2);
+    apply_profiles();
+    apply_menu_state_from_bin();
+    return result;
 }

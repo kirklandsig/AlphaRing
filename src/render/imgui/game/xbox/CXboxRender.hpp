@@ -100,6 +100,10 @@ void renderMenu(
     auto pageOffset = [&](bool rightSide) -> int {
         int updateSize = unitSize;
 
+        // if(state.phase == Phase::ShiftRight) {
+        //     offset = -updateSize * (alpha) + 50;
+        //     extra = 1;
+        // }
         // testing unit size in place of +/- 50
         if (state.phase == Phase::ShiftRight)
             return rightSide ? (-updateSize * alpha - unitSize) : (-updateSize * alpha + unitSize);
@@ -112,6 +116,17 @@ void renderMenu(
 
         if (state.phase == Phase::ShiftOut)
             return rightSide ? (updateSize * alpha - unitSize) : (-updateSize * alpha + unitSize);
+                
+        if(state.phase == Phase::ShiftUp) {
+            return rightSide ? 0 : (((buttonSize*state.subOptionWindow[0]) * -1)) + (buttonSize * alpha);
+        }
+
+        if(state.phase == Phase::ShiftDown) {
+            return rightSide ? 0 : (((buttonSize*state.subOptionWindow[0]) * -1)) - (buttonSize * alpha);
+        }
+
+        if(state.phase == Phase::InIdle || state.phase == Phase::InFadeIn) 
+            return rightSide ? 0 : (buttonSize*state.subOptionWindow[0]) * -1;
 
         return 0;
     };
@@ -119,7 +134,14 @@ void renderMenu(
     // -------------------------
     // LEFT PAGES
     // -------------------------
-    if (state.phase != Phase::Opening && state.phase != Phase::Closing) {
+    if (
+        state.phase != Phase::Opening && 
+        state.phase != Phase::Closing &&
+        state.phase != Phase::InIdle && 
+        state.phase != Phase::InFadeIn && 
+        state.phase != Phase::ShiftUp &&
+        state.phase != Phase::ShiftDown
+    ) {
         int offset = pageOffset(false);
         int prefixSize = -unitSize;
 
@@ -172,13 +194,12 @@ void renderMenu(
     // CURRENT PAGE (MAIN)
     // -------------------------
     const auto& page = state.menu.pages[state.pageIndex];
-
-    if (
-        state.phase == Phase::Idle ||
-        state.phase == Phase::FadeIn ||
-        state.phase == Phase::ShiftRight ||
-        state.phase == Phase::ShiftLeft ||
-        state.phase == Phase::ShiftIn
+    if(
+        state.phase != Phase::InIdle && 
+        state.phase != Phase::InFadeIn &&
+        state.phase != Phase::ShiftUp &&
+        state.phase != Phase::ShiftDown &&
+        state.phase != Phase::ShiftOut
     ) {
         drawPage(
             menuPosX,
@@ -190,6 +211,17 @@ void renderMenu(
             globalAlpha,
             font
         );
+    } else {
+        drawPage(
+            menuPosX,
+            menuPosY,
+            menuWidth,
+            menuHeight,
+            page.options[state.optionIndex].label.data(),
+            true,
+            globalAlpha,
+            font
+        ); 
     }
 
     // -------------------------
@@ -197,6 +229,10 @@ void renderMenu(
     // -------------------------
     if (state.phase != Phase::Opening &&
         state.phase != Phase::Closing &&
+        state.phase != Phase::InIdle && 
+        state.phase != Phase::InFadeIn &&
+        state.phase != Phase::ShiftUp &&
+        state.phase != Phase::ShiftDown &&
         state.pageIndex <= pageCount - 1) {
 
         int offset = pageOffset(true);
@@ -305,27 +341,12 @@ void renderMenu(
             }
 
             if (type == OptionType::Subpage) {
-                if (state.menu.pages[state.pageIndex].options[i].subOptionType > 0) {
-                // get the index of the player color from the player index
-                int colorIndex = state.menuState.playerColors[state.pageIndex - 1].colors[state.menu.pages[state.pageIndex].options[i].subOptionType - 1];
-                ImU32 color = defaultColors[colorIndex];
-                ImU32 finalColor = IM_COL32(GetRValue(color), GetGValue(color), GetBValue(color), globalAlpha);
-                drawButton(
-                    menuPosX,
-                    yBase,
-                    menuWidth,
-                    menuHeight,
-                    font,
-                    state.optionIndex == i,
-                    globalAlpha,
-                    opt.label.c_str(),
-                    type,
-                    0,
-                    finalColor
-                );
-                buttonCount++;
-                continue;
-                } else {
+                // checks if this option is a color type
+                if (opt.subOptionType > 0) {
+                    // get the index of the player color from the player index
+                    int colorIndex = state.menuState.playerColors[state.pageIndex - 1].colors[state.menu.pages[state.pageIndex].options[i].subOptionType - 1];
+                    ImU32 color = defaultColors[colorIndex];
+                    ImU32 finalColor = IM_COL32(GetRValue(color), GetGValue(color), GetBValue(color), globalAlpha);
                     drawButton(
                         menuPosX,
                         yBase,
@@ -334,7 +355,24 @@ void renderMenu(
                         font,
                         state.optionIndex == i,
                         globalAlpha,
-                        state.menu.pages[state.pageIndex].options[i].subOptions[state.menuState.controllerIndex[state.pageIndex - 1]].label.c_str(),
+                        opt.label.c_str(),
+                        type,
+                        0,
+                        finalColor
+                    );
+                    buttonCount++;
+                    continue;
+                } else {
+                    // if not a color type, its a controller type
+                    drawButton(
+                        menuPosX,
+                        yBase,
+                        menuWidth,
+                        menuHeight,
+                        font,
+                        state.optionIndex == i,
+                        globalAlpha,
+                        opt.subOptions[state.menuState.controllerIndex[state.pageIndex - 1]].label.c_str(),
                         type,
                         0
                     );
@@ -370,6 +408,15 @@ void renderMenu(
         state.phase == Phase::ShiftUp ||
         state.phase == Phase::ShiftDown
     ) {
+        ImDrawList* draw = ImGui::GetForegroundDrawList();
+
+        draw->PushClipRect(
+            ImVec2((float)menuPosX, (float)menuPosY),
+            ImVec2((float)(menuPosX + menuWidth),
+                (float)(menuPosY + menuHeight)),
+            true
+        );
+
         float buttonCount = 0.0f;
 
         const auto& subOpts =
@@ -394,5 +441,6 @@ void renderMenu(
 
             buttonCount++;
         }
+        draw->PopClipRect();
     }
 }

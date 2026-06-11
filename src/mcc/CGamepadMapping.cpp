@@ -110,7 +110,6 @@ void CGamepadMapping::ResetToDefaults() {
 #include <string>
 #include <vector>
 #include "input/Input.h"
-#include "mcc/settings/Settings.h"
 
 // Detect which button is currently pressed on a controller
 static int DetectPressedButton(int controllerIndex) {
@@ -162,7 +161,6 @@ void CGamepadMapping::ImGuiContext() {
 
     // Refresh profile list when needed
     if (needs_refresh) {
-        profile_names = MCC::Settings::CustomMapping::GetProfileNames();
         needs_refresh = false;
         // Reset selection if out of bounds
         if (selected_profile >= (int)profile_names.size()) {
@@ -194,14 +192,10 @@ void CGamepadMapping::ImGuiContext() {
 
     ImGui::SameLine();
     if (ImGui::Button("Load") && selected_profile >= 0 && selected_profile < (int)profile_names.size()) {
-        if (MCC::Settings::CustomMapping::LoadProfile(profile_names[selected_profile], *this)) {
-            result = true;
-        }
     }
 
     ImGui::SameLine();
     if (ImGui::Button("Delete") && selected_profile >= 0 && selected_profile < (int)profile_names.size()) {
-        MCC::Settings::CustomMapping::DeleteProfile(profile_names[selected_profile]);
         needs_refresh = true;
         selected_profile = -1;
     }
@@ -217,23 +211,6 @@ void CGamepadMapping::ImGuiContext() {
         if (ImGui::Button("Reset to Defaults")) {
             ResetToDefaults();
             result = true;
-        }
-    } else {
-        ImGui::PushItemWidth(200);
-        ImGui::InputText("##NewProfileName", new_profile_name, sizeof(new_profile_name));
-        ImGui::PopItemWidth();
-
-        ImGui::SameLine();
-        if (ImGui::Button("Save") && new_profile_name[0] != '\0') {
-            if (MCC::Settings::CustomMapping::SaveProfile(new_profile_name, *this)) {
-                needs_refresh = true;
-                show_save_input = false;
-            }
-        }
-
-        ImGui::SameLine();
-        if (ImGui::Button("Cancel##SaveCancel")) {
-            show_save_input = false;
         }
     }
 

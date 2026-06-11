@@ -2,6 +2,7 @@
 
 #include <SDL_mixer.h>
 #include "CXboxMenu.hpp"
+#include "CXboxMenuState.h"
 
 #include <deque>
 #include <array>
@@ -37,18 +38,6 @@ enum class Phase {
     ShiftDown,
     PreClosing,
     Closing
-};
-
-struct PlayerColor {
-    int colors[3];
-};
-
-struct MenuState {
-    int playerCount;
-    bool useKM;
-    int controllerIndex[4];
-    int teamIndex[4];
-    PlayerColor playerColors[4];
 };
 
 // -------------------------

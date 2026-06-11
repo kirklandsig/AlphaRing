@@ -5,9 +5,10 @@
 #include <string>
 
 struct MenuConfig {
-    WORD controllerComboMask = XINPUT_GAMEPAD_BACK;
-    WORD debugComboMask      = XINPUT_GAMEPAD_START | XINPUT_GAMEPAD_BACK;
+    WORD controllerComboMask = XINPUT_GAMEPAD_START | XINPUT_GAMEPAD_LEFT_THUMB;
+    WORD debugComboMask      = XINPUT_GAMEPAD_START | XINPUT_GAMEPAD_RIGHT_THUMB;
     int  keyboardVKey        = VK_F4;
+    int  debugKeyboardVKey   = VK_F1;
 
     static constexpr const char* k_configPath = "./alpha_ring_menu.cfg";
 

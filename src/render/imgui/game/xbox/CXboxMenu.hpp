@@ -29,7 +29,7 @@ public:
     std::string label;
     OptionType type;
     std::vector<Option> subOptions;
-    int subOptionType;
+    int subOptionType = 0;
     int value = 0;
     std::optional<ImU32> colorValue;
 
