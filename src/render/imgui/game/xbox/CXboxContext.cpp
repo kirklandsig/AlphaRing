@@ -1,4 +1,5 @@
 #include "CXboxContext.h"
+#include "CXboxColorMapping.h"
 
 #include "assets/open_wav.h"
 #include "assets/close_wav.h"
@@ -6,6 +7,9 @@
 #include "assets/nav_page_wav.h"
 #include "assets/select_wav.h"
 #include "assets/denied_wav.h"
+
+#include "mcc/CGameManager.h"
+#include "global/Global.h"
 
 #include <SDL.h>
 #include <imgui.h>
@@ -66,7 +70,53 @@ void CXboxContext::render() {
     m_stateMachine->render((int)vp->Size.x, (int)vp->Size.y, m_font);
 
     if (!m_stateMachine->isRunning()) {
-        saveMenuStateBin(m_stateMachine->getState().menuState, k_savePath);
+        const MenuState& ms = m_stateMachine->getState().menuState;
+        saveMenuStateBin(ms, k_savePath);
+
+        CGameManager::apply_profiles();
+
+        // apply controller indices and team assignments from UI state to each player profile
+        auto* engine = GameEngine();
+        for (int i = 0; i < 4; ++i) {
+            auto profile = CGameManager::get_profile(i);
+            if (profile)
+                profile->controller_index = ms.controllerIndex[i];
+
+            auto xuid = CGameManager::get_xuid(i);
+            if (xuid && engine)
+                engine->change_team(xuid, ms.teamIndex[i]);
+        }
+
+        // propagate splitscreen settings from UI state
+        auto p_setting = AlphaRing::Global::MCC::Splitscreen();
+        if (p_setting) {
+            if (ms.playerCount > 1)
+                p_setting->b_override = true;
+            p_setting->player_count = ms.playerCount;
+            p_setting->b_player0_use_km = ms.useKM;
+            p_setting->b_use_player0_profile = (ms.playerCount <= 1);
+        }
+
+        // apply player colors for the current game
+        auto* gg = GameGlobal();
+        int game = gg ? static_cast<int>(gg->current_game) : static_cast<int>(CGameGlobal::Halo3);
+        for (int i = 0; i < 4; ++i) {
+            auto profile = CGameManager::get_profile(i);
+            if (profile) {
+                int primary   = CXboxColorMapping::GetColorIndex(ms.playerColors[i].colors[0], game);
+                int secondary = CXboxColorMapping::GetColorIndex(ms.playerColors[i].colors[1], game);
+                int tertiary  = CXboxColorMapping::GetColorIndex(ms.playerColors[i].colors[2], game);
+                profile->profile.PlayerModelPrimaryColorIndex   = primary;
+                profile->profile.PlayerModelSecondaryColorIndex = secondary;
+                profile->profile.PlayerModelTertiaryColorIndex  = tertiary;
+                profile->profile.PlayerModelPrimaryColor        = primary;
+                profile->profile.PlayerModelSecondaryColor      = secondary;
+                profile->profile.PlayerModelTertiaryColor       = tertiary;
+            }
+        }
+        if (engine)
+            engine->load_setting();
+
         m_stateMachine.reset();
     }
 }

@@ -26,7 +26,7 @@ private:
     ImFont* m_font;
     Uint32 m_lastTick = 0;
 
-    static constexpr const char* k_savePath = "./alpha_ring/xbox_menu_state.bin";
+    static constexpr const char* k_savePath = "./MCC/Binaries/Win64/alpha_ring_menu.bin";
 };
 
 extern CXboxContext* g_pXboxContext;

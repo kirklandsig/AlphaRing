@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**AlphaRing** is a C++ DLL-based modding tool for Halo: The Master Chief Collection (MCC). It's a fork of `wouter51/AlphaRing` maintained by `thejackbitt` with profile option tweaks.
+**AlphaRing** is a C++ DLL-based modding tool for Halo: The Master Chief Collection (MCC). It's a fork of `wouter51/AlphaRing` maintained by `thejackbitt` with a Xbox 360-style menu.
 
 **Repository**: https://github.com/thejackbitt/AlphaRing
 
@@ -58,9 +58,6 @@ AlphaRing/
 │   │   ├── mcc.*             # MCC state detection
 │   │   ├── module/           # Game-specific modules (Halo 1-4, Reach, ODST)
 │   │   ├── network/          # Network functionality
-│   │   ├── settings/         # Settings save/load system
-│   │   │   ├── Settings.h
-│   │   │   └── Settings.cpp  # JSON serialization for profiles
 │   │   └── splitscreen/      # Splitscreen functionality
 │   │       ├── Splitscreen.h
 │   │       └── Splitscreen.cpp  # Splitscreen UI and logic
@@ -86,10 +83,11 @@ AlphaRing/
 ## Working Features (Confirmed)
 
 - **Splitscreen support** (1-4 players) - works in all Halo games
+- **Controller-friendly menu** - works, but can be improved
 - **Wireframe rendering** - works
 - **Controller-to-player binding** - IMPLEMENTED (see below)
 - **Button-to-action gamepad mapping** - IMPLEMENTED with bind feature
-- **Profile save/load** - IMPLEMENTED, saves to `settings.json`
+- **Configurable menu binding** - works
 
 ---
 
@@ -163,55 +161,6 @@ static int DetectPressedButton(int controllerIndex) {
     return -1;
 }
 ```
-
----
-
-## Profile Save/Load System
-
-**File**: `src/mcc/settings/Settings.cpp`
-
-**Config file**: `settings.json` (saved in same directory as MCC executable)
-
-### What Gets Saved
-
-**Splitscreen Settings** (auto-saves when changed):
-- `b_override` - Whether splitscreen is enabled
-- `player_count` - Number of players (1-4)
-- `b_use_player0_profile` - Use player 1's profile for all
-- `b_player0_use_km` - Enable keyboard/mouse for player 1
-- `b_override_profile` - Override profile settings
-
-**Player Profiles** (saved via "Save Profile" button):
-- `controller_index` - Which controller (0-3) or NONE (4)
-- `name` - Player display name
-- `profile` - All game settings (FOV, sensitivity, colors, armor, etc.)
-- `mapping` - Gamepad button-to-action mappings (66 actions)
-
-### Save/Load Functions
-
-```cpp
-namespace MCC::Settings {
-    namespace Splitscreen {
-        bool Load();           // Load splitscreen config from JSON
-        bool Save();           // Save splitscreen config to JSON
-        void ApplyToRuntime(); // Apply loaded config to game
-        void CaptureFromRuntime(); // Capture current config from game
-    }
-
-    namespace Profile {
-        bool Load();           // Load all 4 player profiles from JSON
-        bool Save();           // Save all 4 player profiles to JSON
-        void ApplyToRuntime(); // Apply loaded profiles to game
-        void CaptureFromRuntime(); // Capture current profiles from game
-        void Initialize(CGameManager* mng); // Initialize profile system
-    }
-}
-```
-
-### When Saves Happen
-
-- **Splitscreen settings**: Auto-save when any option is changed in the menu
-- **Player profiles**: Manual save via "Save Profile" button in each player's tab
 
 ---
 

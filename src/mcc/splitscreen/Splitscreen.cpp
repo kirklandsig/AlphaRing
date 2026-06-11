@@ -1,7 +1,5 @@
 #include "Splitscreen.h"
 
-#include "mcc/settings/Settings.h"
-
 #include "common.h"
 
 #include "global/Global.h"
@@ -135,10 +133,6 @@ namespace MCC::Splitscreen {
         }
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Use this in game!!!");
-        if (ImGui::Button("Save Profile")) {
-            MCC::Settings::Profile::CaptureFromRuntime();
-            MCC::Settings::Profile::Save();
-        }
 
         bool is_disabled = (!index && !p_setting->b_override_profile) || (index && p_setting->b_use_player0_profile);
 
@@ -217,13 +211,6 @@ namespace MCC::Splitscreen {
                 }
             }
             ImGui::EndTabBar();
-        }
-
-        if (dirty) {
-            MCC::Settings::Splitscreen::CaptureFromRuntime();
-            // MCC::Settings::Profile::CaptureFromRuntime();
-            MCC::Settings::Splitscreen::Save();
-            // MCC::Settings::Profile::Save();
         }
     }
 }
