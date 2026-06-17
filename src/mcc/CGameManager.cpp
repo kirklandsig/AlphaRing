@@ -8,6 +8,7 @@
 #include <cstdio>
 #include <guiddef.h>
 #include <combaseapi.h>
+#include <thread>
 
 static constexpr const char* k_menuStateBinPath = "./MCC/Binaries/Win64/alpha_ring_menu.bin";
 
@@ -197,8 +198,15 @@ static void apply_menu_state_from_bin() {
             profile->profile.PlayerModelTertiaryColor       = tertiary;
         }
     }
-    if (engine)
+    if (game == static_cast<int>(CGameGlobal::Halo2)) {
+        std::thread([]() {
+            Sleep(10000);
+            auto* e = GameEngine();
+            if (e) e->load_setting();
+        }).detach();
+    } else if (engine) {
         engine->load_setting();
+    }
 }
 
 void *CGameManager::game_restart(CGameManager *self, int type, const char *reason) {
