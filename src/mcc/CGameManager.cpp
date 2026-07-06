@@ -9,6 +9,7 @@
 #include <guiddef.h>
 #include <combaseapi.h>
 #include <thread>
+#include <chrono>
 
 static constexpr const char* k_menuStateBinPath = "./MCC/Binaries/Win64/alpha_ring_menu.bin";
 
@@ -180,8 +181,6 @@ static void apply_menu_state_from_bin() {
             engine->change_team(xuid, ms.teamIndex[i]);
     }
 
-
-
     auto* gg = GameGlobal();
     int game = gg ? static_cast<int>(gg->current_game) : static_cast<int>(CGameGlobal::Halo3);
     for (int i = 0; i < 4; ++i) {
@@ -193,9 +192,9 @@ static void apply_menu_state_from_bin() {
             profile->profile.PlayerModelPrimaryColorIndex   = primary;
             profile->profile.PlayerModelSecondaryColorIndex = secondary;
             profile->profile.PlayerModelTertiaryColorIndex  = tertiary;
-            profile->profile.PlayerModelPrimaryColor        = primary;
-            profile->profile.PlayerModelSecondaryColor      = secondary;
-            profile->profile.PlayerModelTertiaryColor       = tertiary;
+            profile->profile.PlayerModelPrimaryColor        = CXboxColorMapping::GetColorItemIndex(ms.playerColors[i].colors[0], game);
+            profile->profile.PlayerModelSecondaryColor      = CXboxColorMapping::GetColorItemIndex(ms.playerColors[i].colors[1], game);
+            profile->profile.PlayerModelTertiaryColor       = CXboxColorMapping::GetColorItemIndex(ms.playerColors[i].colors[2], game);
         }
     }
     if (game == static_cast<int>(CGameGlobal::Halo2)) {
@@ -209,16 +208,41 @@ static void apply_menu_state_from_bin() {
     }
 }
 
+// game_setup/game_restart are shared, single-instance shell callbacks used by every MCC
+// title, but some titles' underlying engines (Halo CE in particular) route through them far
+// more often during normal play than others. apply_profiles()/apply_menu_state_from_bin()
+// do a blocking disk read plus several memcpys and indirect engine calls, so re-running them
+// on every single invocation causes periodic stutter on titles that call this path a lot.
+// Throttle so the expensive work can't run more than a few times per second, no matter how
+// often the underlying callback fires.
+static bool ShouldThrottleApply() {
+    using clock = std::chrono::steady_clock;
+    static clock::time_point s_last_apply{};
+    constexpr auto k_min_interval = std::chrono::milliseconds(250);
+
+    auto now = clock::now();
+    bool first_call = s_last_apply.time_since_epoch().count() == 0;
+    if (!first_call && (now - s_last_apply) < k_min_interval)
+        return true;
+
+    s_last_apply = now;
+    return false;
+}
+
 void *CGameManager::game_restart(CGameManager *self, int type, const char *reason) {
     auto result = ppOriginal.game_restart(self, type, reason);
-    apply_profiles();
-    apply_menu_state_from_bin();
+    if (!ShouldThrottleApply()) {
+        apply_profiles();
+        apply_menu_state_from_bin();
+    }
     return result;
 }
 
 char __fastcall CGameManager::game_setup(CGameManager* self, void* a2) {
     char result = ppOriginal.game_setup(self, a2);
-    apply_profiles();
-    apply_menu_state_from_bin();
+    if (!ShouldThrottleApply()) {
+        apply_profiles();
+        apply_menu_state_from_bin();
+    }
     return result;
 }

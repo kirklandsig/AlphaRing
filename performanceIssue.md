@@ -1,0 +1,18 @@
+Summary
+I diff'ed every file between AlphaRing (current, exhibits the FPS drop in Halo CE) and AlphaRing_legacy (does not). Key finding up front: the Halo1-specific hook code is byte-for-byte identical between the two repos — mcc/module/entry/halo1/{halo1,render}.cpp, lib/game/src/halo1/native_halo1.cpp, and every offset_halo1.h across all three MCC versions (1.3385.0.0, 1.3495.0.0, 1.3528.0.0) diff clean. The Halo1 render hook itself is a no-op passthrough in both versions. So the regression isn't in Halo1-specific code — it's in shared/global code that Halo CE happens to exercise differently than the other titles.
+
+The complete set of functional differences (everything else in src/ is identical)
+src/input/Input.cpp — biggest change. Adds a process-wide MinHook detour on XInputGetState (installed once at startup, intercepts every controller poll in the whole process for the life of the session), plus a new Xbox-menu keyboard/gamepad navigation layer polled via GetAsyncKeyState.
+src/mcc/CGameManager.cpp/.h — new apply_profiles() and apply_menu_state_from_bin(), both now called from the game_setup and game_restart hooks. apply_menu_state_from_bin() does a blocking std::ifstream file read (loadMenuStateBin) plus several memcpys and indirect calls to the original get_player_profile/retrive_gamepad_mapping — none of this existed in legacy at all.
+src/mcc/CGameManagerSplitscreen.cpp — adds a HaloReach-only branch in get_player_profile (guarded, doesn't affect Halo1).
+src/render/imgui/ImGui.cpp / render/window/Window.cpp — new Xbox-style dashboard overlay (CXboxContext/CStateMachine), SDL2 + SDL2_mixer audio init at startup, restructured render/skip logic.
+src/global/Global.h — some defaults flipped (show_imgui now off by default, b_override_profile now on by default).
+Removed: the old file-based Settings module (replaced by the Xbox menu's own binary save format).
+CMakeLists.txt now statically links SDL2/SDL2_mixer.
+Most likely root cause
+The game_setup/game_restart hooks in CGameManager.cpp are shared, single-instance shell-level callbacks used across all MCC titles — but they're wired to whatever native function each title's engine actually calls at that point. Halo CE is the one title in this list still running its original, much older engine logic underneath the MCC shell, and is known to route through this class of setup/session callback far more often during normal play (map loads, restarts, LAN/customs joins) than the modernized Halo3/4/Reach/ODST codepaths. Since AlphaRing (and not legacy) now hangs a synchronous disk read + extra hook calls + memcpys off that same callback, any title that calls it more frequently pays a proportionally larger, repeated cost — which would surface as periodic stutter/FPS drops specifically in Halo CE, without there being a single "if halo1" branch anywhere in the diff.
+
+Secondary contributor: the new always-on XInputGetState MinHook detour adds fixed overhead to every controller poll in the process, all the time — small per-call, but compounding if CE's engine polls input more aggressively than the newer titles.
+
+Caveat
+This is static analysis of closed-source, reverse-engineered game internals — I can't observe actual call frequency of game_setup/game_restart per title. To confirm definitively, the fastest next step (not done, since you asked for no edits) would be adding a call counter/log timestamp inside CGameManager::game_setup and game_restart and comparing hit rate/timing while playing Halo CE vs. another title.
