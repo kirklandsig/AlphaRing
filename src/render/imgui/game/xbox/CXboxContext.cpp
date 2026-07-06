@@ -109,9 +109,9 @@ void CXboxContext::render() {
                 profile->profile.PlayerModelPrimaryColorIndex   = primary;
                 profile->profile.PlayerModelSecondaryColorIndex = secondary;
                 profile->profile.PlayerModelTertiaryColorIndex  = tertiary;
-                profile->profile.PlayerModelPrimaryColor        = primary;
-                profile->profile.PlayerModelSecondaryColor      = secondary;
-                profile->profile.PlayerModelTertiaryColor       = tertiary;
+                profile->profile.PlayerModelPrimaryColor        = CXboxColorMapping::GetColorItemIndex(ms.playerColors[i].colors[0], game);
+                profile->profile.PlayerModelSecondaryColor      = CXboxColorMapping::GetColorItemIndex(ms.playerColors[i].colors[1], game);
+                profile->profile.PlayerModelTertiaryColor       = CXboxColorMapping::GetColorItemIndex(ms.playerColors[i].colors[2], game);
             }
         }
         if (engine)
