@@ -166,14 +166,6 @@ static void apply_menu_state_from_bin() {
     }
 
     auto* engine = GameEngine();
-    // auto p_mng = GameManager();
-    // auto p_engine = GameEngine();
-    // if (MCC::IsInGame() && p_mng && (xuid = CGameManager::get_xuid(0))) {
-    //     memcpy(&p_profile->profile, p_mng->ppOriginal.get_player_profile(p_mng, xuid), sizeof(CUserProfile));
-    //     memcpy(&p_profile->mapping, p_mng->ppOriginal.retrive_gamepad_mapping(p_mng, xuid), sizeof(CGamepadMapping));
-    //     if (p_engine)
-    //         p_engine->load_setting();
-    // }
 
     for (int i = 0; i < 4; ++i) {
         auto xuid = CGameManager::get_xuid(i);
@@ -208,13 +200,6 @@ static void apply_menu_state_from_bin() {
     }
 }
 
-// game_setup/game_restart are shared, single-instance shell callbacks used by every MCC
-// title, but some titles' underlying engines (Halo CE in particular) route through them far
-// more often during normal play than others. apply_profiles()/apply_menu_state_from_bin()
-// do a blocking disk read plus several memcpys and indirect engine calls, so re-running them
-// on every single invocation causes periodic stutter on titles that call this path a lot.
-// Throttle so the expensive work can't run more than a few times per second, no matter how
-// often the underlying callback fires.
 static bool ShouldThrottleApply() {
     using clock = std::chrono::steady_clock;
     static clock::time_point s_last_apply{};

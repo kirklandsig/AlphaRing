@@ -149,9 +149,6 @@ int GetColorIndex(int colorIndex, int game) {
     const char* s = GetColorString(colorIndex, game);
     if (!s)
         return colorIndex;
-    // Parse the LAST digit sequence in the string (e.g. 12 from "H3_COLOR12_SAGE").
-    // Using the last sequence avoids the game-prefix digit ("3" in "H3_", "1" in "H1_", etc.).
-    // Reach and ODST strings carry no color number, so the loop finds nothing and falls back.
     const char* last = nullptr;
     for (const char* p = s; *p; ++p) {
         if (isdigit((unsigned char)*p) && (p == s || !isdigit((unsigned char)p[-1])))
