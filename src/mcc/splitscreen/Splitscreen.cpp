@@ -36,11 +36,30 @@ namespace MCC::Splitscreen {
 
 #include "imgui.h"
 #include "mcc/mcc.h"
+#include "input/Input.h"
 
 #include <string>
 
 namespace MCC::Splitscreen {
     void RealContext();
+
+    // Detect which controller (0-3) has any button/trigger pressed, returns -1 if none
+    static int DetectActiveController() {
+        for (int i = 0; i < 4; i++) {
+            XINPUT_STATE state;
+            if (AlphaRing::Input::GetXInputGetState(i, &state)) {
+                if (state.Gamepad.wButtons != 0 ||
+                    state.Gamepad.bLeftTrigger > 30 ||
+                    state.Gamepad.bRightTrigger > 30) {
+                    return i;
+                }
+            }
+        }
+        return -1;
+    }
+
+    // Binding state: which player slot is waiting for controller input (-1 = none)
+    static int s_binding_player = -1;
 
     void ImGuiContext() {
         static bool show_splitscreen;
@@ -70,10 +89,38 @@ namespace MCC::Splitscreen {
         ImGui::PopItemWidth();
 
         ImGui::BeginDisabled(!index && p_setting->b_player0_use_km);
-        ImGui::PushItemWidth(200);ImGui::Combo("Input", &p_profile->controller_index, items, IM_ARRAYSIZE(items));ImGui::PopItemWidth();
+
+        // Check for controller binding completion
+        if (s_binding_player == index) {
+            int detected = DetectActiveController();
+            if (detected >= 0) {
+                p_profile->controller_index = detected;
+                s_binding_player = -1;
+            }
+        }
+
+        if (s_binding_player == index) {
+            // Show binding prompt
+            ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Press any button on controller...");
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel")) {
+                s_binding_player = -1;
+            }
+        } else {
+            // Show dropdown and bind button
+            ImGui::PushItemWidth(200);
+            ImGui::Combo("Input", &p_profile->controller_index, items, IM_ARRAYSIZE(items));
+            ImGui::PopItemWidth();
+            ImGui::SameLine();
+            sprintf(buffer, "Bind##ctrl%d", index);
+            if (ImGui::Button(buffer) && s_binding_player < 0) {
+                s_binding_player = index;
+            }
+        }
+
         ImGui::EndDisabled();
 
-        if (ImGui::Button("Load Profile")) {
+        if (ImGui::Button("Apply Profile")) {
             __int64 xuid;
             auto p_mng = GameManager();
             auto p_engine = GameEngine();
@@ -107,22 +154,48 @@ namespace MCC::Splitscreen {
     }
 
     void RealContext() {
+        bool dirty = false;
         char buffer[10];
         auto p_setting = AlphaRing::Global::MCC::Splitscreen();
 
         if (ImGui::BeginMenuBar()) {
-            ImGui::MenuItem(p_setting->b_override ? "Disable" : "Enable", nullptr, &p_setting->b_override);
+            // ImGui::MenuItem(p_setting->b_override ? "Disable" : "Enable", nullptr, &p_setting->b_override);
+            dirty |= ImGui::MenuItem(
+                p_setting->b_override ? "Disable" : "Enable",
+                nullptr,
+                &p_setting->b_override
+            );
             if (ImGui::BeginMenu("Options")) {
-                ImGui::MenuItem("Use player1's profile", nullptr, &p_setting->b_use_player0_profile);
-                ImGui::MenuItem("Enable K/M for player1", nullptr, &p_setting->b_player0_use_km);
-                ImGui::MenuItem("Override profile", nullptr, &p_setting->b_override_profile);
+                // ImGui::MenuItem("Use player1's profile", nullptr, &p_setting->b_use_player0_profile);
+                dirty |= ImGui::MenuItem(
+                    "Use player1's profile", 
+                    nullptr, 
+                    &p_setting->b_use_player0_profile
+                );
+                // ImGui::MenuItem("Enable K/M for player1", nullptr, &p_setting->b_player0_use_km);
+                dirty |= ImGui::MenuItem(
+                    "Enable K/M for player1", 
+                    nullptr, 
+                    &p_setting->b_player0_use_km
+                );
+                // ImGui::MenuItem("Override profile", nullptr, &p_setting->b_override_profile);
+                dirty |= ImGui::MenuItem(
+                    "Override profile", 
+                    nullptr, 
+                    &p_setting->b_override_profile
+                );
                 ImGui::EndMenu();
             }
 #pragma region player count
             ImGui::PushItemWidth(200);
+            // int count = p_setting->player_count;
+            // if (ImGui::InputInt("Players", &count) && count >= 1 && count <=4) {
+            //     p_setting->player_count = count;
+            // }
             int count = p_setting->player_count;
-            if (ImGui::InputInt("Players", &count) && count >= 1 && count <=4) {
+            if (ImGui::InputInt("Players", &count) && count >= 1 && count <= 4) {
                 p_setting->player_count = count;
+                dirty = true;
             }
             ImGui::PopItemWidth();
             ImGui::EndMenuBar();

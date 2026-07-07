@@ -4,6 +4,8 @@
 #include "common.h"
 
 #include "global/Global.h"
+#include "input/MenuConfig.h"
+#include "render/imgui/game/xbox/CXboxContext.h"
 
 #include "imgui.h"
 
@@ -16,26 +18,52 @@ namespace AlphaRing::Render::Window {
 
     //todo: WM_IME_COMPOSITION Support
     static LRESULT dWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
-        if (ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam))        
-            return true;
-        
+        bool xboxOpen = g_pXboxContext && g_pXboxContext->isOpen();
 
-        switch (uMsg) {
-            case WM_KEYDOWN: {
-                switch (wParam) {
-                    case VK_F4:
-                        AlphaRing::Global::Global()->show_imgui = !AlphaRing::Global::Global()->show_imgui;
-                        break;
+        // Intercept keyboard/mouse before ImGui and the game while the Xbox
+        // menu is open. The trigger key toggles the menu; everything else is
+        // consumed here. Keyboard navigation is handled by GetAsyncKeyState
+        // polling in Input::Update(), so no handleInput calls are needed here.
+        if (xboxOpen) {
+            if (uMsg == WM_KEYDOWN) {
+                if (static_cast<int>(wParam) == g_menuConfig.keyboardVKey) {
+                    g_pXboxContext->close();
                 }
-                break;
+                return 0; // consume all keyboard input
+            }
+            switch (uMsg) {
+                case WM_KEYUP:
+                case WM_CHAR:
+                case WM_SYSKEYDOWN:
+                case WM_SYSKEYUP:
+                case WM_LBUTTONDOWN:
+                case WM_LBUTTONUP:
+                case WM_RBUTTONDOWN:
+                case WM_RBUTTONUP:
+                case WM_MBUTTONDOWN:
+                case WM_MBUTTONUP:
+                case WM_MOUSEMOVE:
+                case WM_MOUSEWHEEL:
+                    return 0;
+            }
+        }
+
+        if (ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam))
+            return true;
+
+        // Keyboard trigger to open the menu (only reached when menu is closed)
+        if (uMsg == WM_KEYDOWN) {
+            if (static_cast<int>(wParam) == g_menuConfig.keyboardVKey) {
+                if (g_pXboxContext) g_pXboxContext->open();
+                return 0;
             }
         }
 
         auto& io = ImGui::GetIO();
 
-        if (io.WantCaptureMouse)        
-            if(AlphaRing::Global::Global()->show_imgui)
-                return true;        
+        if (io.WantCaptureMouse)
+            if (AlphaRing::Global::Global()->show_imgui)
+                return true;
 
         return CallWindowProc(oldWndProc, hWnd, uMsg, wParam, lParam);
     }

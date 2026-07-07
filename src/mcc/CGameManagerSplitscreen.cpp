@@ -107,7 +107,32 @@ CUserProfile* CGameManager::get_player_profile(CGameManager *self, __int64 xid) 
     if (p_setting->b_use_player0_profile)
         return &get_profile(0)->profile;
 
-    return &get_profile(get_index(xid))->profile;
+    auto* dest = get_profile(get_index(xid));
+
+    // Reach initializes armor into the player-0 profile after game_setup fires, so the
+    // snapshot taken by apply_profiles() is stale. Sync armor from the live player-0
+    // profile on every call while preserving the per-player custom colors we applied.
+    auto* gg = GameGlobal();
+    if (gg && gg->current_game == CGameGlobal::HaloReach) {
+        auto* base = ppOriginal.get_player_profile(self, get_xuid(0));
+        if (base) {
+            int pc  = dest->profile.PlayerModelPrimaryColorIndex;
+            int sc  = dest->profile.PlayerModelSecondaryColorIndex;
+            int tc  = dest->profile.PlayerModelTertiaryColorIndex;
+            int pci = dest->profile.PlayerModelPrimaryColor;
+            int sci = dest->profile.PlayerModelSecondaryColor;
+            int tci = dest->profile.PlayerModelTertiaryColor;
+            memcpy(&dest->profile, base, sizeof(CUserProfile));
+            dest->profile.PlayerModelPrimaryColorIndex   = pc;
+            dest->profile.PlayerModelSecondaryColorIndex = sc;
+            dest->profile.PlayerModelTertiaryColorIndex  = tc;
+            dest->profile.PlayerModelPrimaryColor        = pci;
+            dest->profile.PlayerModelSecondaryColor      = sci;
+            dest->profile.PlayerModelTertiaryColor       = tci;
+        }
+    }
+
+    return &dest->profile;
 }
 
 CGamepadMapping* CGameManager::retrive_gamepad_mapping(CGameManager *self, __int64 xid) {
