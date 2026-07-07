@@ -15,6 +15,7 @@ void drawPage(
     bool selected,
     ImU8 opacity,
     ImFont* font,
+    float fontSize,
     std::optional<float> margin = 0.0f)
 {
     const int tabWidth = menuWidth / 9;
@@ -38,7 +39,7 @@ void drawPage(
             tabWidth,
             menuHeight,
             font,
-            25.0f,
+            fontSize,
             IM_COL32(78, 81, 86, opacity),
             label
         );
@@ -62,7 +63,7 @@ void drawPage(
         tabWidth,
         menuHeight,
         font,
-        25.0f,
+        fontSize,
         IM_COL32(206, 215, 222, opacity),
         label
     );

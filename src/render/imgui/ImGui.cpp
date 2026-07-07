@@ -15,6 +15,7 @@
 #include "./game/mcc/CMCCContext.h"
 #include "./game/halo3/CHalo3Context.h"
 #include "./game/xbox/CXboxContext.h"
+#include "./game/xbox/assets/segoeui_ttf.h"
 
 #include "mcc/mcc.h"
 #include "mcc/CGameGlobal.h"
@@ -60,8 +61,12 @@ namespace AlphaRing::Render::ImGui {
         }
 
         // Xbox overlay font (Segoe UI at 25px, matching the original SDL2 prototype)
+        // Bundled with the mod so it doesn't depend on the OS having Segoe UI installed.
         ImFont* xboxFont = nullptr;
-        static const char* segoe_path = R"(C:\Windows\Fonts\segoeui.ttf)";
+        static const char* segoe_path = "../../../alpha_ring/segoeui.ttf";
+        if (!AlphaRing::Filesystem::Exist(segoe_path)) {
+            AlphaRing::Filesystem::Save(segoe_path, reinterpret_cast<const char*>(segoeui_ttf), segoeui_ttf_len);
+        }
         if (AlphaRing::Filesystem::Exist(segoe_path)) {
             xboxFont = io.Fonts->AddFontFromFileTTF(segoe_path, 25.0f * scale);
         }
