@@ -1,5 +1,3 @@
-cmake-build-release/
-cmake-build-debug/
-.idea/
+.vs/
 build/
-/.vs
+out/
