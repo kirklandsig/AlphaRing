@@ -27,9 +27,11 @@ void renderMenu(
     int menuHeight = 0;
     int menuPosX = 0;
     int menuPosY = 0;
-    int unitSize = WINDOW_WIDTH * WINDOW_HEIGHT / 22217;
+    // int unitSize = WINDOW_WIDTH * WINDOW_HEIGHT / 22217;
+    int unitSize = 75 + ((WINDOW_HEIGHT / 1080) * 35);
     int buttonSize = unitSize - 5;
     float buttonOffset = 0.0f;
+    float fontSize = 25.0f + ((WINDOW_HEIGHT / 1080.0f) * 3.5f);
 
     int iconSize = 45;
     int pageCount = State().menu.MAX_PAGES;
@@ -156,7 +158,8 @@ void renderMenu(
                 state.menu.pages[i].label.data(),
                 false,
                 255,
-                font
+                font,
+                fontSize
             );
             prefixSize -= unitSize;
         }
@@ -172,7 +175,7 @@ void renderMenu(
             menuWidth,
             menuHeight,
             font,
-            25.0f,
+            25.0f + ((WINDOW_HEIGHT / 1080.0f) * 15.0f),
             IM_COL32(255, 255, 255, 255),
             "MCC Guide"
         );
@@ -209,7 +212,8 @@ void renderMenu(
             page.label.data(),
             true,
             globalAlpha,
-            font
+            font,
+            fontSize
         );
     } else {
         drawPage(
@@ -220,7 +224,8 @@ void renderMenu(
             page.options[state.optionIndex].label.data(),
             true,
             globalAlpha,
-            font
+            font,
+            fontSize
         ); 
     }
 
@@ -249,7 +254,8 @@ void renderMenu(
                 state.menu.pages[i].label.data(),
                 false,
                 255,
-                font
+                font,
+                fontSize
             );
             suffixSize += unitSize;
         }
@@ -296,6 +302,7 @@ void renderMenu(
                     menuWidth,
                     menuHeight,
                     font,
+                    fontSize,
                     state.optionIndex == i,
                     globalAlpha,
                     std::to_string(state.menuState.playerCount).c_str(),
@@ -313,6 +320,7 @@ void renderMenu(
                     menuWidth,
                     menuHeight,
                     font,
+                    fontSize,
                     state.optionIndex == i,
                     globalAlpha,
                     opt.label.c_str(),
@@ -330,6 +338,7 @@ void renderMenu(
                     menuWidth,
                     menuHeight,
                     font,
+                    fontSize,
                     state.optionIndex == i,
                     globalAlpha,
                     opt.label.c_str(),
@@ -353,6 +362,7 @@ void renderMenu(
                         menuWidth,
                         menuHeight,
                         font,
+                        fontSize,
                         state.optionIndex == i,
                         globalAlpha,
                         opt.label.c_str(),
@@ -370,6 +380,7 @@ void renderMenu(
                         menuWidth,
                         menuHeight,
                         font,
+                        fontSize,
                         state.optionIndex == i,
                         globalAlpha,
                         opt.subOptions[state.menuState.controllerIndex[state.pageIndex - 1]].label.c_str(),
@@ -387,6 +398,7 @@ void renderMenu(
                 menuWidth,
                 menuHeight,
                 font,
+                fontSize,
                 state.optionIndex == i,
                 globalAlpha,
                 opt.label.c_str(),
@@ -431,6 +443,7 @@ void renderMenu(
                 menuWidth,
                 menuHeight,
                 font,
+                fontSize,
                 state.subOptionIndex == i,
                 globalAlpha,
                 opt.label.c_str(),

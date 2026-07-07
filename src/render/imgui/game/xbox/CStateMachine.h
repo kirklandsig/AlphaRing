@@ -85,6 +85,9 @@ public:
     State& getState();
 
 private:
+    void finishShiftUp();
+    void finishShiftDown();
+
     State currentState;
     bool running;
 };

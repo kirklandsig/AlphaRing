@@ -15,6 +15,7 @@ inline void drawButton(
     int w,
     int h,
     ImFont* font,
+    float fontSize,
     bool selected,
     ImU8 opacity,
     const char* text,
@@ -77,7 +78,7 @@ inline void drawButton(
             (type == OptionType::Decrement) ? "-" :
             text;
 
-        drawText(textX, textY, width / 3, height, font, 25.f, *currentTextColor, symbol);
+        drawText(textX, textY, width / 3, height, font, fontSize, *currentTextColor, symbol);
         return;
     }
 
@@ -99,7 +100,7 @@ inline void drawButton(
             checkColor
         );
 
-        drawText(textX, textY, width, height, font, 25.f, *currentTextColor, text);
+        drawText(textX, textY, width, height, font, fontSize, *currentTextColor, text);
         return;
     }
 
@@ -119,7 +120,7 @@ inline void drawButton(
                 IM_COL32(212, 44, 44, opacity)
             );
 
-            drawText(textX, textY, width, height, font, 25.f, *currentTextColor, "Red Team");
+            drawText(textX, textY, width, height, font, fontSize, *currentTextColor, "Red Team");
         }
         else
         {
@@ -129,7 +130,7 @@ inline void drawButton(
                 IM_COL32(44, 78, 212, opacity)
             );
 
-            drawText(textX, textY, width, height, font, 25.f, *currentTextColor, "Blue Team");
+            drawText(textX, textY, width, height, font, fontSize, *currentTextColor, "Blue Team");
         }
 
         return;
@@ -151,6 +152,6 @@ inline void drawButton(
             );
         }
 
-        drawText(textX, textY, width, height, font, 25.f, *currentTextColor, text);
+        drawText(textX, textY, width, height, font, fontSize, *currentTextColor, text);
     }
 }

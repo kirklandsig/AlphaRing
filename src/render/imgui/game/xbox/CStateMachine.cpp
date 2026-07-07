@@ -71,6 +71,22 @@ StateMachine::StateMachine(const Menu& menuInstance, const std::array<Mix_Chunk*
 // ------------------------------------------------------------
 void StateMachine::handleInput(InputCommand cmd)
 {
+    if (cmd == InputCommand::Up && currentState.phase == Phase::ShiftUp) {
+        finishShiftUp();
+        currentState.phase = Phase::InIdle;
+        currentState.time = 0;
+        handleUp();
+        return;
+    }
+
+    if (cmd == InputCommand::Down && currentState.phase == Phase::ShiftDown) {
+        finishShiftDown();
+        currentState.phase = Phase::InIdle;
+        currentState.time = 0;
+        handleDown();
+        return;
+    }
+
     if (!(currentState.phase == Phase::Idle ||
           currentState.phase == Phase::InIdle ||
           currentState.phase == Phase::PostOpening ||
@@ -256,6 +272,16 @@ void StateMachine::handleClose() {
     currentState.time = 0;
 }
 
+void StateMachine::finishShiftUp() {
+    currentState.subOptionWindow.pop_back();
+    currentState.subOptionWindow.push_front(currentState.subOptionWindow.front() - 1);
+}
+
+void StateMachine::finishShiftDown() {
+    currentState.subOptionWindow.pop_front();
+    currentState.subOptionWindow.push_back(currentState.subOptionWindow.back() + 1);
+}
+
 // ------------------------------------------------------------
 // UPDATE (unchanged logic)
 // ------------------------------------------------------------
@@ -292,14 +318,12 @@ void StateMachine::update(float dt)
                 break;
 
             case Phase::ShiftUp:
-                currentState.subOptionWindow.pop_back();
-                currentState.subOptionWindow.push_front(currentState.subOptionWindow.front() - 1);
+                finishShiftUp();
                 currentState.phase = Phase::InFadeIn;
                 break;
 
             case Phase::ShiftDown:
-                currentState.subOptionWindow.pop_front();
-                currentState.subOptionWindow.push_back(currentState.subOptionWindow.back() + 1);
+                finishShiftDown();
                 currentState.phase = Phase::InFadeIn;
                 break;
 
