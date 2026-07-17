@@ -2,6 +2,7 @@
 #include "MenuConfig.h"
 
 #include "filesystem/Filesystem.h"
+#include "log/Log.h"
 
 #include <fstream>
 #include <sstream>
@@ -55,8 +56,15 @@ WORD MenuConfig::parseCombo(const std::string& value) {
     WORD mask = 0;
     std::istringstream ss(value);
     std::string token;
-    while (std::getline(ss, token, '+'))
-        mask |= parseButton(token);
+    while (std::getline(ss, token, '+')) {
+        WORD button = parseButton(token);
+        // Fail the whole chord on any unknown token: silently dropping it
+        // would turn a typo like START+BAKC into a bare START binding that
+        // fires on ordinary pause input.
+        if (button == 0)
+            return 0;
+        mask |= button;
+    }
     return mask;
 }
 
@@ -130,11 +138,17 @@ MenuConfig MenuConfig::load() {
 
         if (key == "open_menu_controller") {
             WORD mask = parseCombo(val);
-            if (mask != 0) cfg.controllerComboMask = mask;
+            if (mask != 0)
+                cfg.controllerComboMask = mask;
+            else
+                LOG_WARNING("MenuConfig: invalid controller combo '{}', keeping default", val);
         }
         else if (key == "open_menu_keyboard") {
             int vk = parseKey(val);
-            if (vk != 0) cfg.keyboardVKey = vk;
+            if (vk != 0)
+                cfg.keyboardVKey = vk;
+            else
+                LOG_WARNING("MenuConfig: unknown keyboard key '{}', keeping default", val);
         }
     }
 

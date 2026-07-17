@@ -85,6 +85,9 @@ namespace MCC::Splitscreen {
         auto p_profile = CGameManager::get_profile(index);
         const char* items[] = {"Controller 1", "Controller 2", "Controller 3", "Controller 4", "NONE"};
 
+        if (p_profile == nullptr || p_setting == nullptr)
+            return;
+
         ImGui::PushItemWidth(200);
         String::convert(buffer, p_profile->name, 1024);
         if (ImGui::InputText("Name", buffer, sizeof(buffer)))

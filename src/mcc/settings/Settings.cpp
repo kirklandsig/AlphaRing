@@ -40,24 +40,34 @@ namespace MCC::Settings {
         if (!file.is_open())
             return false;
 
-        json j;
-        file >> j;
+        try {
+            json j;
+            file >> j;
 
-        if (!j.contains("splitscreen"))
+            if (!j.contains("splitscreen"))
+                return false;
+
+            auto& s = j["splitscreen"];
+
+            g_Config.b_override            = s.value("b_override", false);
+            // Clamp: the engine and profile container only support 1-4 players;
+            // a hand-edited or corrupted value must not drive the UI past them.
+            int player_count               = s.value("player_count", 1);
+            g_Config.player_count          = player_count < 1 ? 1 : (player_count > 4 ? 4 : player_count);
+            g_Config.b_use_player0_profile = s.value("b_use_player0_profile", true);
+            g_Config.b_player0_use_km      = s.value("b_player0_use_km", false);
+            g_Config.b_override_profile    = s.value("b_override_profile", false);
+
+            return true;
+        } catch (const std::exception& e) {
+            LOG_ERROR("Splitscreen::Load: failed to parse settings file: {}", e.what());
             return false;
-
-        auto& s = j["splitscreen"];
-
-        g_Config.b_override            = s.value("b_override", false);
-        g_Config.player_count          = s.value("player_count", 1);
-        g_Config.b_use_player0_profile = s.value("b_use_player0_profile", true);
-        g_Config.b_player0_use_km      = s.value("b_player0_use_km", false);
-        g_Config.b_override_profile    = s.value("b_override_profile", false);
-
-        return true;
+        }
     }
 
-    bool Profile::Load() {
+    // Body of Profile::Load; the public wrapper below catches parse/type
+    // exceptions (nlohmann throws on malformed files and type mismatches).
+    static bool ProfileLoadImpl() {
         fs::path path = GetConfigPath();
 
         if (!fs::exists(path))
@@ -274,10 +284,32 @@ namespace MCC::Settings {
 
     }
 
+    bool Profile::Load() {
+        try {
+            return ProfileLoadImpl();
+        } catch (const std::exception& e) {
+            LOG_ERROR("Profile::Load: failed to parse settings file: {}", e.what());
+            return false;
+        }
+    }
+
     bool Splitscreen::Save() {
         fs::path path = GetConfigPath();
 
+        // Read-modify-write: settings.json also holds Profile::Save's
+        // "profile_t" section - writing a fresh object would erase it.
         json j;
+        if (fs::exists(path)) {
+            std::ifstream existing(path);
+            if (existing.is_open()) {
+                try {
+                    existing >> j;
+                } catch (const std::exception& e) {
+                    LOG_WARNING("Splitscreen::Save: Failed to parse existing file: {}", e.what());
+                    j = json::object();
+                }
+            }
+        }
 
         j["splitscreen"] = {
             {"b_override", g_Config.b_override},

@@ -32,25 +32,48 @@ namespace AlphaRing::Input {
 
     // XInputGetState on a disconnected slot triggers device enumeration and can
     // stall for milliseconds, so the wrapper below refuses to poll empty slots.
-    // Refreshing the mask on a slow cadence keeps hot-plug working; the probe
-    // uses the raw pointer because the wrapper consults this mask.
+    // Empty slots are re-probed one per 500ms (round-robin) so a single tick
+    // never eats more than one slow probe; WM_DEVICECHANGE (see Window.cpp)
+    // triggers an immediate full rescan so hot-plug is picked up instantly, and
+    // a failed poll of a connected slot drops it from the mask on the spot.
+    // The probes use the raw pointer because the wrapper consults this mask.
+    static DWORD g_connected_mask = 0;
+    static volatile LONG g_rescan_requested = 1;  // full sweep on first use
+
+    void RequestPadRescan() {
+        InterlockedExchange(&g_rescan_requested, 1);
+    }
+
     static DWORD ConnectedPadMask() {
-        static DWORD mask = 0;
-        static ULONGLONG last_check = 0;
+        static ULONGLONG last_probe = 0;
+        static DWORD next_probe_slot = 0;
 
         if (!g_pXInputGetState) return 0;
 
         auto now = GetTickCount64();
-        if (last_check == 0 || now - last_check >= 500) {
-            last_check = now;
-            mask = 0;
+        if (InterlockedExchange(&g_rescan_requested, 0)) {
+            DWORD mask = 0;
             for (DWORD i = 0; i < 4; ++i) {
                 XINPUT_STATE state;
                 if (g_pXInputGetState(i, &state) == ERROR_SUCCESS)
                     mask |= 1u << i;
             }
+            g_connected_mask = mask;
+            last_probe = now;
+        } else if (now - last_probe >= 500) {
+            last_probe = now;
+            for (DWORD n = 0; n < 4; ++n) {
+                DWORD i = (next_probe_slot + n) % 4;
+                if (g_connected_mask & (1u << i))
+                    continue;
+                XINPUT_STATE state;
+                if (g_pXInputGetState(i, &state) == ERROR_SUCCESS)
+                    g_connected_mask |= 1u << i;
+                next_probe_slot = (i + 1) % 4;
+                break;
+            }
         }
-        return mask;
+        return g_connected_mask;
     }
 
     bool GetXInputGetState(DWORD dwUserIndex, XINPUT_STATE* pState) {
@@ -58,7 +81,12 @@ namespace AlphaRing::Input {
         memset(pState, 0, sizeof(XINPUT_STATE));
         if (dwUserIndex >= 4 || !(ConnectedPadMask() & (1u << dwUserIndex)))
             return false;
-        return g_pXInputGetState(dwUserIndex, pState) == ERROR_SUCCESS;
+        if (g_pXInputGetState(dwUserIndex, pState) != ERROR_SUCCESS) {
+            g_connected_mask &= ~(1u << dwUserIndex);
+            memset(pState, 0, sizeof(XINPUT_STATE));
+            return false;
+        }
+        return true;
     }
 
     void SetState(DWORD dwUserIndex, XINPUT_VIBRATION *pVibration) {

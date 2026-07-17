@@ -333,6 +333,14 @@ git checkout stable-v1.3.5
 
 **Verified:** MCC 1.3528.0.0 installed locally matches `GAME_VERSION` — build compiles clean (`build/Release/WTSAPI32.dll`).
 
+**Codex adversarial review round (same day, all findings verified in code then fixed):**
+1. `Settings.cpp` `Splitscreen::Save` truncated settings.json to just the splitscreen section, deterministically ERASING saved profiles ("profile_t") on any option toggle — pre-existing data-loss bug, now read-modify-write like `Profile::Save`
+2. `Splitscreen::Load`/`Profile::Load` let nlohmann parse/type exceptions escape (corrupted settings.json = abort at init) and applied `player_count` unclamped (>4 → `ProfileContext` dereferenced null `get_profile`) — now try/caught, clamped 1-4, and null-guarded
+3. `Log::Init` hard-failed (and `main.cpp` assert aborted the game) when the log file couldn't be created — now best-effort: file sink, else console-only, else null logger; never fails
+4. Menu hotkey leaked into the game (bind SPACE → menu toggle also jumps) and autorepeated while held — WndProc now consumes trigger keydown+keyup, toggles only on initial press (lParam bit 30), but lets the key type when an overlay text field is focused
+5. Controller mask refresh probed all empty slots in one burst every 500ms on a hot thread — now event-driven: `WM_DEVICECHANGE` → immediate full rescan, otherwise max ONE empty-slot probe per 500ms (round-robin), plus instant mask drop when a connected pad's poll fails
+6. `MenuConfig` chord parsing failed open (typo `START+BAKC` → bare START binding) — now rejects the whole chord on any unknown token and logs a warning
+
 ### 2026-02-05
 
 **v1.4.4-experimental released** based on user's alpharing.log from v1.4.3
