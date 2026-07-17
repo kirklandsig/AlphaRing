@@ -23,9 +23,11 @@
 
 | Branch | Purpose |
 |--------|---------|
-| `dev` | Main development branch (shown on GitHub) |
-| `feature/controller-bind-and-default-mappings` | All working features |
-| `experimental/proton-compat` | Proton compatibility experiments (latest work) |
+| `main` | Primary branch (GitHub default since 2026-07-17) — day-to-day work happens here; releases are tagged from it |
+| `experimental/proton-compat` | Historical — the v1.4.x development line, now folded into `main` |
+| `fix/servicetag-buffer-overread` | Upstream PR branch (megabitt01/AlphaRing PR #6), delete after the PR resolves |
+
+Repo cleanup 2026-07-17: old unrelated-history `dev` and superseded `feature/controller-bind-and-default-mappings` deleted from GitHub (feature branch kept locally); inherited upstream tags pruned locally; all published release tags kept.
 
 ---
 
@@ -403,7 +405,7 @@ git checkout stable-v1.3.5
 1. **Tag and release v1.4.5-experimental** (2026-07-17 fixes) and get the crashing user to retest — the ServiceTag `%ls` overread is the best root-cause candidate yet
 2. **Fix sensitivity UI labels** - Rename VerticalLookSensitivity/HorizontalLookSensitivity to clarify they're invert toggles
 3. **Investigate if controller sensitivity exists** - May need to find where base look sensitivity is stored in game memory
-4. **Consider PR to upstream** (megabitt01/AlphaRing) with the ServiceTag fixes — he already ports our work, and his master shares the vulnerable merge-base code
+4. ~~Consider PR to upstream~~ **DONE:** ServiceTag fix submitted as https://github.com/megabitt01/AlphaRing/pull/6 — follow up on review feedback
 5. **Decide on MegaBit's Xbox dashboard UI** — adopt, ignore, or wait for it to stabilize (adds SDL2/vcpkg deps, replaces JSON settings)
 6. **If Reach armor staleness or CE/H2 wrong-colors get reported** — adapt MegaBit's `get_player_profile` Reach sync / color-index mapping (see 2026-07-17 session notes for why blind porting is wrong)
 7. **Investigate controller connection timing** - Controllers need to be connected before launch (ConnectedPadMask hot-plug refresh may already improve this — retest)
