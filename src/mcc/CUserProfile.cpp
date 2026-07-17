@@ -4,6 +4,7 @@
 #include "mcc/settings/Settings.h"
 
 #include "imgui.h"
+#include <utils.h>
 #include <cstdio>
 #include <string>
 #include <vector>
@@ -91,12 +92,12 @@ void CUserProfile::ImGuiContext() {
 
     ImGui::Separator();
 
-    sprintf(buffer, "%ls", ServiceTag);
+    // ServiceTag has no null terminator (see String::fixedToNarrow) — never
+    // print it with %ls; "Apply Profile" copies in live engine tags that fill
+    // all 4 slots.
+    snprintf(buffer, sizeof(buffer), "%s", String::fixedToNarrow(ServiceTag).c_str());
     if (ImGui::InputText("ServiceTag", buffer, 5, ImGuiInputTextFlags_CallbackCompletion)) {
-        for (int i = 0; i < 4; ++i) {
-            if (buffer[i] == 0) break;
-            ServiceTag[i] = buffer[i];
-        }
+        String::narrowToFixed(ServiceTag, buffer);
         result = true;
     }
 

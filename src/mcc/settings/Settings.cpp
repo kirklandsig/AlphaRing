@@ -4,6 +4,7 @@
 #include "log/Log.h"
 
 #include <offset_mcc.h>
+#include <utils.h>
 #include <filesystem>
 #include <fstream>
 #include <windows.h>
@@ -82,7 +83,7 @@ namespace MCC::Settings {
                 g_Profiles[i].controller_index = entry.value("controller_index", g_Profiles[i].controller_index);
                 auto name = entry.value("name", "");
                 if (!name.empty())
-                    mbstowcs(g_Profiles[i].name, name.c_str(), 1024);
+                    String::convert(g_Profiles[i].name, name.c_str(), _countof(g_Profiles[i].name));
                 if (!entry.contains("profile"))
                     continue;
 
@@ -162,11 +163,7 @@ namespace MCC::Settings {
                         dst.Skins[o].skin   = s.value("skin", dst.Skins[o].skin);
                     }
                 }
-                const std::string s = prof.value("ServiceTag", "");
-                wmemset(dst.ServiceTag, 0, 4);
-                if (!s.empty()) {
-                    mbstowcs_s(nullptr, dst.ServiceTag, 4, s.c_str(), _TRUNCATE);
-                }
+                String::narrowToFixed(dst.ServiceTag, prof.value("ServiceTag", ""));
                 dst.OnlineMedalFlasher = prof.value("OnlineMedalFlasher", dst.OnlineMedalFlasher);
                 dst.VerticalLookSensitivity = prof.value("VerticalLookSensitivity", dst.VerticalLookSensitivity);
                 dst.HorizontalLookSensitivity = prof.value("HorizontalLookSensitivity", dst.HorizontalLookSensitivity);
@@ -1252,12 +1249,7 @@ namespace MCC::Settings {
                 }
             }
 
-            // ServiceTag
-            const std::string st = prof.value("ServiceTag", "");
-            wmemset(dst.ServiceTag, 0, 4);
-            if (!st.empty()) {
-                mbstowcs_s(nullptr, dst.ServiceTag, 4, st.c_str(), _TRUNCATE);
-            }
+            String::narrowToFixed(dst.ServiceTag, prof.value("ServiceTag", ""));
 
             dst.OnlineMedalFlasher = prof.value("OnlineMedalFlasher", dst.OnlineMedalFlasher);
             dst.VerticalLookSensitivity = prof.value("VerticalLookSensitivity", dst.VerticalLookSensitivity);

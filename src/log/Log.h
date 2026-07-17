@@ -9,7 +9,9 @@ namespace AlphaRing::Log {
     bool Shutdown();
 }
 
-#define LOG_INFO(...) AlphaRing::Log::default_logger->info(__VA_ARGS__)
-#define LOG_ERROR(...) AlphaRing::Log::default_logger->error(__VA_ARGS__)
-#define LOG_WARNING(...) AlphaRing::Log::default_logger->warn(__VA_ARGS__)
-#define LOG_DEBUG(...) AlphaRing::Log::default_logger->debug(__VA_ARGS__)
+// Guarded: default_logger stays null if Log::Init() fails (e.g. win64 folder
+// not writable), and logging must never be the thing that crashes the game.
+#define LOG_INFO(...) do { if (AlphaRing::Log::default_logger) AlphaRing::Log::default_logger->info(__VA_ARGS__); } while (0)
+#define LOG_ERROR(...) do { if (AlphaRing::Log::default_logger) AlphaRing::Log::default_logger->error(__VA_ARGS__); } while (0)
+#define LOG_WARNING(...) do { if (AlphaRing::Log::default_logger) AlphaRing::Log::default_logger->warn(__VA_ARGS__); } while (0)
+#define LOG_DEBUG(...) do { if (AlphaRing::Log::default_logger) AlphaRing::Log::default_logger->debug(__VA_ARGS__); } while (0)
