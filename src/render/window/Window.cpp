@@ -4,6 +4,7 @@
 #include "common.h"
 
 #include "global/Global.h"
+#include "input/Input.h"
 #include "input/MenuConfig.h"
 
 #include "imgui.h"
@@ -17,12 +18,25 @@ namespace AlphaRing::Render::Window {
 
     //todo: WM_IME_COMPOSITION Support
     static LRESULT dWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
-        if (ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam))        
-            return true;
-        
+        if (uMsg == WM_DEVICECHANGE)
+            AlphaRing::Input::RequestPadRescan();
 
-        if (uMsg == WM_KEYDOWN && static_cast<int>(wParam) == g_menuConfig.keyboardVKey)
-            AlphaRing::Global::Global()->show_imgui = !AlphaRing::Global::Global()->show_imgui;
+        if (ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam))
+            return true;
+
+
+        // Menu trigger: toggle on the initial keydown only (bit 30 = key was
+        // already down, i.e. autorepeat) and consume both keydown and keyup so
+        // a bind like SPACE or A-Z never reaches the game. Exception: while
+        // typing in an overlay text field the key must type, not toggle.
+        if ((uMsg == WM_KEYDOWN || uMsg == WM_KEYUP) && static_cast<int>(wParam) == g_menuConfig.keyboardVKey) {
+            bool typing = AlphaRing::Global::Global()->show_imgui && ImGui::GetIO().WantTextInput;
+            if (!typing) {
+                if (uMsg == WM_KEYDOWN && !(lParam & (1 << 30)))
+                    AlphaRing::Global::Global()->show_imgui = !AlphaRing::Global::Global()->show_imgui;
+                return 0;
+            }
+        }
 
         auto& io = ImGui::GetIO();
 
