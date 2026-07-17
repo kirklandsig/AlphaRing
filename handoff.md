@@ -17,6 +17,7 @@
 | `v1.4.2-experimental` | Testing | wcstombs null-termination fix for profile save crash |
 | `v1.4.3-experimental` | Testing | Added file logging for crash debugging |
 | `v1.4.4-experimental` | Testing | Fixed wcstombs crash in Profile::Save() (still not fully resolved) |
+| `v1.4.5-experimental` | Testing | Likely crash root-cause fix (ServiceTag %ls overread), settings data-loss fix, robustness pass, configurable hotkeys |
 
 ### Branches
 
@@ -312,7 +313,7 @@ git checkout stable-v1.3.5
 
 ### 2026-07-17
 
-**Full audit session: upstream comparison + deep code review + fixes (v1.4.5-experimental candidate, not yet tagged/released)**
+**Full audit session: upstream comparison + deep code review + fixes — RELEASED as v1.4.5-experimental (tag + GitHub release with DLL, same day)**
 
 **Upstream intelligence (MegaBit = Jack Bittner = thejackbitt = megabitt01 — same person, our upstream):**
 - His active line is `megabit/master`, tag `1.3.3` "beta" (July 6, 2026). His April 2026 commit literally ports OUR changes back ("feat: porting over changes from kirklandsig fork") and his README credits this fork — the COM-leak/MessageBox/GetFunc fixes in his tree ARE ours.
