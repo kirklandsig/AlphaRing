@@ -3,3 +3,6 @@ cmake-build-debug/
 .idea/
 build/
 /.vs
+# Vestigial submodule clones; the build links prebuilt libraries from lib/
+/dep/
+/.claude/
