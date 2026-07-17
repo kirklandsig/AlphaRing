@@ -4,6 +4,7 @@
 #include "common.h"
 
 #include "global/Global.h"
+#include "input/MenuConfig.h"
 
 #include "imgui.h"
 
@@ -20,16 +21,8 @@ namespace AlphaRing::Render::Window {
             return true;
         
 
-        switch (uMsg) {
-            case WM_KEYDOWN: {
-                switch (wParam) {
-                    case VK_F4:
-                        AlphaRing::Global::Global()->show_imgui = !AlphaRing::Global::Global()->show_imgui;
-                        break;
-                }
-                break;
-            }
-        }
+        if (uMsg == WM_KEYDOWN && static_cast<int>(wParam) == g_menuConfig.keyboardVKey)
+            AlphaRing::Global::Global()->show_imgui = !AlphaRing::Global::Global()->show_imgui;
 
         auto& io = ImGui::GetIO();
 

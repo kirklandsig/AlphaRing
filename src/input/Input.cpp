@@ -4,6 +4,7 @@
 
 #include "imgui.h"
 #include "global/Global.h"
+#include "MenuConfig.h"
 
 static HMODULE hModule;
 static DWORD (WINAPI* g_pXInputGetState)(_In_  DWORD dwUserIndex, _Out_ XINPUT_STATE* pState) WIN_NOEXCEPT;
@@ -20,6 +21,8 @@ namespace AlphaRing::Input {
 
         assertm(hModule != nullptr, "failed to find xinput module");
 
+        g_menuConfig = MenuConfig::load();
+
         return true;
     }
 
@@ -27,9 +30,34 @@ namespace AlphaRing::Input {
         return true;
     }
 
+    // XInputGetState on a disconnected slot triggers device enumeration and can
+    // stall for milliseconds, so the wrapper below refuses to poll empty slots.
+    // Refreshing the mask on a slow cadence keeps hot-plug working; the probe
+    // uses the raw pointer because the wrapper consults this mask.
+    static DWORD ConnectedPadMask() {
+        static DWORD mask = 0;
+        static ULONGLONG last_check = 0;
+
+        if (!g_pXInputGetState) return 0;
+
+        auto now = GetTickCount64();
+        if (last_check == 0 || now - last_check >= 500) {
+            last_check = now;
+            mask = 0;
+            for (DWORD i = 0; i < 4; ++i) {
+                XINPUT_STATE state;
+                if (g_pXInputGetState(i, &state) == ERROR_SUCCESS)
+                    mask |= 1u << i;
+            }
+        }
+        return mask;
+    }
+
     bool GetXInputGetState(DWORD dwUserIndex, XINPUT_STATE* pState) {
         if (!g_pXInputGetState || !pState) return false;
         memset(pState, 0, sizeof(XINPUT_STATE));
+        if (dwUserIndex >= 4 || !(ConnectedPadMask() & (1u << dwUserIndex)))
+            return false;
         return g_pXInputGetState(dwUserIndex, pState) == ERROR_SUCCESS;
     }
 
@@ -46,7 +74,7 @@ namespace AlphaRing::Input {
         if (!GetXInputGetState(0, &state))
             return false;
 
-        if (state.Gamepad.wButtons & XINPUT_GAMEPAD_START && state.Gamepad.wButtons & XINPUT_GAMEPAD_BACK) {
+        if ((state.Gamepad.wButtons & g_menuConfig.controllerComboMask) == g_menuConfig.controllerComboMask) {
             if (!b_toggled) {
                 AlphaRing::Global::Global()->show_imgui = !AlphaRing::Global::Global()->show_imgui;
                 b_toggled = true;
