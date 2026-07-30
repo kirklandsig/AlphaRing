@@ -10,6 +10,7 @@ struct MenuState {
     int playerCount;
     bool useKM;
     int controllerIndex[4];
+    int controllerProfile[4];
     int teamIndex[4];
     PlayerColor playerColors[4];
 };

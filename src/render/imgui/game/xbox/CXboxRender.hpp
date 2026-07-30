@@ -350,12 +350,71 @@ void renderMenu(
             }
 
             if (type == OptionType::Subpage) {
-                // checks if this option is a color type
-                if (opt.subOptionType > 0) {
-                    // get the index of the player color from the player index
-                    int colorIndex = state.menuState.playerColors[state.pageIndex - 1].colors[state.menu.pages[state.pageIndex].options[i].subOptionType - 1];
-                    ImU32 color = defaultColors[colorIndex];
-                    ImU32 finalColor = IM_COL32(GetRValue(color), GetGValue(color), GetBValue(color), globalAlpha);
+                // if (opt.subOptionType > 0) {
+                //     // get the index of the player color from the player index
+                //     int colorIndex = state.menuState.playerColors[state.pageIndex - 1].colors[state.menu.pages[state.pageIndex].options[i].subOptionType - 1];
+                //     ImU32 color = defaultColors[colorIndex];
+                //     ImU32 finalColor = IM_COL32(GetRValue(color), GetGValue(color), GetBValue(color), globalAlpha);
+                //     drawButton(
+                //         menuPosX,
+                //         yBase,
+                //         menuWidth,
+                //         menuHeight,
+                //         font,
+                //         fontSize,
+                //         state.optionIndex == i,
+                //         globalAlpha,
+                //         opt.label.c_str(),
+                //         type,
+                //         0,
+                //         finalColor
+                //     );
+                //     buttonCount++;
+                //     continue;
+                // } else {
+                //     // if not a color type, its a controller type
+                //     drawButton(
+                //         menuPosX,
+                //         yBase,
+                //         menuWidth,
+                //         menuHeight,
+                //         font,
+                //         fontSize,
+                //         state.optionIndex == i,
+                //         globalAlpha,
+                //         opt.subOptions[state.menuState.controllerIndex[state.pageIndex - 1]].label.c_str(),
+                //         type,
+                //         0
+                //     );
+                //     buttonCount++;
+                //     continue;
+                // }
+
+                switch(opt.subOptionType) {
+                    int colorIndex;
+                    ImU32 color;
+                    ImU32 finalColor;
+                    case 0:
+                    drawButton(
+                        menuPosX,
+                        yBase,
+                        menuWidth,
+                        menuHeight,
+                        font,
+                        fontSize,
+                        state.optionIndex == i,
+                        globalAlpha,
+                        opt.subOptions[state.menuState.controllerIndex[state.pageIndex - 1]].label.c_str(),
+                        type,
+                        0
+                    );
+                    break;
+                    case 1:
+                    case 2:
+                    case 3:
+                    colorIndex = state.menuState.playerColors[state.pageIndex - 1].colors[state.menu.pages[state.pageIndex].options[i].subOptionType - 1];
+                    color = defaultColors[colorIndex];
+                    finalColor = IM_COL32(GetRValue(color), GetGValue(color), GetBValue(color), globalAlpha);
                     drawButton(
                         menuPosX,
                         yBase,
@@ -370,26 +429,30 @@ void renderMenu(
                         0,
                         finalColor
                     );
-                    buttonCount++;
-                    continue;
-                } else {
-                    // if not a color type, its a controller type
-                    drawButton(
-                        menuPosX,
-                        yBase,
-                        menuWidth,
-                        menuHeight,
-                        font,
-                        fontSize,
-                        state.optionIndex == i,
-                        globalAlpha,
-                        opt.subOptions[state.menuState.controllerIndex[state.pageIndex - 1]].label.c_str(),
-                        type,
-                        0
-                    );
-                    buttonCount++;
-                    continue;
+                    break;
+                    case 4:
+                    {
+                        std::string stringLabel = "Controller Profile: " + opt.subOptions[state.menuState.controllerProfile[state.pageIndex - 1]].label;
+                        drawButton(
+                            menuPosX,
+                            yBase,
+                            menuWidth,
+                            menuHeight,
+                            font,
+                            fontSize,
+                            state.optionIndex == i,
+                            globalAlpha,
+                            stringLabel.c_str(),
+                            type,
+                            0
+                        );
+                    }
+                    break;
+                    default:
+                    break;
                 }
+                buttonCount++;
+                continue;
             }
 
             drawButton(

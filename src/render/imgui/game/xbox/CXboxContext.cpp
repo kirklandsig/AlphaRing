@@ -10,6 +10,7 @@
 
 #include "mcc/CGameManager.h"
 #include "global/Global.h"
+#include "input/MenuConfig.h"
 
 #include <SDL.h>
 #include <imgui.h>
@@ -85,6 +86,9 @@ void CXboxContext::render() {
             auto xuid = CGameManager::get_xuid(i);
             if (xuid && engine)
                 engine->change_team(xuid, ms.teamIndex[i]);
+
+            if (profile)
+                g_menuConfig.ApplyControllerProfile(ms.controllerProfile[i], profile->mapping);
         }
 
         // propagate splitscreen settings from UI state

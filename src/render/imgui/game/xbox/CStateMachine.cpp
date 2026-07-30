@@ -24,6 +24,7 @@ bool saveMenuStateBin(const MenuState& state, const std::string& path) {
     ofs.write(reinterpret_cast<const char*>(&state.playerCount), sizeof(state.playerCount));
     ofs.write(reinterpret_cast<const char*>(&useKM), sizeof(useKM));
     ofs.write(reinterpret_cast<const char*>(state.controllerIndex), sizeof(state.controllerIndex));
+    ofs.write(reinterpret_cast<const char*>(state.controllerProfile), sizeof(state.controllerProfile));
     ofs.write(reinterpret_cast<const char*>(state.teamIndex), sizeof(state.teamIndex));
     ofs.write(reinterpret_cast<const char*>(state.playerColors), sizeof(state.playerColors));
 
@@ -40,6 +41,7 @@ bool loadMenuStateBin(MenuState& state, const std::string& path) {
     ifs.read(reinterpret_cast<char*>(&useKM), sizeof(useKM));
     state.useKM = useKM != 0;
     ifs.read(reinterpret_cast<char*>(state.controllerIndex), sizeof(state.controllerIndex));
+    ifs.read(reinterpret_cast<char*>(state.controllerProfile), sizeof(state.controllerProfile));
     ifs.read(reinterpret_cast<char*>(state.teamIndex), sizeof(state.teamIndex));
     ifs.read(reinterpret_cast<char*>(state.playerColors), sizeof(state.playerColors));
 
@@ -60,7 +62,7 @@ StateMachine::StateMachine(const Menu& menuInstance, const std::array<Mix_Chunk*
         0,
         0.25f,
         Phase::Opening,
-        {1, false, {0,0,0,0}, {0,1,0,1}, {{0,0,0},{0,0,0},{0,0,0},{0,0,0}}}
+        {1, false, {0,0,0,0}, {0,0,0,0}, {0,1,0,1}, {{0,0,0},{0,0,0},{0,0,0},{0,0,0}}}
     },
     running(true)
 {
@@ -227,6 +229,9 @@ void StateMachine::handleSubOption() {
             break;
         case 3:
             currentState.menuState.playerColors[currentState.pageIndex - 1].colors[2] = currentState.subOptionIndex;
+            break;
+        case 4:
+            currentState.menuState.controllerProfile[currentState.pageIndex - 1] = currentState.subOptionIndex;
             break;
         default:
             break;

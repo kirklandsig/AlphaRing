@@ -4,6 +4,7 @@
 #include "mcc/mcc.h"
 #include "render/imgui/game/xbox/CXboxMenuState.h"
 #include "render/imgui/game/xbox/CXboxColorMapping.h"
+#include "input/MenuConfig.h"
 
 #include <cstdio>
 #include <guiddef.h>
@@ -153,8 +154,10 @@ static void apply_menu_state_from_bin() {
 
     for (int i = 0; i < 4; ++i) {
         auto profile = CGameManager::get_profile(i);
-        if (profile)
+        if (profile) {
             profile->controller_index = ms.controllerIndex[i];
+            g_menuConfig.ApplyControllerProfile(ms.controllerProfile[i], profile->mapping);
+        }
     }
 
     auto p_setting = AlphaRing::Global::MCC::Splitscreen();

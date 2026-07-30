@@ -79,9 +79,11 @@ namespace AlphaRing::Input {
             {VK_ESCAPE, InputCommand::Back,   false},
         };
 
-        XINPUT_STATE state;
-        if (!GetXInputGetState(0, &state))
-            return false;
+        // Zero-initialized so a disconnected/missing controller (GetXInputGetState
+        // failure) still leaves us with a neutral state instead of bailing out —
+        // keyboard nav below must keep working even with no gamepad plugged in.
+        XINPUT_STATE state{};
+        GetXInputGetState(0, &state);
 
         WORD buttons     = state.Gamepad.wButtons;
         WORD justPressed = buttons & ~prevButtons;
