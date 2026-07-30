@@ -111,7 +111,8 @@ CUserProfile* CGameManager::get_player_profile(CGameManager *self, __int64 xid) 
 
     // Reach initializes armor into the player-0 profile after game_setup fires, so the
     // snapshot taken by apply_profiles() is stale. Sync armor from the live player-0
-    // profile on every call while preserving the per-player custom colors we applied.
+    // profile on every call while preserving the per-player custom colors and look
+    // settings we applied.
     auto* gg = GameGlobal();
     if (gg && gg->current_game == CGameGlobal::HaloReach) {
         auto* base = ppOriginal.get_player_profile(self, get_xuid(0));
@@ -122,6 +123,10 @@ CUserProfile* CGameManager::get_player_profile(CGameManager *self, __int64 xid) 
             int pci = dest->profile.PlayerModelPrimaryColor;
             int sci = dest->profile.PlayerModelSecondaryColor;
             int tci = dest->profile.PlayerModelTertiaryColor;
+            bool lookInverted      = dest->profile.LookControlsInverted;
+            bool mouseLookInverted = dest->profile.MouseLookControlsInverted;
+            unsigned char vertSens  = dest->profile.VerticalLookSensitivity;
+            unsigned char horizSens = dest->profile.HorizontalLookSensitivity;
             memcpy(&dest->profile, base, sizeof(CUserProfile));
             dest->profile.PlayerModelPrimaryColorIndex   = pc;
             dest->profile.PlayerModelSecondaryColorIndex = sc;
@@ -129,6 +134,10 @@ CUserProfile* CGameManager::get_player_profile(CGameManager *self, __int64 xid) 
             dest->profile.PlayerModelPrimaryColor        = pci;
             dest->profile.PlayerModelSecondaryColor      = sci;
             dest->profile.PlayerModelTertiaryColor       = tci;
+            dest->profile.LookControlsInverted           = lookInverted;
+            dest->profile.MouseLookControlsInverted      = mouseLookInverted;
+            dest->profile.VerticalLookSensitivity        = vertSens;
+            dest->profile.HorizontalLookSensitivity      = horizSens;
         }
     }
 

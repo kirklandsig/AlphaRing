@@ -104,8 +104,18 @@ void CUserProfile::ImGuiContext() {
     }
 
     result |= ImGui::Checkbox("OnlineMedalFlasher", &OnlineMedalFlasher);
-    result |= ImGui::Checkbox("VerticalLookSensitivity", &VerticalLookSensitivity);
-    result |= ImGui::Checkbox("HorizontalLookSensitivity", &HorizontalLookSensitivity);
+
+    int vertSens = VerticalLookSensitivity;
+    if (ImGui::InputInt("VerticalLookSensitivity", &vertSens) && vertSens >= 0 && vertSens <= 255) {
+        VerticalLookSensitivity = static_cast<unsigned char>(vertSens);
+        result = true;
+    }
+
+    int horizSens = HorizontalLookSensitivity;
+    if (ImGui::InputInt("HorizontalLookSensitivity", &horizSens) && horizSens >= 0 && horizSens <= 255) {
+        HorizontalLookSensitivity = static_cast<unsigned char>(horizSens);
+        result = true;
+    }
     result |= ImGui::Checkbox("LookAcceleration", &LookAcceleration);
     result |= ImGui::InputFloat("LookAxialDeadZone", &LookAxialDeadZone);
     result |= ImGui::InputFloat("LookRadialDeadZone", &LookRadialDeadZone);

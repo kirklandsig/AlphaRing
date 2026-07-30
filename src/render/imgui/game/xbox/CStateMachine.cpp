@@ -20,11 +20,15 @@ bool saveMenuStateBin(const MenuState& state, const std::string& path) {
     if (!ofs) return false;
 
     uint8_t useKM = state.useKM ? 1 : 0;
+    uint8_t invert[4];
+    for (int i = 0; i < 4; ++i) invert[i] = state.invert[i] ? 1 : 0;
 
     ofs.write(reinterpret_cast<const char*>(&state.playerCount), sizeof(state.playerCount));
     ofs.write(reinterpret_cast<const char*>(&useKM), sizeof(useKM));
     ofs.write(reinterpret_cast<const char*>(state.controllerIndex), sizeof(state.controllerIndex));
     ofs.write(reinterpret_cast<const char*>(state.controllerProfile), sizeof(state.controllerProfile));
+    ofs.write(reinterpret_cast<const char*>(state.sensitivity), sizeof(state.sensitivity));
+    ofs.write(reinterpret_cast<const char*>(invert), sizeof(invert));
     ofs.write(reinterpret_cast<const char*>(state.teamIndex), sizeof(state.teamIndex));
     ofs.write(reinterpret_cast<const char*>(state.playerColors), sizeof(state.playerColors));
 
@@ -36,16 +40,48 @@ bool loadMenuStateBin(MenuState& state, const std::string& path) {
     if (!ifs) return false;
 
     uint8_t useKM = 0;
+    uint8_t invert[4] = {0, 0, 0, 0};
 
     ifs.read(reinterpret_cast<char*>(&state.playerCount), sizeof(state.playerCount));
     ifs.read(reinterpret_cast<char*>(&useKM), sizeof(useKM));
     state.useKM = useKM != 0;
     ifs.read(reinterpret_cast<char*>(state.controllerIndex), sizeof(state.controllerIndex));
     ifs.read(reinterpret_cast<char*>(state.controllerProfile), sizeof(state.controllerProfile));
+    ifs.read(reinterpret_cast<char*>(state.sensitivity), sizeof(state.sensitivity));
+    ifs.read(reinterpret_cast<char*>(invert), sizeof(invert));
+    for (int i = 0; i < 4; ++i) state.invert[i] = invert[i] != 0;
     ifs.read(reinterpret_cast<char*>(state.teamIndex), sizeof(state.teamIndex));
     ifs.read(reinterpret_cast<char*>(state.playerColors), sizeof(state.playerColors));
 
     return ifs.good();
+}
+
+// ------------------------------------------------------------
+// Helpers
+// ------------------------------------------------------------
+namespace {
+    // The main option list groups Increment/Decrement/PointerDisplay options
+    // (e.g. Reduce/Display/Increase Sensitivity) into a single visual row, just
+    // like the render loop's row counter does. This computes the row that a
+    // given raw option index falls on so window-scroll math matches what's
+    // actually drawn. Landing on the 2nd/3rd item of such a group must report
+    // the same row as the 1st item, not a later one.
+    bool isRowGroupType(OptionType t) {
+        return t == OptionType::Increment || t == OptionType::Decrement || t == OptionType::PointerDisplay;
+    }
+
+    int rowIndexForOption(const Page& page, int optionIndex) {
+        int row = 0;
+        bool prevWasGroup = false;
+        int limit = (std::min)(optionIndex, (int)page.options.size() - 1);
+        for (int i = 0; i <= limit; ++i) {
+            bool isGroup = isRowGroupType(page.options[i].type);
+            bool continuesRow = isGroup && prevWasGroup;
+            if (i > 0 && !continuesRow) row++;
+            prevWasGroup = isGroup;
+        }
+        return row;
+    }
 }
 
 // ------------------------------------------------------------
@@ -57,12 +93,13 @@ StateMachine::StateMachine(const Menu& menuInstance, const std::array<Mix_Chunk*
         sounds,
         0,
         0,
+        {0,1,2,3,4,5},
         0,
         {0,1,2,3,4,5},
         0,
         0.25f,
         Phase::Opening,
-        {1, false, {0,0,0,0}, {0,0,0,0}, {0,1,0,1}, {{0,0,0},{0,0,0},{0,0,0},{0,0,0}}}
+        {1, false, {0,0,0,0}, {0,0,0,0}, {3,3,3,3}, {false,false,false,false}, {0,1,0,1}, {{0,0,0},{0,0,0},{0,0,0},{0,0,0}}}
     },
     running(true)
 {
@@ -73,7 +110,7 @@ StateMachine::StateMachine(const Menu& menuInstance, const std::array<Mix_Chunk*
 // ------------------------------------------------------------
 void StateMachine::handleInput(InputCommand cmd)
 {
-    if (cmd == InputCommand::Up && currentState.phase == Phase::ShiftUp) {
+    if (cmd == InputCommand::Up && currentState.phase == Phase::InShiftUp) {
         finishShiftUp();
         currentState.phase = Phase::InIdle;
         currentState.time = 0;
@@ -81,9 +118,25 @@ void StateMachine::handleInput(InputCommand cmd)
         return;
     }
 
-    if (cmd == InputCommand::Down && currentState.phase == Phase::ShiftDown) {
+    if (cmd == InputCommand::Down && currentState.phase == Phase::InShiftDown) {
         finishShiftDown();
         currentState.phase = Phase::InIdle;
+        currentState.time = 0;
+        handleDown();
+        return;
+    }
+
+    if (cmd == InputCommand::Up && currentState.phase == Phase::ShiftUp) {
+        finishOptionShiftUp();
+        currentState.phase = Phase::Idle;
+        currentState.time = 0;
+        handleUp();
+        return;
+    }
+
+    if (cmd == InputCommand::Down && currentState.phase == Phase::ShiftDown) {
+        finishOptionShiftDown();
+        currentState.phase = Phase::Idle;
         currentState.time = 0;
         handleDown();
         return;
@@ -151,14 +204,23 @@ void StateMachine::handleRight() {
 
 void StateMachine::handleUp() {
     if (currentState.phase == Phase::Idle) {
+        Mix_PlayChannel(-1, currentState.sounds[2], 0);
         auto& opt = currentState.menu.pages[currentState.pageIndex]
-                        .options[currentState.optionIndex];
+                .options[currentState.optionIndex];
 
-        if (opt.type == OptionType::Increment || opt.type == OptionType::Decrement) {
-            Mix_PlayChannel(-1, currentState.sounds[5], 0);
+        if (opt.type == OptionType::Increment) {
+            currentState.optionIndex = (std::min)(
+                (int)currentState.menu.pages[currentState.pageIndex].options.size() - 1,
+                currentState.optionIndex - 3
+            );
         } else {
-            Mix_PlayChannel(-1, currentState.sounds[2], 0);
             currentState.optionIndex = (std::max)(0, currentState.optionIndex - 1);
+        }
+        
+        int row = rowIndexForOption(currentState.menu.pages[currentState.pageIndex], currentState.optionIndex);
+        if (row < currentState.optionWindow[0]) {
+            currentState.phase = Phase::ShiftUp;
+            currentState.time = 0;
         }
     }
 
@@ -168,7 +230,7 @@ void StateMachine::handleUp() {
 
         if (currentState.subOptionIndex < currentState.subOptionWindow[0]) {
             Mix_PlayChannel(-1, currentState.sounds[2], 0);
-            currentState.phase = Phase::ShiftUp;
+            currentState.phase = Phase::InShiftUp;
             currentState.time = 0;
         }
     }
@@ -188,6 +250,13 @@ void StateMachine::handleDown() {
         } else {
             currentState.optionIndex = (std::min)(maxOption - 1, currentState.optionIndex + 1);
         }
+
+        int row = rowIndexForOption(currentState.menu.pages[currentState.pageIndex], currentState.optionIndex);
+        int maxWin = (int)currentState.optionWindow.size();
+        if (row > currentState.optionWindow[maxWin - 1]) {
+            currentState.phase = Phase::ShiftDown;
+            currentState.time = 0;
+        }
     }
 
     if (currentState.phase == Phase::InIdle) {
@@ -201,7 +270,7 @@ void StateMachine::handleDown() {
 
         int maxWin = (int)currentState.subOptionWindow.size();
         if (currentState.subOptionIndex > currentState.subOptionWindow[maxWin - 1]) {
-            currentState.phase = Phase::ShiftDown;
+            currentState.phase = Phase::InShiftDown;
             currentState.time = 0;
         }
     }
@@ -244,14 +313,27 @@ void StateMachine::handleOption() {
 
     Mix_PlayChannel(-1, currentState.sounds[4], 0);
 
-    if (opt.type == OptionType::Increment && currentState.menuState.playerCount < 4)
-        currentState.menuState.playerCount++;
+    if (currentState.pageIndex == 0) {
+        if (opt.type == OptionType::Increment && currentState.menuState.playerCount < 4)
+            currentState.menuState.playerCount++;
 
-    if (opt.type == OptionType::Decrement && currentState.menuState.playerCount > 1)
-        currentState.menuState.playerCount--;
+        if (opt.type == OptionType::Decrement && currentState.menuState.playerCount > 1)
+            currentState.menuState.playerCount--;
 
-    if (opt.type == OptionType::Boolean)
-        currentState.menuState.useKM = !currentState.menuState.useKM;
+        if (opt.type == OptionType::Boolean)
+            currentState.menuState.useKM = !currentState.menuState.useKM;
+    } else {
+        int player = currentState.pageIndex - 1;
+
+        if (opt.type == OptionType::Increment && currentState.menuState.sensitivity[player] < 10)
+            currentState.menuState.sensitivity[player]++;
+
+        if (opt.type == OptionType::Decrement && currentState.menuState.sensitivity[player] > 1)
+            currentState.menuState.sensitivity[player]--;
+
+        if (opt.type == OptionType::Boolean)
+            currentState.menuState.invert[player] = !currentState.menuState.invert[player];
+    }
 
     if (opt.type == OptionType::TeamToggle) {
         auto& team = currentState.menuState.teamIndex[currentState.pageIndex - 1];
@@ -285,6 +367,16 @@ void StateMachine::finishShiftUp() {
 void StateMachine::finishShiftDown() {
     currentState.subOptionWindow.pop_front();
     currentState.subOptionWindow.push_back(currentState.subOptionWindow.back() + 1);
+}
+
+void StateMachine::finishOptionShiftUp() {
+    currentState.optionWindow.pop_back();
+    currentState.optionWindow.push_front(currentState.optionWindow.front() - 1);
+}
+
+void StateMachine::finishOptionShiftDown() {
+    currentState.optionWindow.pop_front();
+    currentState.optionWindow.push_back(currentState.optionWindow.back() + 1);
 }
 
 // ------------------------------------------------------------
@@ -322,18 +414,31 @@ void StateMachine::update(float dt)
                 currentState.pageIndex = (std::max)(0, currentState.pageIndex - 1);
                 break;
 
-            case Phase::ShiftUp:
+            case Phase::InShiftUp:
                 finishShiftUp();
                 currentState.phase = Phase::InFadeIn;
                 break;
 
-            case Phase::ShiftDown:
+            case Phase::InShiftDown:
                 finishShiftDown();
                 currentState.phase = Phase::InFadeIn;
                 break;
 
+            case Phase::ShiftUp:
+                finishOptionShiftUp();
+                currentState.phase = Phase::Idle;
+                currentState.time = 0;
+                break;
+
+            case Phase::ShiftDown:
+                finishOptionShiftDown();
+                currentState.phase = Phase::Idle;
+                currentState.time = 0;
+                break;
+
             case Phase::FadeIn:
                 currentState.optionIndex = 0;
+                currentState.optionWindow = {0,1,2,3,4,5};
                 currentState.phase = Phase::Idle;
                 currentState.time = 0;
                 break;

@@ -156,6 +156,10 @@ static void apply_menu_state_from_bin() {
         auto profile = CGameManager::get_profile(i);
         if (profile) {
             profile->controller_index = ms.controllerIndex[i];
+            profile->profile.LookControlsInverted = ms.invert[i];
+            profile->profile.MouseLookControlsInverted = ms.invert[i];
+            profile->profile.VerticalLookSensitivity = static_cast<unsigned char>(ms.sensitivity[i]);
+            profile->profile.HorizontalLookSensitivity = static_cast<unsigned char>(ms.sensitivity[i]);
             g_menuConfig.ApplyControllerProfile(ms.controllerProfile[i], profile->mapping);
         }
     }

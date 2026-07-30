@@ -80,8 +80,13 @@ void CXboxContext::render() {
         auto* engine = GameEngine();
         for (int i = 0; i < 4; ++i) {
             auto profile = CGameManager::get_profile(i);
-            if (profile)
+            if (profile) {
                 profile->controller_index = ms.controllerIndex[i];
+                profile->profile.LookControlsInverted = ms.invert[i];
+                profile->profile.MouseLookControlsInverted = ms.invert[i];
+                profile->profile.VerticalLookSensitivity = static_cast<unsigned char>(ms.sensitivity[i]);
+                profile->profile.HorizontalLookSensitivity = static_cast<unsigned char>(ms.sensitivity[i]);
+            }
 
             auto xuid = CGameManager::get_xuid(i);
             if (xuid && engine)

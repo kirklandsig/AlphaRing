@@ -36,6 +36,8 @@ enum class Phase {
     ShiftLeft,
     ShiftUp,
     ShiftDown,
+    InShiftUp,
+    InShiftDown,
     PreClosing,
     Closing
 };
@@ -48,6 +50,7 @@ struct State {
     std::array<Mix_Chunk*, 6> sounds;
     int pageIndex;
     int optionIndex;
+    std::deque<int> optionWindow;
     int subOptionIndex;
     std::deque<int> subOptionWindow;
     float time;
@@ -87,6 +90,8 @@ public:
 private:
     void finishShiftUp();
     void finishShiftDown();
+    void finishOptionShiftUp();
+    void finishOptionShiftDown();
 
     State currentState;
     bool running;

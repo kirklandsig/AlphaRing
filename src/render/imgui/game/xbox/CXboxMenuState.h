@@ -11,6 +11,8 @@ struct MenuState {
     bool useKM;
     int controllerIndex[4];
     int controllerProfile[4];
+    int sensitivity[4];
+    bool invert[4];
     int teamIndex[4];
     PlayerColor playerColors[4];
 };

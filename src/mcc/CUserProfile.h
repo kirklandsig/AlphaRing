@@ -68,8 +68,8 @@ struct CUserProfile {
     struct Skin_t { int object; int skin; } Skins[32]; // 0xAC
     wchar_t ServiceTag[4]; // 0x1AC
     bool OnlineMedalFlasher; // 0x1B4
-    bool VerticalLookSensitivity; // 0x1B5
-    bool HorizontalLookSensitivity; // 0x1B6
+    unsigned char VerticalLookSensitivity; // 0x1B5
+    unsigned char HorizontalLookSensitivity; // 0x1B6
     bool LookAcceleration; // 0x1B7
     float LookAxialDeadZone; // 0x1B8
     float LookRadialDeadZone; // 0x1BC

@@ -83,10 +83,10 @@ void renderMenu(
     // -------------------------
     // BUTTON OFFSET (SUB MENU)
     // -------------------------
-    if (state.phase == Phase::ShiftUp) {
+    if (state.phase == Phase::InShiftUp) {
         buttonOffset = -(buttonSize * state.subOptionWindow[0]) + (buttonSize * alpha);
     }
-    else if (state.phase == Phase::ShiftDown) {
+    else if (state.phase == Phase::InShiftDown) {
         buttonOffset = -(buttonSize * state.subOptionWindow[0]) - (buttonSize * alpha);
     }
     else if (
@@ -94,6 +94,26 @@ void renderMenu(
         state.phase == Phase::InFadeIn
     ) {
         buttonOffset = -(buttonSize * state.subOptionWindow[0]);
+    }
+
+    // -------------------------
+    // OPTION OFFSET (MAIN MENU)
+    // -------------------------
+    float mainButtonOffset = 0.0f;
+    if (state.phase == Phase::ShiftUp) {
+        mainButtonOffset = -(buttonSize * state.optionWindow[0]) + (buttonSize * alpha);
+    }
+    else if (state.phase == Phase::ShiftDown) {
+        mainButtonOffset = -(buttonSize * state.optionWindow[0]) - (buttonSize * alpha);
+    }
+    else if (
+        state.phase == Phase::Idle ||
+        state.phase == Phase::FadeIn ||
+        state.phase == Phase::ShiftRight ||
+        state.phase == Phase::ShiftLeft ||
+        state.phase == Phase::ShiftIn
+    ) {
+        mainButtonOffset = -(buttonSize * state.optionWindow[0]);
     }
 
     // -------------------------
@@ -119,11 +139,11 @@ void renderMenu(
         if (state.phase == Phase::ShiftOut)
             return rightSide ? (updateSize * alpha - unitSize) : (-updateSize * alpha + unitSize);
                 
-        if(state.phase == Phase::ShiftUp) {
+        if(state.phase == Phase::InShiftUp) {
             return rightSide ? 0 : (((buttonSize*state.subOptionWindow[0]) * -1)) + (buttonSize * alpha);
         }
 
-        if(state.phase == Phase::ShiftDown) {
+        if(state.phase == Phase::InShiftDown) {
             return rightSide ? 0 : (((buttonSize*state.subOptionWindow[0]) * -1)) - (buttonSize * alpha);
         }
 
@@ -137,12 +157,12 @@ void renderMenu(
     // LEFT PAGES
     // -------------------------
     if (
-        state.phase != Phase::Opening && 
+        state.phase != Phase::Opening &&
         state.phase != Phase::Closing &&
-        state.phase != Phase::InIdle && 
-        state.phase != Phase::InFadeIn && 
-        state.phase != Phase::ShiftUp &&
-        state.phase != Phase::ShiftDown
+        state.phase != Phase::InIdle &&
+        state.phase != Phase::InFadeIn &&
+        state.phase != Phase::InShiftUp &&
+        state.phase != Phase::InShiftDown
     ) {
         int offset = pageOffset(false);
         int prefixSize = -unitSize;
@@ -198,10 +218,10 @@ void renderMenu(
     // -------------------------
     const auto& page = state.menu.pages[state.pageIndex];
     if(
-        state.phase != Phase::InIdle && 
+        state.phase != Phase::InIdle &&
         state.phase != Phase::InFadeIn &&
-        state.phase != Phase::ShiftUp &&
-        state.phase != Phase::ShiftDown &&
+        state.phase != Phase::InShiftUp &&
+        state.phase != Phase::InShiftDown &&
         state.phase != Phase::ShiftOut
     ) {
         drawPage(
@@ -234,10 +254,10 @@ void renderMenu(
     // -------------------------
     if (state.phase != Phase::Opening &&
         state.phase != Phase::Closing &&
-        state.phase != Phase::InIdle && 
+        state.phase != Phase::InIdle &&
         state.phase != Phase::InFadeIn &&
-        state.phase != Phase::ShiftUp &&
-        state.phase != Phase::ShiftDown &&
+        state.phase != Phase::InShiftUp &&
+        state.phase != Phase::InShiftDown &&
         state.pageIndex <= pageCount - 1) {
 
         int offset = pageOffset(true);
@@ -282,38 +302,61 @@ void renderMenu(
         state.phase == Phase::FadeIn ||
         state.phase == Phase::ShiftRight ||
         state.phase == Phase::ShiftLeft ||
-        state.phase == Phase::ShiftIn
+        state.phase == Phase::ShiftIn ||
+        state.phase == Phase::ShiftUp ||
+        state.phase == Phase::ShiftDown
     ) {
+        ImDrawList* mainDraw = ImGui::GetForegroundDrawList();
+
+        mainDraw->PushClipRect(
+            ImVec2((float)menuPosX, (float)menuPosY),
+            ImVec2((float)(menuPosX + menuWidth),
+                (float)(menuPosY + menuHeight)),
+            true
+        );
+
         float buttonCount = 0.0f;
+        int groupIndex = 0;
 
         for (int i = 0; i < page.options.size(); i++) {
             const auto& opt = page.options[i];
             OptionType type = opt.type;
 
-            int yBase = menuPosY + buttonCount * buttonSize;
+            int yBase = menuPosY + buttonCount * buttonSize + mainButtonOffset;
 
             if (type == OptionType::Increment ||
                 type == OptionType::Decrement ||
                 type == OptionType::PointerDisplay) {
 
+                int displayValue = (state.pageIndex == 0)
+                    ? state.menuState.playerCount
+                    : state.menuState.sensitivity[state.pageIndex - 1];
+
                 drawButton(
-                    menuPosX + i * (menuWidth / 3),
-                    menuPosY,
+                    menuPosX + groupIndex * (menuWidth / 3),
+                    yBase,
                     menuWidth,
                     menuHeight,
                     font,
                     fontSize,
                     state.optionIndex == i,
                     globalAlpha,
-                    std::to_string(state.menuState.playerCount).c_str(),
+                    std::to_string(displayValue).c_str(),
                     type,
                     0
                 );
-                buttonCount += 0.33f;
+                groupIndex = (groupIndex + 1) % 3;
+                if (type == OptionType::Increment) {
+                    buttonCount++;
+                }
                 continue;
             }
 
             if (type == OptionType::Boolean) {
+                bool boolValue = (state.pageIndex == 0)
+                    ? state.menuState.useKM
+                    : state.menuState.invert[state.pageIndex - 1];
+
                 drawButton(
                     menuPosX,
                     yBase,
@@ -325,7 +368,7 @@ void renderMenu(
                     globalAlpha,
                     opt.label.c_str(),
                     type,
-                    state.menuState.useKM ? 1 : 0
+                    boolValue ? 1 : 0
                 );
                 buttonCount++;
                 continue;
@@ -471,6 +514,8 @@ void renderMenu(
 
             buttonCount++;
         }
+
+        mainDraw->PopClipRect();
     }
 
     // -------------------------
@@ -480,8 +525,8 @@ void renderMenu(
         state.phase == Phase::InIdle ||
         state.phase == Phase::InFadeIn ||
         state.phase == Phase::ShiftOut ||
-        state.phase == Phase::ShiftUp ||
-        state.phase == Phase::ShiftDown
+        state.phase == Phase::InShiftUp ||
+        state.phase == Phase::InShiftDown
     ) {
         ImDrawList* draw = ImGui::GetForegroundDrawList();
 
