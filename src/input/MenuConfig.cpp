@@ -319,9 +319,11 @@ void MenuConfig::ApplyControllerProfile(int profileIndex, CGamepadMapping& mappi
     mapping.actions[2]  = p.actionInteract;
     mapping.actions[3]  = p.reloadRightWeapon;
     mapping.actions[4]  = p.changeWeapon;
+    mapping.actions[13] = p.changeWeapon;  // Swap/Reload Left Weapon mirrors Change Weapon
     mapping.actions[5]  = p.melee;
     mapping.actions[6]  = p.toggleFlashlight;
     mapping.actions[7]  = p.throwGrenade;
+    mapping.actions[49] = p.throwGrenade;  // Use Left Weapon mirrors Throw Grenade
     mapping.actions[8]  = p.shoot;
     mapping.actions[9]  = p.crouch;
     mapping.actions[10] = p.playerZoom;

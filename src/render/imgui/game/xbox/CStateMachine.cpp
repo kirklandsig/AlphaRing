@@ -325,7 +325,7 @@ void StateMachine::handleOption() {
     } else {
         int player = currentState.pageIndex - 1;
 
-        if (opt.type == OptionType::Increment && currentState.menuState.sensitivity[player] < 10)
+        if (opt.type == OptionType::Increment && currentState.menuState.sensitivity[player] < 20)
             currentState.menuState.sensitivity[player]++;
 
         if (opt.type == OptionType::Decrement && currentState.menuState.sensitivity[player] > 1)
