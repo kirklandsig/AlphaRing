@@ -27,6 +27,7 @@
 | `main` | Primary branch (GitHub default since 2026-07-17) — day-to-day work happens here; releases are tagged from it |
 | `experimental/proton-compat` | Historical — the v1.4.x development line, now folded into `main` |
 | `fix/servicetag-buffer-overread` | Upstream PR branch (megabitt01/AlphaRing PR #6), delete after the PR resolves |
+| `fix/unhook-on-module-unload` | Upstream PR branch (megabitt01/AlphaRing PR #24, based on his active `master-chief`), delete after the PR resolves |
 
 Repo cleanup 2026-07-17: old unrelated-history `dev` and superseded `feature/controller-bind-and-default-mappings` deleted from GitHub (feature branch kept locally); inherited upstream tags pruned locally; all published release tags kept.
 
@@ -457,7 +458,7 @@ Diagnostics used (not in code any more): temporary `RSSetViewports` probe logged
 
 ## Next Steps
 
-0. **(2026-09-24) v1.5.0-experimental shipped** (4-player fixes + spawn menus). Next: hear back from real-pad play; ping MegaBit/WinterSquire/Priception only with the user's OK (draft in the session summary); check the 3-player menu layout in game; investigate the H2 co-op-mod quit hang if it bothers them
+0. **(2026-09-24) v1.5.0-experimental shipped** (4-player fixes + spawn menus). Announced (user-approved) in megabitt01/AlphaRing issue #25 (mentions WinterSquire + Priception); unload-hook fix sent upstream as PR #24 against `master-chief` (compiles there; not runtime-tested on his tree - no local vcpkg/SDL2). Next: watch #24/#25 for replies; hear back from real-pad play; check the 3-player menu layout in game; investigate the H2 co-op-mod quit hang if it bothers them
 0b. **Spawn follow-ups (ideas):** spawned allies following the player (squad order/"follow" in H2 orders, H3 objectives), a "delete last spawn" action, Reach/H4 backends, prefer already-used squads for the hijack if a way to tell them apart is found (ODST/H2 runtime squad records are all-zero both for never-placed and wiped-out squads)
 1. **Tag and release v1.4.5-experimental** (2026-07-17 fixes) and get the crashing user to retest — the ServiceTag `%ls` overread is the best root-cause candidate yet
 2. **Fix sensitivity UI labels** - Rename VerticalLookSensitivity/HorizontalLookSensitivity to clarify they're invert toggles
