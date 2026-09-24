@@ -1,6 +1,9 @@
 #include "halo3odst.h"
 
 #include "common.h"
+
+#include "mcc/CGameGlobal.h"
+#include "mcc/spawn/Command.h"
 #include <queue>
 #include <mutex>
 
@@ -8,14 +11,14 @@ namespace Halo3ODST::Entry::World {
     std::mutex tasks_mutex;
     std::queue<std::function<void()>> tasks;
 
+    // Runs the tasks queued before this tick; the ones they queue run on the next.
     void ExecuteTask() {
-        std::function<void()> func = nullptr;
-
-        std::unique_lock<std::mutex> lock(tasks_mutex);
-        if (!tasks.empty()) { func = tasks.front();tasks.pop();}
-        lock.unlock();
-
-        if (func != nullptr) func();
+        std::queue<std::function<void()>> due;
+        {
+            std::lock_guard<std::mutex> lock(tasks_mutex);
+            due.swap(tasks);
+        }
+        for (; !due.empty(); due.pop()) due.front()();
     }
 
     void AddTask(const std::function<void()>& func) {
@@ -37,3 +40,7 @@ namespace Halo3ODST::Entry::World {
         Epilogue();
     }
 }
+
+// Spawning and other engine calls must run on this (the simulation) thread.
+static const bool s_registered_scheduler =
+    (MCC::Command::RegisterScheduler(CGameGlobal::Halo3ODST, Halo3ODST::Entry::World::AddTask), true);

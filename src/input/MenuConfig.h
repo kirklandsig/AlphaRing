@@ -11,6 +11,8 @@
 struct MenuConfig {
     WORD controllerComboMask = XINPUT_GAMEPAD_START | XINPUT_GAMEPAD_BACK;
     int  keyboardVKey        = VK_F4;
+    // Opens a player's own spawn menu in game (0 = off).
+    WORD spawnMenuMask       = XINPUT_GAMEPAD_DPAD_DOWN;
 
     // Stored next to the game exe (like settings.json), not the CWD.
     static constexpr const char* k_configName = "alpha_ring_menu.cfg";

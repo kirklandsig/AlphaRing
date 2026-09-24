@@ -24,6 +24,8 @@
         };
 
         enum eState {
+            Loading = 0,
+            Running = 1,
             Exit = 5,
             Exiting = 10,
         };
@@ -34,8 +36,15 @@
         static int get_index(__int64 xuid);
         static Profile_t* get_profile(int index);
         static CInputDevice* get_controller(int index);
+        // Increments every time a map starts loading.
+        static unsigned load_generation();
+        // Local players the game is told about right now (see CGameManagerSplitscreen.cpp).
+        static int active_player_count();
 
     private:
+        static void track_state(eState state);
+        static void end_session();
+
         static void __fastcall set_vibration(CGameManager* self, DWORD dwUserIndex, XINPUT_VIBRATION *pVibration);
         static CUserProfile* __fastcall get_player_profile(CGameManager* self, __int64 xid);
         static bool __fastcall get_xbox_user_id(CGameManager* self, __int64* pId, wchar_t *pName, int size, int index);

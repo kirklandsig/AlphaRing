@@ -107,7 +107,10 @@ void MenuConfig::writeDefault(const std::string& path) {
         "# Keyboard key IDs: F1-F12, ENTER, ESCAPE, SPACE, TAB, A-Z\n"
         "\n"
         "open_menu_controller=START+BACK\n"
-        "open_menu_keyboard=F4\n";
+        "open_menu_keyboard=F4\n"
+        "\n"
+        "# In game, each player presses this to open their own spawn menu (NONE turns it off)\n"
+        "spawn_menu_controller=DPAD_DOWN\n";
 
     AlphaRing::Filesystem::Save(path.c_str(), k_defaultCfg, sizeof(k_defaultCfg) - 1);
 }
@@ -142,6 +145,16 @@ MenuConfig MenuConfig::load() {
                 cfg.controllerComboMask = mask;
             else
                 LOG_WARNING("MenuConfig: invalid controller combo '{}', keeping default", val);
+        }
+        else if (key == "spawn_menu_controller") {
+            std::string upper = val;
+            std::transform(upper.begin(), upper.end(), upper.begin(), ::toupper);
+            if (upper == "NONE")
+                cfg.spawnMenuMask = 0;
+            else if (WORD mask = parseCombo(val))
+                cfg.spawnMenuMask = mask;
+            else
+                LOG_WARNING("MenuConfig: invalid spawn menu button '{}', keeping default", val);
         }
         else if (key == "open_menu_keyboard") {
             int vk = parseKey(val);

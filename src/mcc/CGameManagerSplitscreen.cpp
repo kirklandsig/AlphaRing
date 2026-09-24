@@ -5,6 +5,10 @@
 #include "./mcc.h"
 #include "global/Global.h"
 #include "input/Input.h"
+#include "input/MenuConfig.h"
+#include "mcc/spawn/Spawn.h"
+
+#include <atomic>
 
 void CGameManager::set_vibration(CGameManager *self, DWORD dwUserIndex, XINPUT_VIBRATION *pVibration) {
     CInputDevice* p_device;
@@ -24,6 +28,63 @@ void CGameManager::set_vibration(CGameManager *self, DWORD dwUserIndex, XINPUT_V
     AlphaRing::Input::SetState(p_device->input_user, pVibration);
 }
 
+// Halo 4 campaigns fail when a mission *starts* with players 3-4 (every view stays black),
+// yet the engine spawns late joiners next to a teammate, like a controller signing in
+// mid-game on the original console. So Halo 4 starts with two players and the rest are
+// revealed once the game has been running for a moment. (Halo CE and Halo 2 never pick up
+// late joiners, so they - like the other games - start with everyone.)
+static constexpr int kDeferredJoinStartPlayers = 2;
+static constexpr ULONGLONG kDeferredJoinDelayMs = 3000;
+static std::atomic<ULONGLONG> s_running_since; // 0 until the current session first runs
+
+static std::atomic<unsigned> s_load_generation;
+
+unsigned CGameManager::load_generation() { return s_load_generation; }
+
+void CGameManager::track_state(eState state) {
+    if (state == Loading) ++s_load_generation;
+    if (state == Running && !s_running_since) // also re-sent after level transitions
+        s_running_since = GetTickCount64();
+}
+
+// MCC ends every session with a restart after the exit states. The clock is cleared there,
+// not on the exit states: dropping players while the engine is still shutting down can hang
+// it, and the next session queries its players before its own loading state.
+void CGameManager::end_session() {
+    s_running_since = 0;
+}
+
+static int deferred_player_count(int count) {
+    if (count <= kDeferredJoinStartPlayers) return count;
+
+    auto p_global = GameGlobal();
+    if (p_global == nullptr) return count;
+
+    auto game = p_global->current_game;
+    if (game != CGameGlobal::Halo4)
+        return count;
+
+    ULONGLONG since = s_running_since;
+    if (since && GetTickCount64() - since >= kDeferredJoinDelayMs)
+        return count;
+
+    return kDeferredJoinStartPlayers;
+}
+
+int CGameManager::active_player_count() {
+    static std::atomic<int> s_last_logged = -1;
+    int active = deferred_player_count(AlphaRing::Global::MCC::Splitscreen()->player_count);
+
+    if (active != s_last_logged) {
+        s_last_logged = active;
+        auto p_global = GameGlobal();
+        LOG_INFO("Splitscreen: exposing {} local players (game {}, in game {})",
+                 active, p_global ? (int)p_global->current_game : -1, MCC::IsInGame());
+    }
+
+    return active;
+}
+
 bool CGameManager::get_xbox_user_id(CGameManager *self, __int64 *pId, wchar_t *pName, int size, int index) {
     auto p_setting = AlphaRing::Global::MCC::Splitscreen();
     auto p_profile = get_profile(index);
@@ -31,7 +92,7 @@ bool CGameManager::get_xbox_user_id(CGameManager *self, __int64 *pId, wchar_t *p
     if (!p_setting->b_override || !index)
         return ppOriginal.get_xbox_user_id(self, pId, pName, size, index);
 
-    if (index >= p_setting->player_count)
+    if (index >= active_player_count())
         return false;
 
     if (pId)
@@ -62,8 +123,14 @@ bool CGameManager::get_key_state(CGameManager *self, DWORD index, input_data_t *
             return true;
     }
 
-    if (!p_profile->b_override)
+    if (!p_profile->b_override) {
+        // MCC reads the pads itself; its player 0 is the first controller.
+        XINPUT_STATE state;
+        if (index == 0 && g_menuConfig.spawnMenuMask && AlphaRing::Input::GetXInputGetState(0, &state) &&
+            MCC::Spawn::HandlePlayerInput(0, state.Gamepad))
+            return true; // the player's spawn menu has the pad
         return ppOriginal.get_key_state(self, index, p_input);
+    }
 
     if (index >= p_profile->player_count)
         return false;
@@ -81,6 +148,10 @@ bool CGameManager::get_key_state(CGameManager *self, DWORD index, input_data_t *
             return true;
 
         AlphaRing::Input::GetXInputGetState(p_device->input_user, &p_device->state);
+
+        // While the player's spawn menu is open it has the pad; the game sees it released.
+        if (MCC::Spawn::HandlePlayerInput(index, p_device->state.Gamepad))
+            memset(&p_device->state.Gamepad, 0, sizeof(p_device->state.Gamepad));
     }
 
     result = p_device

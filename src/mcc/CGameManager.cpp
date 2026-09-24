@@ -113,13 +113,16 @@ void CGameManager::set_state(CGameManager *self, eState state) {
     auto state_name = "Unknown";
     if (state == Exiting)
         state_name = "Exiting";
-    LOG_INFO("Set Game State[{}]: {}", state, state_name);
+    auto p_global = GameGlobal();
+    LOG_INFO("Set Game State[{}]: {} (game {})", state, state_name, p_global ? (int)p_global->current_game : -1);
+    track_state(state);
     return ppOriginal.set_state(self, state);
 }
 
 void *CGameManager::game_restart(CGameManager *self, int type, const char *reason) {
     auto final_reason = reason ? reason : "NoReason";
     LOG_INFO("Game Restart[{}]: {}", type, final_reason);
+    end_session();
     return ppOriginal.game_restart(self, type, reason);
 }
 

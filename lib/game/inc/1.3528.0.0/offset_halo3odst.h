@@ -10,3 +10,14 @@
 
 #define OFFSET_HALO3ODST_V_ENTRY_PLAYERS 0x2
 #define OFFSET_HALO3ODST_V_ENTRY_PLAYERS_ACTION 0xB
+
+// spawning (the Halo 3 functions and globals of the same names, matched by signature and call order)
+#define OFFSET_HALO3ODST_PV_TAGS_HEADER 0x20F3068
+#define OFFSET_HALO3ODST_PV_TAG_BASE 0x2022AA8
+#define OFFSET_HALO3ODST_PV_TAG_NAMES 0xA9EFC8
+#define OFFSET_HALO3ODST_PV_SCENARIO 0xA9C9B8
+#define OFFSET_HALO3ODST_PF_OBJECT_PLACEMENT_DATA_NEW 0x37C954
+#define OFFSET_HALO3ODST_PF_OBJECT_NEW 0x37CF34
+#define OFFSET_HALO3ODST_PF_OBJECT_POST_CREATE 0x20B80
+#define OFFSET_HALO3ODST_PF_AI_PLACE 0x5BE6A0 // (int ai_index, bool); ai index type 4 = a squad's single location
+#define OFFSET_HALO3ODST_PF_TAG_LOADED 0x14D4C8 // bool (int tag): in the loaded zone set (object_new refuses others)

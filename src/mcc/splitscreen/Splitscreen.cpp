@@ -34,6 +34,22 @@ namespace MCC::Splitscreen {
 
         return true;
     }
+
+    ClassicGraphicsScope::ClassicGraphicsScope(unsigned char* game_options) {
+        auto p_setting = AlphaRing::Global::MCC::Splitscreen();
+
+        if (!p_setting->b_override || p_setting->player_count <= 2 || game_options == nullptr || !(game_options[0] & 1))
+            return;
+
+        LOG_INFO("Splitscreen: {} players, starting in Classic graphics", p_setting->player_count);
+        m_options = game_options;
+        m_saved = game_options[0];
+        game_options[0] &= ~1;
+    }
+
+    ClassicGraphicsScope::~ClassicGraphicsScope() {
+        if (m_options) m_options[0] = m_saved;
+    }
 }
 
 #include "imgui.h"

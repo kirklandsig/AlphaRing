@@ -38,11 +38,18 @@ namespace AlphaRing::Render::Window {
             }
         }
 
-        auto& io = ImGui::GetIO();
-
-        if (io.WantCaptureMouse)        
-            if(AlphaRing::Global::Global()->show_imgui)
-                return true;        
+        // Only swallow the input ImGui is actually consuming. Swallowing every
+        // message (WM_PAINT, WM_ACTIVATE, ...) while the cursor hovers the
+        // overlay starves the game's message pump: WantCapture* only refreshes
+        // on the next ImGui frame, which never comes, so the game hangs (seen
+        // under Proton, where the cursor starts at 0,0 over the menu bar).
+        if (AlphaRing::Global::Global()->show_imgui) {
+            auto& io = ImGui::GetIO();
+            bool mouse_msg = (uMsg >= WM_MOUSEFIRST && uMsg <= WM_MOUSELAST);
+            bool key_msg = (uMsg >= WM_KEYFIRST && uMsg <= WM_KEYLAST);
+            if ((mouse_msg && io.WantCaptureMouse) || (key_msg && io.WantCaptureKeyboard))
+                return 0;
+        }
 
         return CallWindowProc(oldWndProc, hWnd, uMsg, wParam, lParam);
     }
