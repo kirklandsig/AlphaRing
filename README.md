@@ -8,9 +8,81 @@
 
 ---
 
-## What's New in This Fork
+## What's New in v1.5.0 (experimental)
 
-### Features Added
+![Four players, four spawn menus](doc/images/spawn-menus-4p.jpg)
+
+> **Testing status:** so far this build has only been tested on **one Batocera Linux machine running the
+> latest Batocera** (MCC 1.3528 on Steam through Proton, driven by four virtual Xbox 360 controllers). It needs
+> a lot more testing on other machines and setups (Windows, Steam Deck, other Linux distros, real and
+> different controllers) - expect bugs, and please report what you find in
+> [Issues](https://github.com/kirklandsig/AlphaRing/issues).
+
+### Spawn menu - Halo CE, Halo 2, Halo 3 and ODST campaigns
+Spawn **vehicles, weapons, equipment and AI characters** in front of any player, in any mission.
+Characters are real AI: pick **Enemy** and they attack you, **Ally** and they fight on your side,
+or **their own side** (a Marine is friendly, an Elite hostile).
+
+- **Every player gets their own menu.** In game, press **D-pad Down**: a menu opens in *your* part of the
+  split screen and your controller drives it while your Spartan holds still. The other players keep playing
+  (or open their own menus at the same time).
+- The lists only show what the current area of the mission has loaded, so everything listed can spawn.
+- There is also a **Spawn** window in the F4 overlay for mouse users.
+
+| Button | In the spawn menu |
+|--|--|
+| D-pad Down | open the menu (configurable) |
+| LB / RB | vehicles, weapons, equipment, characters |
+| Up / Down (or left stick) | choose |
+| A | spawn in front of you |
+| Left / Right | characters: their own side, ally, enemy |
+| Y | refresh the list after reaching a new area |
+| B | close |
+
+![Spawned Warthog and an enemy Elite in Halo CE](doc/images/spawn-ce-warthog-elite.jpg)
+
+To change or turn off the spawn button, edit `alpha_ring_menu.cfg` next to the game exe:
+```
+spawn_menu_controller=DPAD_DOWN   # any button or combo like BACK+DPAD_DOWN, or NONE
+```
+
+How it works, briefly: objects are created with each engine's own `object_placement_data_new` + `object_new`.
+For characters, Halo CE attaches a free actor to a spawned body (`ai_attach_free`); Halo 2, 3 and ODST have
+no such function in their retail builds, so a spare spawn point of an empty squad in the loaded mission is
+pointed at you and the chosen character, placed with the engine's own `ai_place`, and put back.
+
+### 4-player split screen fixes
+- **Halo 4 with 3-4 players no longer renders black**: the mission starts with two players and the others
+  join a moment later, like controllers signing in mid-game.
+- **Halo CE and Halo 2 Anniversary with 3-4 players**: the Anniversary renderer only draws two views, so these
+  sessions start in Classic graphics (your MCC setting is left alone). For proper player 3/4 spawns use the
+  Workshop mods *Halo CE 3/4 Player Co-Op Fixes* and *Halo 2 3/4 Player Co-Op Fixes*.
+- **Hang when loading a second game in one session fixed**: MCC loads every game's DLL at the menu and later
+  reloads them at new addresses; AlphaRing's hooks were never removed, so a stale one could be written into
+  another game's code (seen as Halo 3 freezing on its second load). Hooks are now removed when a DLL unloads.
+- **Boot hang under Proton fixed**: the overlay no longer starts open and only swallows the mouse/keyboard
+  input it actually uses.
+
+### Overlay
+- New look (dark theme, bigger readable fonts that also exist under Proton) and a **Home** panel that
+  explains split screen, the spawn menu and the overlay controls the first time you open it.
+
+| | |
+|--|--|
+| ![Home panel](doc/images/overlay-home.jpg) | ![Spawn window](doc/images/overlay-spawn-window.jpg) |
+
+### Known limitations
+- Only MCC **1.3528.0.0** (Steam). Campaign only.
+- Spawned characters borrow a spare squad of the mission. In rare cases a mission script may wait on that
+  squad; if a mission stops progressing, kill the characters you spawned.
+- Spawned allies fight but don't follow you around.
+- The game keeps running while a spawn menu is open, so find cover first.
+- Halo 2 with the co-op mod and 2+ players: Save & Quit can hang on the loading screen (progress is saved).
+- Three-player layouts are assumed to be quarters; please report if a menu shows up in the wrong place.
+
+---
+
+## Earlier additions in this fork
 
 #### 1. Controller-to-Player Binding (Splitscreen)
 - Each player now has a **"Bind" button** next to the controller dropdown
@@ -110,6 +182,9 @@ To navigate using Controller use the `Right Stick` to move the mouse and `RB` to
 
 When the menu is open, game input is disabled.
 
+Spawn menu: in a campaign mission of Halo CE, Halo 2, Halo 3 or ODST, each player presses `D-pad Down`
+(see [What's New](#whats-new-in-v150-experimental)).
+
 ---
 
 ## Building from Source
@@ -135,7 +210,11 @@ Output: `build/Release/WTSAPI32.dll`
 ## Credits
 - **Original AlphaRing:** [WinterSquire](https://github.com/WinterSquire/AlphaRing)
 - **Profile Tweaks Fork:** [thejackbitt](https://github.com/thejackbitt/AlphaRing)
-- **This Fork:** kirklandsig (controller binding features)
+- **This Fork:** kirklandsig (controller binding, spawn menus, split-screen fixes)
+- [megabitt01 / thejackbitt](https://github.com/megabitt01/AlphaRing) for the configurable menu hotkeys.
+- Research references for the spawn system: [Assembly](https://github.com/XboxChaos/Assembly) plugins
+  (scenario layouts), [c20](https://c20.reclaimers.net) (HaloScript), and the ManagedDonkey, ElDorito and
+  Project Cartographer projects.
 - [Assembly](https://github.com/XboxChaos/Assembly) for the tag group research.
 - [Blender](https://github.com/blender/blender) for the bezier curve calculation.
 - [Priception](https://github.com/Priception) for adding UI controller support and helping with the interface and crash issue.
