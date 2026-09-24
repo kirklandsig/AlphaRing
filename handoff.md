@@ -18,6 +18,7 @@
 | `v1.4.3-experimental` | Testing | Added file logging for crash debugging |
 | `v1.4.4-experimental` | Testing | Fixed wcstombs crash in Profile::Save() (still not fully resolved) |
 | `v1.4.5-experimental` | Testing | Likely crash root-cause fix (ServiceTag %ls overread), settings data-loss fix, robustness pass, configurable hotkeys |
+| `v1.5.0-experimental` | Testing | Spawn menus (CE/H2/H3/ODST, per-player controller menus), 4-player fixes (H4 black screen, CE/H2 classic, second-load hang), overlay redesign |
 
 ### Branches
 
@@ -252,6 +253,11 @@ Works with **any Proton version** (9.0, Experimental, GE, etc.)
 | `src/wrapper/module_definition.cpp` | DLL proxy, Proton-compatible error handling |
 | `src/hook/Hook.cpp` | Function hooking, version detection |
 | `src/input/Input.cpp` | XInput wrapper, menu toggle |
+| `src/mcc/spawn/Spawn.cpp` / `PlayerMenu.cpp` | Spawn catalog + F4 Spawn window / per-player controller menus |
+| `src/mcc/spawn/Command.cpp` | Fixed game-thread command handlers (scheduler or console hook) |
+| `src/mcc/spawn/halo1.cpp`, `halo2.cpp`, `gen3.cpp` | Per-engine spawn backends (gen3 = Halo 3 + ODST) |
+| `src/mcc/module/entry/entry.cpp`, `CModule.cpp` | Hook install/removal per game DLL (removed on unload) |
+| `src/mcc/CGameManagerSplitscreen.cpp` | Player count (H4 deferred join), per-player input (spawn menu interception) |
 
 ---
 
@@ -280,6 +286,10 @@ git checkout stable-v1.3.5
 ## Known Limitations
 
 1. **4 Players Maximum** - Game engine limitation (hardcoded view bounds)
+1b. **CE/H2A with 3-4 players always run Classic graphics** (Anniversary renderer only draws 2 views); CE/H2 need the Good Luck Cairo Workshop co-op fix mods for proper P3/P4 spawns
+1c. **H2 co-op mod: Save & Quit hangs with 2+ players** (see 2026-09-24)
+1d. **Spawned characters borrow an empty mission squad** (H2/H3/ODST) - a mission script could wait on it while a spawned ally lives; allies fight but don't follow the player
+1e. **Spawn menu 3-player layout is assumed to be quarters** (2 players = stacked halves, verified via the black-bar patches) - unverified in game
 2. **4 Controllers Maximum** - XInput limitation
 3. **Controllers must be connected before launch** - Still investigating
 4. **Profile UI shows raw indices** - Armor/skin selection shows index numbers, not filtered by slot
@@ -312,6 +322,51 @@ git checkout stable-v1.3.5
 ---
 
 ## Session History
+
+### 2026-09-24 (part 2) - Spawn menus + per-player controller menus - RELEASED as v1.5.0-experimental
+
+User asked for a prettier/more intuitive menu and a spawn menu (vehicles, weapons, enemies/friendlies) for at least CE, H2, H3 (+ ODST), and for **each player to open their own menu in their own quadrant with D-pad Down**. All done and verified live on the Batocera box with 4 virtual pads (see "Test harness" below).
+
+**Architecture (`src/mcc/spawn/`):**
+- `Command.cpp/.h` - fixed, code-registered handlers (`spawn_list`, `spawn`) run on each game's own thread. H3/ODST: a scheduler on the World tick hook (`World::AddTask`; engine calls from any other thread fault in thread-local state). CE/H2: MCC's `execute_command("HS: @ar ...")` reaches the game's console-script compiler, hooked in `module/entry/halo1|halo2/console.cpp`. `Schedule` drops tasks queued before another map loaded (`CGameManager::load_generation`). **Security constraint from the user's auto-mode classifier: never add generic engine-call/memory-read commands or file-driven command channels** - handlers stay fixed and are posted only by the overlay.
+- `Spawn.cpp/.h` - shared catalog (per game + load generation), per-player status lines, the F4 "Spawn" window. `PlayerMenu.cpp` - per-player menus: `HandlePlayerInput` is called from `CGameManager::get_key_state` with each player's pad (the pad is zeroed for the game while the menu is open, and the buttons that close it are held back until released); `RenderPlayerMenus` acts/draws on the render thread (ImGui now runs a frame when a player menu is open even with the overlay hidden). Button configurable: `spawn_menu_controller=` in `alpha_ring_menu.cfg` (default DPAD_DOWN, NONE = off).
+- Backends: `halo1.cpp` (CE: tag iterator + `object_new`; characters = actor variant's unit + `actor_customize_unit` + `ai_attach_free`), `halo2.cpp`, `gen3.cpp` (H3 + ODST share code; `Game` struct with per-game addresses/layout, `single_locations` = ODST squad layout). Objects: `object_placement_data_new` + `object_new` (+ post-create in gen3). **Characters (H2/H3/ODST): squad hijack** - borrow a spawn point of an EMPTY squad nearest the player, rewrite squad/fire-team/location (team, nearest zone, no objective/scripts, character = palette index, position/facing), call the engine's `ai_place` worker on that one point, restore the bytes (H3/ODST after 60 ticks via the scheduler, H2 immediately - H2 places synchronously). ODST places single locations only through their designer cell (cell -1 = skipped by `0x610AE4`), so the cell is borrowed and its weapon lists emptied.
+- Catalog filters: H3/ODST list only tags in the loaded zone set (engine bit test `TAG_LOADED`, the check `object_new` itself makes); mounted turrets, `objects\levels\` set pieces and H2 `scenarios\` parts are hidden; characters come from the scenario character palette (deduped). Names are prettified (`DisplayName`: "brute_captain" -> "Brute Captain", "smg" -> "SMG").
+- All offsets live in `lib/game/inc/1.3528.0.0/offset_halo{1,2,3,3odst}.h` under "spawning". ODST addresses were mapped from H3 by byte signature / call order (`map_odst.py` in the harness); H2's from its HaloScript evaluators (`players`, `objects_distance_to_position`, `object_create`, `ai_place`, `ai_living_count`) and live memory (tag-name table at `0x15E4B68/78` next to the Assembly RTE cache globals). ODST's per-thread globals are shuffled vs H3, so gen3 finds data arrays ("players", "object", "squad") by name in the module's TLS block.
+
+**Root-caused + fixed the "second Halo 3 load hangs" bug** (was blocking): MCC loads ALL game DLLs at the main menu and unloads all but the chosen one, then reloads them at new addresses. AlphaRing never removed MinHook hooks on unload, so `Entry::update` -> `MH_RemoveHook(old target)` wrote ODST's saved prologue bytes into the NEW halo3.dll mapped over ODST's old range (the hang site halo3+0xD90C1 is next to ODST's world hook +0x109F78 landing at halo3+0xD9F78). Wiring the ODST entry set exposed it. Fix: `EntrySet::remove()` in `CModule::unload_module` (while still mapped) + `CPatch::apply` refuses to write while the module isn't loaded. Bisected with `h3twice.sh`.
+
+**Overlay:** Halo-style dark theme, fonts that exist under Proton (msyh.ttf/arial - the old code only looked for msyh.ttc and fell back to ProggyClean on Batocera), bold 34px menu font, font atlas built at boot, a "Home" panel shown on first open (replaces "Tutorial").
+
+**Verified live (4 virtual pads, final build after /simplify):** CE (Warthog + enemy Elite that killed P1), H2 (Ghost/Warthog, enemy Elite/Grunt killed by marines, ally Elite/Marine alive), H3 (Warthog, Battle Rifle, enemy Grunt, ally Marine; double-load test passes), ODST (4 menus at once, Grunt/Assault Rifle/SMG Ammo/Banshee from 4 players simultaneously, ally Marine). Player input is blocked while their menu is open (right stick held 1.5 s -> view unchanged).
+
+**Test harness** (Windows side, contains the box password - NOT in git): `Projects/Batocera/alpharing-harness/` (README inside: `deploy.sh N`, `g.sh`, `click.sh`, `h3twice.sh`, disassembly helpers, HS tables, Assembly scnr plugins). Box side: `/userdata/system/alpharing-test/`. MangoHud (forced by Batocera's Steam launcher) hides with Right Shift + F12 held.
+
+### 2026-09-24
+
+**4-player splitscreen made to work in every MCC campaign — live-tested on the Batocera box (Proton); shipped in v1.5.0-experimental**
+
+Test setup (box = Batocera, MCC under Steam/Proton Experimental, identical game build 1.3528.0.0): all patch/hook offsets were first verified by disassembling every patch site in the game DLLs (they're correct for this build). Then each campaign was driven remotely with 4 virtual XInput pads (python-evdev uinput, harness in `/userdata/system/alpharing-test/` on the box) and checked with screenshots + per-quadrant input diffs.
+
+Results (final build, 4 players, 60 FPS):
+| Game | Result | How |
+|------|--------|-----|
+| Halo 3 | ✅ 4 views, 4 independent pads | worked out of the box |
+| Halo 3: ODST | ✅ | worked out of the box |
+| Halo Reach | ✅ | worked out of the box |
+| Halo 4 | ✅ | NEW deferred join (see fix 2) — before: all views black with 3-4 players |
+| Halo CE | ✅ | NEW forced Classic graphics (fix 3) + Workshop mod "Halo CE 3/4 Player Co-Op Fixes" (3686670451) for spawns/cutscenes; built-in CE also shows 4 views now |
+| Halo 2 Anniversary | ✅ (Classic) | NEW forced Classic graphics (fix 3) + Workshop mod "Halo 2 3/4 Player Co-Op Fixes" (3730810482); without the mod P3/P4 only spawn after a co-op respawn |
+
+Fixes (all in working tree, uncommitted):
+1. **Boot hang under Proton** (`Window.cpp`, `Global.h`): overlay was shown at boot and the WndProc returned `true` for *every* message while `WantCaptureMouse` was set; under Proton the cursor starts at 0,0 over the ImGui menu bar → the game's message pump starved → MCC hung at the first frame. Now only mouse/keyboard messages ImGui actually wants are swallowed, and the overlay starts hidden (F4 / Back+Start opens it).
+2. **Halo 4 black screen with 3-4 players** (`CGameManagerSplitscreen.cpp`, `CGameManager.cpp/.h`): H4 renders black if a mission *starts* with >2 local players, but joins late players fine. `get_xbox_user_id` now reports 2 players for Halo 4 until 3 s after the game-state `Running` event, then all; the session clock resets on `game_restart` (end of session). Log line `Splitscreen: exposing N local players` shows the switch.
+3. **CE / H2A: only 2-3 views with Anniversary graphics** (new `src/mcc/module/entry/halo1/graphics.cpp`, `halo2/*`, `ClassicGraphicsScope` in `Splitscreen.h/.cpp`, offsets `OFFSET_HALO1_PF_GAME_START 0x939D0`, `OFFSET_HALO2_PF_COPY_GAME_OPTIONS 0x39CE0`): bit 0 of game-options byte 0 = Anniversary visuals in both engines (found by live memory diffing). With 3+ players the bit is cleared only while the engine copies the options, so sessions start in Classic; MCC's own setting is untouched. Halo1/Halo2 CModules now get real EntrySets. (Deferring joins does NOT work for CE/H2 — their engines never pick up late joiners; verified.)
+4. Review pass (/simplify): `eState::Running`, helpers private, `std::atomic` state, typed Halo2Entry typedef. Removed unused `halo1/render.cpp` hook.
+
+Known issue (open): **Halo 2 co-op mod + 2 or more players: Save & Quit (and overlay Exit Game) hangs on the MCC loading screen** — the H2 engine thread ends but MCC never gets the exit states. Vanilla single-player with the mod quits fine, built-in H2 with 4 players quits fine, Restart Mission works. Progress is autosaved before the hang. Workaround: quit MCC with the Batocera exit hotkey. Not investigated further.
+
+Diagnostics used (not in code any more): temporary `RSSetViewports` probe logged per-frame viewports (showed H2 drawing 4 quadrant viewports while the 4th stayed black → renderer, not player count). Upstream megabitt01 has since shipped 1.3.4-1.3.8 (black-bar/loadout fixes, H2 "black screen" composite-viewport fix, Reach vertical split) — none were needed for the above; see PR #17/#20/#23 if H2A Anniversary-mode splitscreen is wanted later.
 
 ### 2026-07-17
 
@@ -402,6 +457,8 @@ git checkout stable-v1.3.5
 
 ## Next Steps
 
+0. **(2026-09-24) v1.5.0-experimental shipped** (4-player fixes + spawn menus). Next: hear back from real-pad play; ping MegaBit/WinterSquire/Priception only with the user's OK (draft in the session summary); check the 3-player menu layout in game; investigate the H2 co-op-mod quit hang if it bothers them
+0b. **Spawn follow-ups (ideas):** spawned allies following the player (squad order/"follow" in H2 orders, H3 objectives), a "delete last spawn" action, Reach/H4 backends, prefer already-used squads for the hijack if a way to tell them apart is found (ODST/H2 runtime squad records are all-zero both for never-placed and wiped-out squads)
 1. **Tag and release v1.4.5-experimental** (2026-07-17 fixes) and get the crashing user to retest — the ServiceTag `%ls` overread is the best root-cause candidate yet
 2. **Fix sensitivity UI labels** - Rename VerticalLookSensitivity/HorizontalLookSensitivity to clarify they're invert toggles
 3. **Investigate if controller sensitivity exists** - May need to find where base look sensitivity is stored in game memory
