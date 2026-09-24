@@ -20,11 +20,14 @@ void CModule::load_module(const module_info_t *p_info) {
 }
 
 void CModule::unload_module() {
+    if (m_entries)
+        m_entries->remove();
+    m_patches.update(0);
     memset(&m_info, 0, sizeof(module_info_t));
 }
 
 #include "mcc/module/entry/halo1/halo1.h"
-#include "offset_halo2.h"
+#include "mcc/module/entry/halo2/halo2.h"
 #include "mcc/module/entry/halo3/halo3.h"
 #include "mcc/module/entry/halo3odst/halo3odst.h"
 #include "mcc/module/entry/haloreach/haloreach.h"
@@ -40,11 +43,11 @@ static struct {
     CModule halo3odst;
     CModule haloreach;
 } modules {
-    {nullptr, {
+    {Halo1EntrySet(), {
         {"splitscreen_patch1", "", OFFSET_HALO1_PF_4PLAYERS, "\xEB\x18", true},
         {"splitscreen_patch2", "", OFFSET_HALO1_PF_PAUSE, "\xEB", true},
         {"splitscreen_patch3", "", OFFSET_HALO1_PF_IDK, "\x90\x90\x90\x90\x90\x90", true}, // fix [issue](https://github.com/WinterSquire/AlphaRing/issues/19)
-}}, {nullptr, {
+}}, {Halo2EntrySet(), {
         {"splitscreen_patch1", "", OFFSET_HALO2_PF_PLAYER_VALID, "\x31\xC0\xB0\x01\xC3\x90", true},
         {"splitscreen_patch2", "", OFFSET_HALO2_PF_PLAYER_COUNT1, "\x04", true},
         {"splitscreen_patch3", "", OFFSET_HALO2_PF_PLAYER_COUNT2, "\x04", true},
@@ -67,7 +70,7 @@ static struct {
         {"Remove Black Bar1", "remove black bar", OFFSET_GROUNDHOG_BLACKBAR_1 , "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01", false},
         {"Remove Black Bar2", "remove black bar", OFFSET_GROUNDHOG_BLACKBAR_2 , "\x00\x00\x00\x00\x00\x00\x00\x3F\x00\x00\x80\x3F\x00\x00\x80\x3F\x01", false},
         {"Remove Black Bar3", "remove black bar", OFFSET_GROUNDHOG_BLACKBAR_3 , "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01", false},
-}}, {nullptr, {
+}}, {Halo3ODSTEntrySet(), {
         {"splitscreen_patch1", "", OFFSET_HALO3ODST_PF_COOP_JOIN, "\x31\xC0\xC3\x90", true},
         {"Remove Black Bar1", "remove black bar", 0x8F1FB0/*0x8F1FC0*/, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01", true},
         {"Remove Black Bar2", "remove black bar", 0x8F1FC4/*0x8F1FD4*/, "\x00\x00\x00\x00\x00\x00\x00\x3F\x00\x00\x80\x3F\x00\x00\x80\x3F\x01", true},

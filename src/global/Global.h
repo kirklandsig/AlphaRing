@@ -14,7 +14,7 @@ namespace AlphaRing::Global {
         bool wireframe;
         bool wireframe_model;
         bool wireframe_structure;
-        bool show_imgui = true;
+        bool show_imgui = false; // hidden at boot: while shown, game input is blocked
         // on menu
         bool show_imgui_mouse = true;
         bool pause_game_on_menu_shown = false;

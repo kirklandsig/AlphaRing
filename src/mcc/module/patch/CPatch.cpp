@@ -27,6 +27,7 @@ bool CPatch::setState(bool state) {
 }
 
 bool CPatch::apply()  {
+    if (m_parent->moduleAddress() == 0) return false; // module not loaded; applied on load
     auto dst = (void*)(m_parent->moduleAddress() + m_offset);
     if (m_enabled)
         return apply(dst, m_data.data(), m_data.size(), m_backup.data());

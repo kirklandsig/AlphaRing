@@ -204,3 +204,13 @@ struct halo3_teb_data_definition {
     void* nondet_light_data;
     void* render_object;
 };
+
+// spawning
+#define OFFSET_HALO3_PV_TAGS_HEADER 0x20AD058 // tags_header*: +0 group count, +8 groups[16], +0x10 tag count, +0x18 instances[8]
+#define OFFSET_HALO3_PV_TAG_BASE 0x1FCF4C8 // tag data = base + (instance address << 2)
+#define OFFSET_HALO3_PV_SCENARIO 0xA46A08 // scenario tag data*
+#define OFFSET_HALO3_PF_OBJECT_PLACEMENT_DATA_NEW 0x341508 // (data*, int tag, int owner_object, damage_owner*)
+#define OFFSET_HALO3_PF_OBJECT_NEW 0x341AE8 // int (data*)
+#define OFFSET_HALO3_PF_OBJECT_POST_CREATE 0x1EA04 // (int object) - called by the engine after object_new
+#define OFFSET_HALO3_PF_AI_PLACE 0x577AA4 // (int ai_index, bool) - ai_scripting_place_internal
+#define OFFSET_HALO3_PF_TAG_LOADED 0x12C9EC // bool (int tag): in the loaded zone set (object_new refuses others)
