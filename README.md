@@ -83,7 +83,7 @@ are kept as he wrote them:
 - **Players 2-4 started with empty settings** (no sound, FOV and look sensitivity at their minimum, HUD scale 0)
   unless you had saved profiles for them. They now start with player 1's MCC settings.
 - **Look sensitivity** in the profile editor is a 1-10 value again (it was saved as on/off, which made players 2-4
-  turn slowly).
+  turn slowly) - the field fix is MegaBit's, from his fork.
 - **Dual wielding and vehicle boost for players 2-4:** the default controls now bind Use/Reload Left Weapon and the
   vehicle functions the way MCC does (defaults from MegaBit's fork).
 - **Halo CE level-end freeze (attempted fix):** while a Halo CE map loads, every controller slot now answers the way
@@ -308,8 +308,8 @@ Output: `build/Release/WTSAPI32.dll`
 - **Original AlphaRing:** [WinterSquire](https://github.com/WinterSquire/AlphaRing)
 - **Profile Tweaks Fork:** [thejackbitt](https://github.com/thejackbitt/AlphaRing)
 - **This Fork:** kirklandsig (controller binding, spawn menus, split-screen fixes)
-- [megabitt01 / thejackbitt](https://github.com/megabitt01/AlphaRing) for the configurable menu hotkeys and the
-  dual-wield/vehicle control defaults.
+- [megabitt01 / thejackbitt](https://github.com/megabitt01/AlphaRing) for the configurable menu hotkeys, the
+  look-sensitivity field fix and the dual-wield/vehicle control defaults.
 - [XiaoDanny (Daniel Coyle)](https://github.com/XiaoDanny) for Halo Reach vertical (Left/Right) split-screen,
   per-player split-screen FOV, split-screen render quality, per-player black-bar removal, the Reach loadout fix,
   Reach menu scaling at 32:9, persistent Dev Tools settings and the Splitscreen Config Editor
