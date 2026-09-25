@@ -20,6 +20,7 @@
 | `v1.4.5-experimental` | Testing | Likely crash root-cause fix (ServiceTag %ls overread), settings data-loss fix, robustness pass, configurable hotkeys |
 | `v1.5.0-experimental` | Testing | Spawn menus (CE/H2/H3/ODST, per-player controller menus), 4-player fixes (H4 black screen, CE/H2 classic, second-load hang), overlay redesign |
 | `v1.6.0-experimental` | Testing | Per-player HUD (area presets, per-element, colour, controller page), H2 ultrawide HUD fix, XiaoDanny's Reach vertical split port, armed AI + weapon choice, profile/binding/patch/Proton fixes |
+| `v1.7.0-experimental` | Testing | Side-by-side (Left/Right) split in CE, H2, H3, ODST (Halo 4 WIP: HUD not adapted), SPLIT setting in the player menu, dual-wield fix for old saved controls |
 
 ### Branches
 
@@ -328,7 +329,7 @@ git checkout stable-v1.3.5
 
 ## Session History
 
-### 2026-09-25 (part 2) - v1.7.0 side-by-side split in every game - UNCOMMITTED, awaiting the user's go
+### 2026-09-25 (part 2) - v1.7.0 side-by-side split in every game - RELEASED as v1.7.0-experimental (commit c02ecc6)
 
 User asked: "Yeah, do it for all of them" (vertical split beyond Reach, toggleable, saved), plus "is dual wielding broken in Halo 2 and 3?" and whether MegaBit/XiaoDanny already did the other games (no - fork survey: only XiaoDanny's Reach #20; adamdavies1915 has an unimplemented H3 table-only plan).
 
@@ -507,7 +508,7 @@ Diagnostics used (not in code any more): temporary `RSSetViewports` probe logged
 
 ## Next Steps
 
-000. **(2026-09-25) v1.7.0 side-by-side split (all games) is built, box-tested and reviewed but UNCOMMITTED** - waiting for the user's go (then commit crediting XiaoDanny, tag v1.7.0-experimental, release notes with the Batocera-only caveat and doc/images/*-vertical-*.jpg + split-menu.jpg). Open: H4 HUD canvas, H2/CE stock divider line, CE 3P layout, in-game dual-wield check, second Codex pass (re-auth Codex).
+000. **(2026-09-25) v1.7.0-experimental released** (user-approved, Halo 4 labelled work in progress): https://github.com/kirklandsig/AlphaRing/releases/tag/v1.7.0-experimental. Open: Halo 4 HUD canvas (and H4 3P untested), H2/CE stock divider line, CE 3P layout, in-game dual-wield check, second Codex pass (Codex login returned 401).
 00. **(2026-09-25) v1.6.0-experimental released** (user-approved): https://github.com/kirklandsig/AlphaRing/releases/tag/v1.6.0-experimental (prerelease, DLL + screenshots). XiaoDanny thanked on megabitt01/AlphaRing#20 (merged) with a heads-up on the CPatch default-on/saved-off bug and the unsynchronized `g_writes` in his tree. Next: watch for tester reports - CE level end (freeze fix), real ultrawide/multi-monitor, 3P menus, ODST/Reach HUD sides for health/grenades/equipment.
 00b. **Ideas not done:** "teleport to player 1" spawn-menu action for P3/P4 stuck outside the map (needs object_set_position per game); MegaBit-style per-game menu page lists; Halo 4 HUD/spawn; recolour for CE/H2 (they don't pass colours through the host).
 0. **(2026-09-24) v1.5.0-experimental shipped** (4-player fixes + spawn menus). Announced (user-approved) in megabitt01/AlphaRing issue #25 (mentions WinterSquire + Priception); unload-hook fix sent upstream as PR #24 against `master-chief` (compiles there; not runtime-tested on his tree - no local vcpkg/SDL2). Next: watch #24/#25 for replies; hear back from real-pad play; check the 3-player menu layout in game; investigate the H2 co-op-mod quit hang if it bothers them
