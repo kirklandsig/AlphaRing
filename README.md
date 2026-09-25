@@ -8,6 +8,55 @@
 
 ---
 
+## What's New in v1.7.0 (experimental)
+
+![Halo 3, three players side by side](doc/images/h3-vertical-3p.jpg)
+
+> **Testing status:** like v1.6.0, this build has only been tested on **one Batocera Linux machine running the
+> latest Batocera** (MCC 1.3528 on Steam through Proton, virtual Xbox 360 controllers, 1920x1080). It needs a lot
+> more testing on other machines and setups - expect bugs, and please report what you find in
+> [Issues](https://github.com/kirklandsig/AlphaRing/issues).
+
+### Side-by-side (Left/Right) split screen in every game
+XiaoDanny's Left/Right split for Halo Reach now works in **Halo CE, Halo 2, Halo 3 and ODST** as well, with
+**Halo 4 as a work in progress** - one setting for all the games:
+
+- **2 players:** two full-height halves. **3 players:** player 1 on the left half, players 2 and 3 on the right.
+- **Switch it:** press **D-pad Down**, go to the **MY HUD** page (**SCREEN** in Halo 4) and change **SPLIT** with the
+  D-pad - or overlay → **Splitscreen → Options → Side-by-side split**. It's saved, and applies to everyone. Halo 3,
+  ODST, Halo 4 and Reach switch on the spot; Halo CE and Halo 2 switch when a mission starts or restarts.
+- The views aren't stretched: each half is drawn at its real size.
+- Each player's HUD stays in their own half. In Halo 3 and ODST a half uses the quarter-screen HUD, made as tall as
+  the half, so the motion tracker sits at the bottom; Halo 2 and CE lay their HUD out for each view themselves.
+- Halo 2 and CE use Classic graphics side by side (their Anniversary renderer only draws stacked views).
+- Crosshairs sit in the middle of each half in Halo 2, CE and Halo 4. Halo 3 and ODST nudge each view's centre,
+  and the crosshair and aim with it, toward the middle of the screen, as they do in their own 4-player split.
+
+| | |
+|--|--|
+| ![Halo 3, 2 players](doc/images/h3-vertical-2p.jpg) | ![ODST, 3 players](doc/images/odst-vertical-3p.jpg) |
+| ![Halo 2, 3 players](doc/images/h2-vertical-3p.jpg) | ![Halo CE, 2 players](doc/images/ce-vertical-2p.jpg) |
+
+![The SPLIT setting in a player's menu](doc/images/split-menu.jpg)
+
+### Fixes
+- **Dual wielding for players 2-4 with controls saved by older versions:** mappings saved before v1.6.0 (and custom
+  mapping profiles) had no button for *Use Left Weapon*, *Swap/Reload Left Weapon* or the vehicle functions, so
+  players 2-4 still couldn't dual wield after updating. They now get their usual buttons when such a mapping loads.
+  Rebinding *Reload*, *Throw Grenade*, *Crouch* or *Jump* also moves the actions that share its button (as in
+  MegaBit's fork), unless you bound those separately.
+- The per-player menu now opens in Halo 4 too (for the SPLIT setting).
+
+### Known limitations
+- **Halo 4 side by side is a work in progress:** the views, aim and switching work, but Halo 4 keeps its two-player
+  HUD layout - the lower HUD elements sit mid-height and the top-right weapon panel is cut off at the edge of the
+  half. Not tested with 3 players yet.
+- **Halo 2 and CE side by side:** the stock divider line is still drawn straight across the middle of the screen.
+- Halo CE keeps its own 3-player layout.
+- Halo 2 and CE: switching to Anniversary graphics in the middle of a side-by-side mission isn't supported.
+
+---
+
 ## What's New in v1.6.0 (experimental)
 
 ![Four players, four HUD layouts](doc/images/hud-area-presets.jpg)
@@ -315,7 +364,8 @@ Output: `build/Release/WTSAPI32.dll`
   Reach menu scaling at 32:9, persistent Dev Tools settings and the Splitscreen Config Editor
   ([megabitt01/AlphaRing#17](https://github.com/megabitt01/AlphaRing/pull/17),
   [#20](https://github.com/megabitt01/AlphaRing/pull/20)) - ported into this fork with his research notes in
-  [`docs/REVERSE_ENGINEERING.md`](docs/REVERSE_ENGINEERING.md).
+  [`docs/REVERSE_ENGINEERING.md`](docs/REVERSE_ENGINEERING.md). The side-by-side split for the other games (v1.7.0)
+  follows the path his Reach work mapped out.
 - Research references for the spawn system: [Assembly](https://github.com/XboxChaos/Assembly) plugins
   (scenario layouts), [c20](https://c20.reclaimers.net) (HaloScript), and the ManagedDonkey, ElDorito and
   Project Cartographer projects.

@@ -9,6 +9,7 @@
 #include <offset_mcc.h>
 
 #include "../CGameManager.h"
+#include "LeftRight.h"
 
 namespace MCC::Splitscreen {
     DefDetourFunction(__int64, __fastcall, get_index_by_xuid, void* a1, __int64 xuid) {
@@ -35,13 +36,18 @@ namespace MCC::Splitscreen {
         return true;
     }
 
-    ClassicGraphicsScope::ClassicGraphicsScope(unsigned char* game_options) {
+    ClassicGraphicsScope::ClassicGraphicsScope(unsigned char* game_options, int game) {
         auto p_setting = AlphaRing::Global::MCC::Splitscreen();
 
-        if (!p_setting->b_override || p_setting->player_count <= 2 || game_options == nullptr || !(game_options[0] & 1))
+        bool left_right = p_setting->b_override && game_options != nullptr && LeftRight::Chosen() &&
+                          LeftRight::Supports(game, p_setting->player_count);
+        LeftRight::StartClassicMission(game, left_right);
+        if (!p_setting->b_override || (p_setting->player_count <= 2 && !left_right) || game_options == nullptr ||
+            !(game_options[0] & 1))
             return;
 
-        LOG_INFO("Splitscreen: {} players, starting in Classic graphics", p_setting->player_count);
+        LOG_INFO("Splitscreen: {} players{}, starting in Classic graphics", p_setting->player_count,
+                 left_right ? " side by side" : "");
         m_options = game_options;
         m_saved = game_options[0];
         game_options[0] &= ~1;
@@ -221,6 +227,15 @@ namespace MCC::Splitscreen {
                     nullptr, 
                     &p_setting->b_override_profile
                 );
+                bool left_right = LeftRight::Chosen();
+                if (ImGui::MenuItem("Side-by-side split (2-3 players)", nullptr, &left_right))
+                    LeftRight::Choose(left_right);
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("Left / Right instead of Top / Bottom: 2 players get a full-height half each; with 3, "
+                                      "player 1 has the left half and players 2 and 3 share the right. Everyone's "
+                                      "setting, also in each player's menu (MY HUD > SPLIT). Halo CE and Halo 2 change at "
+                                      "the next mission start, in Classic graphics; Halo CE keeps its own 3-player "
+                                      "layout.");
                 ImGui::EndMenu();
             }
 #pragma region player count

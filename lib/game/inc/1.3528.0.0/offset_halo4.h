@@ -13,3 +13,15 @@
 
 #define OFFSET_HALO4_V_ENTRY_PLAYERS 0x1
 #define OFFSET_HALO4_V_ENTRY_PLAYERS_ACTION 0x22
+
+// Left/Right split screen (mcc/splitscreen/LeftRight); see offset_halo3.h for the signatures
+#define OFFSET_HALO4_PV_SPLITSCREEN_TABLE 0xE84DB0
+#define OFFSET_HALO4_PV_SCREEN_SIZE 0xE84608
+#define OFFSET_HALO4_PF_SPLITSCREEN_PLAYER_COUNT 0x122188
+#define OFFSET_HALO4_PF_DRAW_SPLITSCREEN_BARS 0x3C66D4
+#define OFFSET_HALO4_PF_FILL_RECT 0x12D694
+#define OFFSET_HALO4_PF_RENDER_SETUP_1 0x34D224 // (int, int) - the bar painter calls it with (0, 1) ...
+#define OFFSET_HALO4_PF_RENDER_SETUP_2 0x34D14C // (int) - ... and this with 0, before drawing
+#define OFFSET_HALO4_PF_RT_VARIANT_SIZE 0x37E8B4 // (descriptor*, int* w, int* h, int* w2, int* h2, int* face, int index)
+#define OFFSET_HALO4_PF_RT_POOL_RELEASE 0x37F610
+#define OFFSET_HALO4_PF_RT_POOL_INIT 0x37F3A8

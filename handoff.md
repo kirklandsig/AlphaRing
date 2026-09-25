@@ -328,6 +328,31 @@ git checkout stable-v1.3.5
 
 ## Session History
 
+### 2026-09-25 (part 2) - v1.7.0 side-by-side split in every game - UNCOMMITTED, awaiting the user's go
+
+User asked: "Yeah, do it for all of them" (vertical split beyond Reach, toggleable, saved), plus "is dual wielding broken in Halo 2 and 3?" and whether MegaBit/XiaoDanny already did the other games (no - fork survey: only XiaoDanny's Reach #20; adamdavies1915 has an unimplemented H3 table-only plan).
+
+**Design:** `src/mcc/splitscreen/LeftRight.{h,cpp}` - one saved choice (the store's `TwoPlayerLayout`, still in `alpha_ring_splitscreen.cfg`), `Supports(game, players)` (CE: 2, H2/H3/ODST/H4/Reach: 2-3), `Choose()` (Reach store + re-apply Reach patches). Gen3 engines (H3/ODST/H4) described by a `LeftRight::Gen3` (table, screen, player count, fill-rect, pool release/init, rounding, HUD record size/canvas offset); per-game hooks in `module/entry/<game>/splitscreen.cpp`. The store now exposes `LayoutEntry`/`LeftRightEntry` and `Load()` runs for every module (before hooks) so the pool is built for the saved choice.
+
+**Gen3 mechanics (H3 verified in depth, ODST/H4 by signature):**
+- Table writes each frame from the game's render hook (H3 0x18553C; ODST render.cpp hook; H4 0x12259C in its own entry set), stock/patched entries snapshotted and restored on Top/Bottom.
+- Divider painter replaced (H3 0x2D8174 / ODST 0x303C54 / H4 0x3C66D4 which needs setup 0x34D224(0,1) + 0x34D14C(0) - first H4 run crashed with setup1(0) only).
+- Render target: variant 3 is the half surface. H3 0x2757C8 / ODST 0x2A2C64 create hooks resize the pair at sizes+0x18/+0x04 to (w/2, h), recomputing the unshrunk size from the descriptor (H3 double rounding, ODST floorf) and only when it reproduces the pool's 3/4 x 1/2 result. H4 sizes variants in a helper (0x37E8B4): the hook asks it again for variant 0 and halves the width.
+- Live switch: layout generation changes -> the engine's own pool release/init pair (H3 0x27613C/0x275BBC, ODST 0x2A3400/0x2A30F0, H4 0x37F610/0x37F3A8) from the render hook, as its resize path does (minus ResizeBuffers). Verified both directions in H3 and H4.
+- HUD (H3/ODST): `HudResolution` (H3 0x2F1E38 / ODST 0x32DD0C: 1/5 = two-player half, 4/6 = quarter) maps halves to the quarter layout; `HudLayout` (H3 0x2ECF38, record 0x64, canvas +0x10 / ODST 0x3284B4, record 0x110, canvas +0x94) returns a per-user copy with canvas height = width x viewH/viewW. Round motion tracker at the bottom verified.
+- Aim: H3/ODST build each view's projection off-axis around the centre of its title-safe box (0x2A63E4 reads the safe rect at view+0x48) and the crosshair follows, so both sit ~47px toward the screen centre in a half - stock behaviour (same in their 4P quarters); centring only the HUD box was tried and reverted (it moved the HUD away from the crosshair).
+- H4 HUD NOT adapted: it keeps the stock two-player HUD pixel layout from the view's top-left (lower half unused, top-right weapon panel clipped). Its canvas isn't in globals (diffed .data, scanned rect globals and the process for chud records) - open.
+
+**H2 / CE:** H2's window grid (0x7E09D0 / cell 0x7E0BD0) has a native mode: MCC passes 1 (rows first); any other mode = columns first, 3P player 1 full-height left - hooks pass 2. CE's grid (0xAC4108) always grows rows first - hook returns 2x1 for 2 players (3P stays stock). Both need Classic graphics (Saber renderer draws stacked views), so `ClassicGraphicsScope` (mission start) forces Classic and takes the choice for the mission (`StartClassicMission`); mid-mission changes wait (menu status says so). Known: the stock 2px (H2) / 4px (CE) divider line still crosses the screen - CE's composite is one full-screen quad, so it's drawn inside the game frame; painter not found.
+
+**Menu/UI:** SPLIT row on the MY HUD page (everyone's setting); the menu now opens in H4 with only SPLIT ("SCREEN" page); ViewRect follows `OnScreen`. Overlay: Splitscreen -> Options -> Side-by-side split; the Reach Dev Tools combo now routes through `Choose()`.
+
+**Dual wield:** our defaults already matched MegaBit's current upstream (Swap/Reload Left = Reload Right = RB; his Y variant was older). Real gap: mappings saved before 1.6.0 (settings.json profiles, custom_mappings.json - the box's "8bitdotemp" profile has them -1) had all shared actions unbound. `kSharedActions` table now drives defaults, fills legacy mappings (only when all six are unbound) and rebinding (shared actions still on the old button follow). Not verified in game (harness couldn't get a dual-wield prompt up).
+
+**Reviews:** /simplify (4 agents) applied - CPatch::apply reuse, patch-set re-apply, Supports() table, typed saved entries, menu rows, comments. Skipped: folding Reach's own implementation into Gen3 (would change XiaoDanny's tested behaviour). Codex adversarial review: fixed CE/H2 live switch bypassing Classic (now mission-start), FillSharedActions clobbering deliberate None, rebinding clobbering custom shared bindings. Second Codex pass failed (Codex credentials 401).
+
+**Box:** Steam leaked ~240 X connections over the day (MCC "crashed" at startup) - restarting Steam via the ES API fixed it (kill by PID, never type the s-word remotely).
+
 ### 2026-09-25 - v1.6.0 all-inclusive update - RELEASED as v1.6.0-experimental (commit 49afa5f)
 
 User asked for: integrate XiaoDanny's Reach vertical split (megabitt01 PRs #17/#20) with full credit; full per-player HUD customization (positions, colours, presets by monitor type - a tester's dual-monitor photo showed H2's HUD bunched in the middle); fix what the other forks/issues reveal; armed AI with a per-spawn weapon choice (H3 AI spawned unarmed and meleed); then a Codex adversarial review; report back before pushing.
@@ -482,6 +507,7 @@ Diagnostics used (not in code any more): temporary `RSSetViewports` probe logged
 
 ## Next Steps
 
+000. **(2026-09-25) v1.7.0 side-by-side split (all games) is built, box-tested and reviewed but UNCOMMITTED** - waiting for the user's go (then commit crediting XiaoDanny, tag v1.7.0-experimental, release notes with the Batocera-only caveat and doc/images/*-vertical-*.jpg + split-menu.jpg). Open: H4 HUD canvas, H2/CE stock divider line, CE 3P layout, in-game dual-wield check, second Codex pass (re-auth Codex).
 00. **(2026-09-25) v1.6.0-experimental released** (user-approved): https://github.com/kirklandsig/AlphaRing/releases/tag/v1.6.0-experimental (prerelease, DLL + screenshots). XiaoDanny thanked on megabitt01/AlphaRing#20 (merged) with a heads-up on the CPatch default-on/saved-off bug and the unsynchronized `g_writes` in his tree. Next: watch for tester reports - CE level end (freeze fix), real ultrawide/multi-monitor, 3P menus, ODST/Reach HUD sides for health/grenades/equipment.
 00b. **Ideas not done:** "teleport to player 1" spawn-menu action for P3/P4 stuck outside the map (needs object_set_position per game); MegaBit-style per-game menu page lists; Halo 4 HUD/spawn; recolour for CE/H2 (they don't pass colours through the host).
 0. **(2026-09-24) v1.5.0-experimental shipped** (4-player fixes + spawn menus). Announced (user-approved) in megabitt01/AlphaRing issue #25 (mentions WinterSquire + Priception); unload-hook fix sent upstream as PR #24 against `master-chief` (compiles there; not runtime-tested on his tree - no local vcpkg/SDL2). Next: watch #24/#25 for replies; hear back from real-pad play; check the 3-player menu layout in game; investigate the H2 co-op-mod quit hang if it bothers them

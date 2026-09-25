@@ -218,3 +218,15 @@ struct halo3_teb_data_definition {
 // per-player HUD (mcc/hud)
 #define OFFSET_HALO3_PV_HUD_DRAWING_PLAYER 0xAD317C // int user whose HUD is being drawn
 #define OFFSET_HALO3_PV_HUD_CANVAS 0xAD3148 // float width, height of that user's HUD virtual canvas
+
+// Left/Right split screen (mcc/splitscreen/LeftRight)
+#define OFFSET_HALO3_PV_SPLITSCREEN_TABLE 0x8AE0B0 // c_splitscreen_config::m_config_table
+#define OFFSET_HALO3_PV_SCREEN_SIZE 0x8AC3E8 // int width, height the views are laid out on
+#define OFFSET_HALO3_PF_SPLITSCREEN_PLAYER_COUNT 0x2E0928 // int ()
+#define OFFSET_HALO3_PF_DRAW_SPLITSCREEN_BARS 0x2D8174 // void () - black bars and dividers
+#define OFFSET_HALO3_PF_FILL_RECT 0x1890C4 // void (short rect[4] {top, left, bottom, right}, unsigned argb)
+#define OFFSET_HALO3_PF_RT_CREATE 0x2757C8 // (target*, int sizes[], descriptor*, int variant) - one pool render target
+#define OFFSET_HALO3_PF_RT_POOL_RELEASE 0x27613C // void () - the resize path's teardown ...
+#define OFFSET_HALO3_PF_RT_POOL_INIT 0x275BBC // void () - ... and rebuild
+#define OFFSET_HALO3_PF_HUD_RESOLUTION 0x2F1E38 // int (int user) - HUD layout of a view: 0 full, 1 half, 4 quarter (2, 5, 6 on 4:3)
+#define OFFSET_HALO3_PF_HUD_LAYOUT 0x2ECF38 // record* (int user, int resolution) - +0x10 int canvas width, height; 0x64 bytes
