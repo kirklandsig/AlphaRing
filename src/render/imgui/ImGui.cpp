@@ -4,6 +4,8 @@
 #include <imgui_impl_dx11.h>
 #include <imgui_impl_win32.h>
 
+#include <algorithm>
+
 #include "input/Input.h"
 #include "global/Global.h"
 #include "filesystem/Filesystem.h"
@@ -112,7 +114,10 @@ namespace AlphaRing::Render::ImGui {
         io.IniFilename = "./alpha_ring/imgui.ini";
         ::ImGui::LoadIniSettingsFromDisk("../../../alpha_ring/imgui.ini");
 
-        const float scale = GetDpiForWindow(Graphics()->hwnd) * 1.0f / 96.0f;
+        // Windows DPI scaling, or the screen's size relative to 1080p where DPI is always 96
+        // (Proton): otherwise the overlay is tiny on a 4K TV.
+        const float scale = (std::max)(GetDpiForWindow(Graphics()->hwnd) / 96.0f,
+                                     (std::min)(GetSystemMetrics(SM_CXSCREEN) / 1920.0f, GetSystemMetrics(SM_CYSCREEN) / 1080.0f));
 
         // Microsoft YaHei covers Chinese; Proton prefixes ship it as .ttf, and Arial/Tahoma.
         io.Fonts->Clear();
@@ -149,6 +154,11 @@ namespace AlphaRing::Render::ImGui {
         // Without the overlay, ImGui runs only to draw the players' spawn menus, and not at all
         // otherwise, so it can't capture input meant for the game's own menus.
         bool show = AlphaRing::Global::Global()->show_imgui;
+        // Hidden, the overlay isn't fed input (Window.cpp), so it wouldn't see a key or button
+        // held at that moment being released: let it go of everything now.
+        static bool was_shown;
+        if (was_shown && !show) ::ImGui::GetIO().ClearInputKeys();
+        was_shown = show;
         if (!show && !MCC::Spawn::AnyPlayerMenuOpen()) {
             AlphaRing::Input::Update();
             return;

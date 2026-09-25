@@ -77,16 +77,17 @@ namespace MCC::Spawn {
                  s_catalog.items[Equipment].size(), s_catalog.items[Characters].size());
     }
 
-    // "@ar spawn <category> <id> <player> <team>"
+    // "@ar spawn <category> <id> <player> <team> <weapon>"
     static void CmdSpawn(int game, const Command::Args& args) {
         auto backend = BackendOf(game);
-        if (backend == nullptr || args.size() < 5) return;
+        if (backend == nullptr || args.size() < 6) return;
 
         auto category = (Category)std::atoi(args[1].c_str());
         int player = std::atoi(args[3].c_str());
         if (category < 0 || category >= kCategoryCount || player < 0 || player >= kMaxPlayers) return;
 
-        ReportStatus(player, backend->spawn(category, std::atoi(args[2].c_str()), player, (Team)std::atoi(args[4].c_str())));
+        ReportStatus(player, backend->spawn(category, std::atoi(args[2].c_str()), player,
+                                            (Team)std::atoi(args[4].c_str()), std::atoi(args[5].c_str())));
     }
 
     void ReportStatus(int player, const std::string& status) {
@@ -157,18 +158,28 @@ namespace MCC::Spawn {
         return (player >= 0 && player < kMaxPlayers) ? s_catalog.status[player] : std::string();
     }
 
-    void Catalog::Spawn(Category category, const Item& item, int player, Team team) {
+    void Catalog::Spawn(Category category, const Item& item, int player, Team team, int weapon_index) {
+        int weapon = kUsualWeapon;
         {
             std::lock_guard<std::mutex> lock(s_catalog.mutex);
+            auto& weapons = s_catalog.items[Weapons];
+            if (category == Characters && weapon_index >= 0 && weapon_index < (int)weapons.size())
+                weapon = weapons[weapon_index].id;
             s_catalog.status[player] = "Spawning " + item.name + "...";
         }
-        Command::Post("spawn %d %d %d %d", category, item.id, player, team);
+        Command::Post("spawn %d %d %d %d %d", category, item.id, player, team, weapon);
+    }
+
+    std::string Catalog::WeaponName(int game, int weapon_index) {
+        Item weapon;
+        return Get(game, Weapons, weapon_index, weapon) ? weapon.name : "Their usual weapon";
     }
 
     void ImGuiContext() {
         static bool show, was_shown;
         static int player, team;
         static int category;
+        static int weapon = -1; // index in the Weapons list; -1: the character's usual weapon
         static char filter[64];
 
         if (ImGui::BeginMainMenuBar()) {
@@ -227,6 +238,17 @@ namespace MCC::Spawn {
                 ImGui::SameLine(); ImGui::RadioButton("Their own", &team, TeamDefault);
                 ImGui::SameLine(); ImGui::RadioButton("Ally", &team, TeamAlly);
                 ImGui::SameLine(); ImGui::RadioButton("Enemy", &team, TeamEnemy);
+
+                if (weapon >= Catalog::Size(game, Weapons)) weapon = -1;
+                ImGui::SetNextItemWidth(260);
+                if (ImGui::BeginCombo("Weapon", Catalog::WeaponName(game, weapon).c_str())) {
+                    if (ImGui::Selectable("Their usual weapon", weapon < 0)) weapon = -1;
+                    Catalog::Read(game, Weapons, [&](const std::vector<Item>* items) {
+                        for (int i = 0; items && i < (int)items->size(); ++i)
+                            if (ImGui::Selectable((*items)[i].name.c_str(), i == weapon)) weapon = i;
+                    });
+                    ImGui::EndCombo();
+                }
             }
 
             ImGui::BeginChild("items", ImVec2(0, -ImGui::GetFrameHeightWithSpacing()), true);
@@ -244,7 +266,7 @@ namespace MCC::Spawn {
             // spawn outside the catalog lock: posting can run the command right away
             Item item;
             if (picked >= 0 && Catalog::Get(game, (Category)category, picked, item))
-                Catalog::Spawn((Category)category, item, player, (Team)team);
+                Catalog::Spawn((Category)category, item, player, (Team)team, weapon);
 
             ImGui::TextDisabled("%s", Catalog::Status(player).c_str());
         }

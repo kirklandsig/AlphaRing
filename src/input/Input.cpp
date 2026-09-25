@@ -12,9 +12,12 @@ static DWORD (WINAPI* g_pXInputSetState)(_In_ DWORD dwUserIndex, _In_ XINPUT_VIB
 
 namespace AlphaRing::Input {
     bool Init() {
+        // MCC may not have loaded XInput yet when we start; load it ourselves then.
         if ((hModule = GetModuleHandleA("XINPUT1_3.dll")) ||
             (hModule = GetModuleHandleA("XINPUT1_4.dll")) ||
-            (hModule = GetModuleHandleA("XINPUT9_1_0.dll"))) {
+            (hModule = GetModuleHandleA("XINPUT9_1_0.dll")) ||
+            (hModule = LoadLibraryA("XINPUT1_4.dll")) ||
+            (hModule = LoadLibraryA("XINPUT1_3.dll"))) {
             g_pXInputGetState = (decltype(g_pXInputGetState))GetProcAddress(hModule, "XInputGetState");
             g_pXInputSetState = (decltype(g_pXInputSetState))GetProcAddress(hModule, "XInputSetState");
         }

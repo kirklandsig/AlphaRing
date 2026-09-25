@@ -8,6 +8,104 @@
 
 ---
 
+## What's New in v1.6.0 (experimental)
+
+![Four players, four HUD layouts](doc/images/hud-area-presets.jpg)
+
+> **Testing status:** like v1.5.0, this build has only been tested on **one Batocera Linux machine running the
+> latest Batocera** (MCC 1.3528 on Steam through Proton, four virtual Xbox 360 controllers, a 32:9 window for the
+> ultrawide tests). It needs a lot more testing on other machines and setups (Windows, Steam Deck, real
+> ultrawide and multi-monitor setups, different controllers) - expect bugs, and please report what you find in
+> [Issues](https://github.com/kirklandsig/AlphaRing/issues).
+
+### Your own HUD, per player - Halo CE, 2, 3, ODST and Reach
+Every player can lay out, resize, hide and recolour their own HUD, and pick a **HUD area** for their screen.
+
+- **HUD area presets** - *Game default*, *Screen edges*, *21:9 box*, *16:9 box* or *4:3 box*: the HUD is laid out
+  in a centered box of that shape inside the player's view. Pull it in from the far edges of an ultrawide or
+  multi-monitor view, or spread Halo CE's HUD (always a centered 4:3 box) out to the edges of the screen.
+- **Each element** - motion tracker, shield/health, weapon/ammo, grenades, crosshair (size/hide), equipment and
+  messages: move left/right/up/down, resize or hide.
+- **Colour** (Halo 3, ODST, Reach): shift the HUD toward any hue; enemy reds and whites keep their colour.
+- **From the controller:** press **D-pad Down**, then **LB/RB** to the **MY HUD** page - area, size and colour with
+  the D-pad, **A** on Reset to start over. In Halo Reach, D-pad Down opens straight on this page.
+- **With the mouse:** overlay (F4) → **HUD** window, one tab per player. Everything is saved to `alpha_ring_hud.cfg`.
+
+| | |
+|--|--|
+| ![Player 1 green, player 2 orange, player 2's HUD menu](doc/images/reach-split-hud-colors.jpg) | ![Halo CE: default HUD (left) and "Screen edges" (right)](doc/images/ce-screen-edges.jpg) |
+
+### Ultrawide / multi-monitor: Halo 2 HUD bunching fixed
+With MCC's *HUD anchor: Centered* (the default) on a screen wider than 16:9, Halo 2 squeezed every player's HUD
+into a 16:9 box in the middle of the **whole screen**: HUDs bunched toward the center and crosshairs off-center.
+Halo 2 now keeps each player's HUD at the edges of their own view (Dev Tools → halo2 → *HUD at screen edges*,
+on by default).
+
+| Before (4 players on 32:9, top row) | After |
+|--|--|
+| ![Halo 2 before](doc/images/h2-ultrawide-before.jpg) | ![Halo 2 after](doc/images/h2-ultrawide-after.jpg) |
+
+### Halo Reach vertical split screen - by XiaoDanny
+[XiaoDanny (Daniel Coyle)](https://github.com/XiaoDanny)'s Reach work from
+[megabitt01/AlphaRing #17 and #20](https://github.com/megabitt01/AlphaRing/pull/20) is now part of this fork, with
+full credit - his code, comments and research notes ([`docs/REVERSE_ENGINEERING.md`](docs/REVERSE_ENGINEERING.md))
+are kept as he wrote them:
+
+- **Left/Right split** for 2 players (two full-height halves) and 3 players (player 1 on the left half, players 2
+  and 3 on the right) - made for ultrawide and two-monitor setups.
+- **Per-player FOV** in split screen (Reach normally forces 78 degrees on everyone).
+- **Splitscreen Render Quality** option: split screen normally drops grass, grenade glow, decals and dynamic
+  lights; this restores the 1-player detail level (costs frame rate at 3-4 players).
+- The **Reach loadout screen** is no longer invisible in 2-3 player Firefight/customs, and Reach's menus are no
+  longer stretched at 32:9.
+- Everything is in the overlay's **Game → Dev Tools** window (layout, FOV sliders, black bars, render quality,
+  the Splitscreen Config Editor) and is saved.
+
+| | |
+|--|--|
+| ![Reach 2 players Left/Right](doc/images/reach-vertical-2p.jpg) | ![Reach 3 players Left/Right](doc/images/reach-vertical-3p.jpg) |
+
+### AI spawn with weapons - pick one for each spawn
+- Spawned AI now carry the weapon the mission gives that character. (Halo 3's AI used to spawn unarmed and could
+  only melee.) Halo 3's Marines get Battle Rifles and its Brutes Spikers, for example.
+- **Choose the weapon** for every spawn: on the Characters page press **LT / RT** to go through the weapons the
+  level has loaded, or back to *Their usual weapon*. In the overlay's Spawn window, use the *Weapon* list.
+  Works in Halo CE, Halo 2, Halo 3 and ODST.
+
+![Choosing a weapon for a spawned Marine](doc/images/spawn-ai-weapon.jpg)
+
+| Button (Characters page) | |
+|--|--|
+| LT / RT | the character's weapon |
+| Left / Right | their own side, ally, enemy |
+
+### Fixes
+- **Players 2-4 started with empty settings** (no sound, FOV and look sensitivity at their minimum, HUD scale 0)
+  unless you had saved profiles for them. They now start with player 1's MCC settings.
+- **Look sensitivity** in the profile editor is a 1-10 value again (it was saved as on/off, which made players 2-4
+  turn slowly).
+- **Dual wielding and vehicle boost for players 2-4:** the default controls now bind Use/Reload Left Weapon and the
+  vehicle functions the way MCC does (defaults from MegaBit's fork).
+- **Halo CE level-end freeze (attempted fix):** while a Halo CE map loads, every controller slot now answers the way
+  it does with the overlay open - the known workaround for the freeze between missions. *Not yet confirmed: please
+  report whether Halo CE still freezes after finishing a level.*
+- Dev Tools patch settings are now actually restored on launch, and turning a default-on patch off really turns it
+  off.
+- An unsupported MCC version now leaves the game unmodified instead of hooking the wrong code.
+- Proton: no console window (it could take focus and close MCC), XInput is loaded if MCC hasn't loaded it yet, the
+  overlay scales with the screen (it was tiny on 4K TVs), and a build setting for older Proton runtimes.
+- Per-player menus open in the right place with 3 players and in Reach's Left/Right split; the overlay no longer
+  queues mouse/keyboard input while it's hidden.
+
+### Known limitations
+- Only MCC **1.3528.0.0** (Steam). Campaign only. No spawning in Halo Reach and Halo 4 (HUD pages work in Reach).
+- HUD area presets move the HUD elements listed above (tracker, shield, weapon, grenades, equipment, messages);
+  objective text, damage indicators and waypoints stay where the game puts them.
+- Players 3/4 can spawn outside the map on some Halo CE/Halo 2 levels (the games were made for 2): use the Workshop
+  co-op fix mods.
+
+---
+
 ## What's New in v1.5.0 (experimental)
 
 ![Four players, four spawn menus](doc/images/spawn-menus-4p.jpg)
@@ -78,7 +176,6 @@ pointed at you and the chosen character, placed with the engine's own `ai_place`
 - Spawned allies fight but don't follow you around.
 - The game keeps running while a spawn menu is open, so find cover first.
 - Halo 2 with the co-op mod and 2+ players: Save & Quit can hang on the loading screen (progress is saved).
-- Three-player layouts are assumed to be quarters; please report if a menu shows up in the wrong place.
 
 ---
 
@@ -211,7 +308,14 @@ Output: `build/Release/WTSAPI32.dll`
 - **Original AlphaRing:** [WinterSquire](https://github.com/WinterSquire/AlphaRing)
 - **Profile Tweaks Fork:** [thejackbitt](https://github.com/thejackbitt/AlphaRing)
 - **This Fork:** kirklandsig (controller binding, spawn menus, split-screen fixes)
-- [megabitt01 / thejackbitt](https://github.com/megabitt01/AlphaRing) for the configurable menu hotkeys.
+- [megabitt01 / thejackbitt](https://github.com/megabitt01/AlphaRing) for the configurable menu hotkeys and the
+  dual-wield/vehicle control defaults.
+- [XiaoDanny (Daniel Coyle)](https://github.com/XiaoDanny) for Halo Reach vertical (Left/Right) split-screen,
+  per-player split-screen FOV, split-screen render quality, per-player black-bar removal, the Reach loadout fix,
+  Reach menu scaling at 32:9, persistent Dev Tools settings and the Splitscreen Config Editor
+  ([megabitt01/AlphaRing#17](https://github.com/megabitt01/AlphaRing/pull/17),
+  [#20](https://github.com/megabitt01/AlphaRing/pull/20)) - ported into this fork with his research notes in
+  [`docs/REVERSE_ENGINEERING.md`](docs/REVERSE_ENGINEERING.md).
 - Research references for the spawn system: [Assembly](https://github.com/XboxChaos/Assembly) plugins
   (scenario layouts), [c20](https://c20.reclaimers.net) (HaloScript), and the ManagedDonkey, ElDorito and
   Project Cartographer projects.

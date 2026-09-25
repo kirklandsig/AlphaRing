@@ -6,6 +6,7 @@
 #include "Command.h"
 
 #include <cmath>
+#include <cstring>
 #include <string>
 
 namespace MCC::Spawn {
@@ -46,6 +47,58 @@ namespace MCC::Spawn {
         return dx * dx + dy * dy + dz * dz;
     }
 
+    // Weapon tags nobody can carry: mounted on a vehicle or a stand, or built into a character
+    // (a Monitor's welder beam).
+    inline bool MountedWeapon(const char* path) {
+        return path == nullptr || strstr(path, "\\turrets\\") || strstr(path, "\\vehicles\\") ||
+               strstr(path, "\\characters\\") || strstr(path, "_integrated");
+    }
+
+    // The most common of the weapons voted for (tag -> votes), or -1.
+    template <typename Votes>
+    inline int MostVoted(const Votes& votes) {
+        int best = -1, most = 0;
+        for (auto& [weapon, count] : votes)
+            if (count > most) { best = weapon; most = count; }
+        return best;
+    }
+
+    // Writes a value over game data for as long as it's in scope, then puts the old one back
+    // (also if the game faults in the meantime: see Command::RecordChange).
+    template <typename T>
+    struct ScopedPoke {
+        T* at = nullptr;
+        T saved{};
+
+        ScopedPoke() = default;
+        ScopedPoke(const ScopedPoke&) = delete;
+        ScopedPoke& operator=(const ScopedPoke&) = delete;
+        ~ScopedPoke() {
+            if (at == nullptr) return;
+            *at = saved;
+            MCC::Command::ForgetChange(at);
+        }
+
+        void Set(T* where, T value) {
+            MCC::Command::RecordChange(where, sizeof(T));
+            at = where;
+            saved = *where;
+            *where = value;
+        }
+    };
+
+    // Squads arm their actors from the scenario's weapon palette (H2/H3/ODST): the index of the
+    // palette entry that places `weapon` - its own entry, or else the last one, lent to `weapon`
+    // through `lent` - or -1 for none. `tag_at(i)` is the tag index of entry i of `count`.
+    template <typename TagAt>
+    short WeaponPaletteIndex(int weapon, int count, TagAt tag_at, ScopedPoke<int>& lent) {
+        if (weapon == -1 || count == 0) return -1;
+        for (short i = 0; i < count; ++i)
+            if (*tag_at(i) == weapon) return i;
+        lent.Set(tag_at(count - 1), weapon);
+        return (short)(count - 1);
+    }
+
     // Blam team indices: 2 human (the players' side), 3 covenant; `own` keeps the character's.
     inline short EngineTeam(Team team, short own) { return team == TeamAlly ? 2 : team == TeamEnemy ? 3 : own; }
 
@@ -84,5 +137,10 @@ namespace MCC::Spawn {
         }
         flush();
         return name.empty() ? "Unnamed" : name;
+    }
+
+    // "Marine" armed with objects\weapons\rifle\battle_rifle -> "Marine with Battle Rifle".
+    inline std::string WithWeapon(const std::string& name, const char* weapon_path) {
+        return name + " with " + DisplayName(weapon_path);
     }
 }

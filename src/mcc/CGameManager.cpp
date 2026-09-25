@@ -15,28 +15,6 @@ CGameManager::Profile_t* CGameManager::get_profile(int index) {
     return container.profiles + index;
 }
 
-// Initialize default Xbox controller mapping for standard Halo controls
-static void InitializeDefaultMapping(CGamepadMapping& mapping) {
-    // Set all to None (unbound) first
-    for (int i = 0; i < 66; i++) {
-        mapping.actions[i] = CGamepadMapping::None;
-    }
-
-    // Standard Xbox Halo controls - only bind the essential actions
-    mapping.actions[0]  = CGamepadMapping::A;             // Jump
-    mapping.actions[1]  = CGamepadMapping::LeftShoulder;  // Switch Grenades
-    mapping.actions[2]  = CGamepadMapping::X;             // Action/Interact
-    mapping.actions[3]  = CGamepadMapping::RightShoulder; // Reload Right Weapon
-    mapping.actions[4]  = CGamepadMapping::Y;             // Change Weapon
-    mapping.actions[5]  = CGamepadMapping::B;             // Melee
-    mapping.actions[6]  = CGamepadMapping::DpadUp;        // Toggle Flashlight
-    mapping.actions[7]  = CGamepadMapping::LeftTrigger;   // Throw Grenade
-    mapping.actions[8]  = CGamepadMapping::RightTrigger;  // Use Right Weapon (Shoot)
-    mapping.actions[9]  = CGamepadMapping::LeftThumb;     // Crouch
-    mapping.actions[10] = CGamepadMapping::RightThumb;    // Player Zoom
-    mapping.actions[20] = CGamepadMapping::Back;          // Multiplayer Scoreboard
-}
-
 ProfileContainer_t::ProfileContainer_t() {
     __int64 guid[2];
     const int controller_map[4] {0, 1, 2, 3};
@@ -50,8 +28,7 @@ ProfileContainer_t::ProfileContainer_t() {
         profiles[i].id = id + i;
         swprintf(profiles[i].name, L"Player %d", i + 1);
 
-        // Initialize with standard Xbox Halo controls
-        InitializeDefaultMapping(profiles[i].mapping);
+        profiles[i].mapping.ResetToDefaults(); // standard Xbox Halo controls
     }
 }
 
@@ -69,6 +46,9 @@ bool CGameManager::Initialize(CGameManager* mng) {
         {pGameManager->table->set_state, set_state, (void**)&ppOriginal.set_state},
         {pGameManager->table->game_restart, game_restart, (void**)&ppOriginal.game_restart},
         {pGameManager->table->game_setup, game_setup, (void**)&ppOriginal.game_setup},
+        {pGameManager->table->get_hud_element_anchor, get_hud_element_anchor, (void**)&ppOriginal.get_hud_element_anchor},
+        {pGameManager->table->get_hud_element_transform, get_hud_element_transform, (void**)&ppOriginal.get_hud_element_transform},
+        {pGameManager->table->transform_hud_color, transform_hud_color, (void**)&ppOriginal.transform_hud_color},
     });
 }
 

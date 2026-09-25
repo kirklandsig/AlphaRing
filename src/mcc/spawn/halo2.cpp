@@ -2,7 +2,8 @@
 //
 // Objects: object_placement_data_new + object_new. Characters: like Halo 3 (mcc/spawn/gen3.cpp),
 // one starting location of an empty squad in the loaded scenario is pointed at the player and
-// the chosen character, placed with ai_place, and put back.
+// the chosen character, placed with ai_place, and put back. Its weapon comes from the scenario's
+// weapon palette the same way (see gen3.cpp).
 
 #include "Backend.h"
 
@@ -15,6 +16,7 @@
 #include <algorithm>
 #include <array>
 #include <cstring>
+#include <map>
 
 namespace MCC::Spawn::Halo2 {
     static constexpr int kGame = CGameGlobal::Halo2;
@@ -43,6 +45,12 @@ namespace MCC::Spawn::Halo2 {
     }
     static int Count(const char* block) { return ((const Block*)block)->count; }
     static char* Scenario() { return Global<char*>(OFFSET_HALO2_PV_SCENARIO); }
+
+    static char* TagData(int tag) {
+        auto instances = Global<TagInstance*>(OFFSET_HALO2_PV_TAG_INSTANCES);
+        int index = tag & 0xFFFF;
+        return (instances && tag != -1 && index < Global<int>(OFFSET_HALO2_PV_TAG_COUNT)) ? Address(instances[index].address) : nullptr;
+    }
 
     static const char* TagName(int tag) {
         int index = tag & 0xFFFF;
@@ -104,14 +112,56 @@ namespace MCC::Spawn::Halo2 {
 
     // Scenario layout (Assembly Halo2MCC scnr plugin): squads 0x160 (0x74 each: team 0x24,
     // character 0x36, zone 0x38, starting locations 0x48), starting location 0x64, zones 0x168
-    // (0x38 each, firing positions 0x28 of 0x20), character palette 0x178 (0x8 each).
+    // (0x38 each, firing positions 0x28 of 0x20), weapon palette 0x98 (0x28 each), character
+    // palette 0x178 (0x8 each).
     static constexpr int kSquads = 0x160, kSquadSize = 0x74, kSquadLocations = 0x48, kLocationSize = 0x64;
     static constexpr int kZones = 0x168, kZoneSize = 0x38, kZoneFiringPositions = 0x28, kFiringPositionSize = 0x20;
-    static constexpr int kCharacterPalette = 0x178;
+    static constexpr int kWeaponPalette = 0x98, kCharacterPalette = 0x178;
 
     static int CharacterPaletteTag(int index) {
         auto entry = Element(Scenario() + kCharacterPalette, index, 0x8);
         return entry ? *(int*)(entry + 4) : -1;
+    }
+
+    static int* PaletteWeaponTag(int index) {
+        auto entry = Element(Scenario() + kWeaponPalette, index, 0x28);
+        return entry ? (int*)(entry + 4) : nullptr;
+    }
+    static int PaletteWeapon(int index) {
+        auto tag = PaletteWeaponTag(index);
+        return tag ? *tag : -1;
+    }
+
+    // The weapon the mission usually gives `character`: the one its squads and their starting
+    // locations name most often for it. Otherwise the first carriable weapon of the character
+    // tag's weapons properties (character +0xCC, 0xCC each; inherited from parent characters).
+    static int UsualWeapon(int character) {
+        std::map<int, int> votes;
+        auto scenario = Scenario();
+        for (int s = 0; s < Count(scenario + kSquads); ++s) {
+            auto squad = Element(scenario + kSquads, s, kSquadSize);
+            for (int l = 0; l < Count(squad + kSquadLocations); ++l) { // a location's own choices win over its squad's
+                auto location = Element(squad + kSquadLocations, l, kLocationSize);
+                short c = *(short*)(location + 0x20), w = *(short*)(location + 0x22);
+                int weapon = PaletteWeapon(w != -1 ? w : *(short*)(squad + 0x3C));
+                if (weapon != -1 && CharacterPaletteTag(c != -1 ? c : *(short*)(squad + 0x36)) == character) ++votes[weapon];
+            }
+        }
+        if (int weapon = MostVoted(votes); weapon != -1) return weapon;
+
+        for (int depth = 0; depth < 8; ++depth) {
+            auto data = TagData(character);
+            if (data == nullptr) return -1;
+            if (Count(data + 0xCC) > 0) {
+                for (int i = 0; i < Count(data + 0xCC); ++i) {
+                    int weapon = *(int*)(Element(data + 0xCC, i, 0xCC) + 0x8);
+                    if (weapon != -1 && !MountedWeapon(TagName(weapon))) return weapon;
+                }
+                return -1;
+            }
+            character = *(int*)(data + 0x8); // parent character
+        }
+        return -1;
     }
 
     static int LivingCount(int squad) { return Call<int>(OFFSET_HALO2_PF_AI_LIVING_COUNT, squad); }
@@ -148,7 +198,7 @@ namespace MCC::Spawn::Halo2 {
         return nearest;
     }
 
-    static std::string SpawnCharacter(int palette_index, int player, Team team) {
+    static std::string SpawnCharacter(int palette_index, int player, Team team, int weapon) {
         int character = CharacterPaletteTag(palette_index);
         std::string name = character == -1 ? "character" : DisplayName(TagName(character));
 
@@ -159,11 +209,16 @@ namespace MCC::Spawn::Halo2 {
         SpawnPoint spawn;
         if (!NearestSpawnPoint(origin, spawn)) return "This mission has no free squads to spawn characters with";
 
+        // before the borrowed squad changes, since the mission's own choices are counted
+        if (weapon == kUsualWeapon) weapon = UsualWeapon(character);
+
         auto squad = spawn.squad_data, location = spawn.location_data;
         std::array<char, kSquadSize> saved_squad;
         std::array<char, kLocationSize> saved_location;
         memcpy(saved_squad.data(), squad, kSquadSize);
         memcpy(saved_location.data(), location, kLocationSize);
+        MCC::Command::RecordChange(squad, kSquadSize); // put back at once if ai_place faults
+        MCC::Command::RecordChange(location, kLocationSize);
 
         *(unsigned*)(squad + 0x20) &= ~0x88u; // no "delay forever", no respawning
         *(short*)(squad + 0x24) = EngineTeam(team, 0); // 0: the character's own team
@@ -185,13 +240,19 @@ namespace MCC::Spawn::Halo2 {
         *(float*)(location + 0x38) = 0.0f; // initial movement distance
         *(short*)(location + 0x3E) = 0; // movement mode
 
+        ScopedPoke<int> lent; // held until ai_place has armed the actor
+        short weapon_index = WeaponPaletteIndex(weapon, Count(Scenario() + kWeaponPalette), PaletteWeaponTag, lent);
+        *(short*)(location + 0x22) = weapon_index;
+
         LOG_INFO("Spawn: placing {} through squad {} location {}", name, spawn.squad, spawn.location);
         Call<void>(OFFSET_HALO2_PF_AI_PLACE, (3u << 30) | ((unsigned)spawn.squad << 16) | (unsigned)spawn.location);
 
         memcpy(squad, saved_squad.data(), kSquadSize);
         memcpy(location, saved_location.data(), kLocationSize);
+        MCC::Command::ForgetChange(squad);
+        MCC::Command::ForgetChange(location);
 
-        return SpawnResult(LivingCount(spawn.squad) != 0, name);
+        return SpawnResult(LivingCount(spawn.squad) != 0, weapon_index != -1 ? WithWeapon(name, TagName(weapon)) : name);
     }
 
     // --- backend ---------------------------------------------------------------------------------
@@ -214,13 +275,13 @@ namespace MCC::Spawn::Halo2 {
             if (path == nullptr) return;
             // mounted guns and set pieces (scenarios\objects\...) only work attached
             if (strstr(path, "\\turrets\\") || strncmp(path, "scenarios\\", 10) == 0) return;
-            if (category == Weapons && strstr(path, "\\vehicles\\")) return;
+            if (category == Weapons && MountedWeapon(path)) return;
             out.push_back({tag, DisplayName(path)});
         });
     }
 
-    static std::string Spawn(Category category, int id, int player, Team team) {
-        if (category == Characters) return SpawnCharacter(id, player, team);
+    static std::string Spawn(Category category, int id, int player, Team team, int weapon) {
+        if (category == Characters) return SpawnCharacter(id, player, team, weapon);
         std::string name = DisplayName(TagName(id));
         return SpawnResult(SpawnObject(id, player, category) != -1, name);
     }

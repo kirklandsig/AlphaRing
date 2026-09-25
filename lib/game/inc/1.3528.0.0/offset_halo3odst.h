@@ -21,3 +21,7 @@
 #define OFFSET_HALO3ODST_PF_OBJECT_POST_CREATE 0x20B80
 #define OFFSET_HALO3ODST_PF_AI_PLACE 0x5BE6A0 // (int ai_index, bool); ai index type 4 = a squad's single location
 #define OFFSET_HALO3ODST_PF_TAG_LOADED 0x14D4C8 // bool (int tag): in the loaded zone set (object_new refuses others)
+
+// per-player HUD (mcc/hud)
+#define OFFSET_HALO3ODST_PV_HUD_DRAWING_PLAYER 0xB1AA04 // int user whose HUD is being drawn
+#define OFFSET_HALO3ODST_PV_HUD_CANVAS 0xB1A9D8 // float width, height of that user's HUD virtual canvas

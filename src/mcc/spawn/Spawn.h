@@ -22,11 +22,15 @@ namespace MCC::Spawn {
         std::string name; // display name
     };
 
+    // A character's weapon: a tag from the Weapons list, or this for the one it usually carries.
+    constexpr int kUsualWeapon = -1;
+
     struct Backend {
         // Fill `out` with what the loaded map can spawn in `category`.
         void (*list)(Category category, std::vector<Item>& out);
-        // Spawn `id` in front of local player `player` (0-3); returns a short status message.
-        std::string (*spawn)(Category category, int id, int player, Team team);
+        // Spawn `id` in front of local player `player` (0-3), a character armed with `weapon`;
+        // returns a short status message.
+        std::string (*spawn)(Category category, int id, int player, Team team, int weapon);
     };
 
     void RegisterBackend(int game, const Backend* backend);
@@ -58,6 +62,9 @@ namespace MCC::Spawn::Catalog {
     int Size(int game, Category category);
     bool Get(int game, Category category, int index, Item& item);
     std::string Status(int player);
-    // Spawns `item` in front of `player`.
-    void Spawn(Category category, const Item& item, int player, Team team);
+    // Spawns `item` in front of `player`; a character carries the Weapons item at
+    // `weapon_index`, or its usual weapon when there's none.
+    void Spawn(Category category, const Item& item, int player, Team team, int weapon_index);
+    // Name of the weapon a character will carry for `weapon_index`.
+    std::string WeaponName(int game, int weapon_index);
 }

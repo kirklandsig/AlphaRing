@@ -8,6 +8,7 @@
 #include "mcc/network/Network.h"
 #include "mcc/splitscreen/Splitscreen.h"
 #include "mcc/spawn/Spawn.h"
+#include "mcc/hud/Hud.h"
 #include "mcc/module/Module.h"
 
 static auto msg_about = R"(
@@ -96,6 +97,8 @@ void CMCCContext::render() {
     MCC::Splitscreen::ImGuiContext();
 
     MCC::Spawn::ImGuiContext();
+
+    MCC::Hud::ImGuiContext();
 
     MCC::Network::ImGuiContext();
 

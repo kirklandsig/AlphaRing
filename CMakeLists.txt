@@ -59,6 +59,9 @@ add_library(game ${GAME_SRC} "lib/game/inc/1.3495.0.0/offset_groundhog.h" "lib/g
 # disable warning c4996
 add_definitions(-D_SILENCE_ALL_MS_EXT_DEPRECATION_WARNINGS)
 add_definitions(-DIMGUI_DEFINE_MATH_OPERATORS)
+# MSVC 17.10+ std::mutex is constexpr-constructed and crashes on older msvcp140 runtimes, which
+# some Proton prefixes still ship (MCC "Fatal error" at launch).
+add_compile_definitions(_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR)
 
 add_compile_definitions(WRAPPER_DLL_NAME="${WRAPPER_DLL_NAME}")
 add_compile_definitions(GAME_VERSION="${VERSION}")

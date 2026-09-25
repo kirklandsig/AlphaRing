@@ -7,18 +7,25 @@
 // squad in the loaded scenario is pointed at the player and the chosen character for the
 // duration of an ai_place of that point, then restored. The squad's team decides whether the
 // character fights with or against the players.
+//
+// Weapons: squads arm their actors only from the scenario's weapon palette (an unset weapon
+// means none), so the spawn point names a palette entry for the chosen weapon, or for the one
+// the mission usually gives that character; a weapon the palette lacks is lent a palette entry
+// while ai_place runs (it arms the actor before returning).
 
 #include "Backend.h"
 
 #include "common.h"
 
 #include "mcc/CGameGlobal.h"
+#include "mcc/CGameManager.h"
 
 #include <offset_halo3.h>
 #include <offset_halo3odst.h>
 
 #include <algorithm>
 #include <cstring>
+#include <map>
 #include <memory>
 #include <utility>
 
@@ -31,7 +38,8 @@ namespace MCC::Spawn::Gen3 {
         // scenario layout (Assembly Halo3MCC / ODSTMCC scnr plugins)
         int squads, squad_size, squad_objective; // objective index, task index follows it
         int zones, zone_size, zone_firing_positions;
-        int character_palette;
+        int character_palette, weapon_palette;
+        int character_weapons; // the character tag's "weapons properties" block
         // Halo 3 squads place from fire teams' starting locations; ODST squads from "single
         // locations" that carry the character themselves.
         bool single_locations;
@@ -45,7 +53,8 @@ namespace MCC::Spawn::Gen3 {
         OFFSET_HALO3_PF_AI_PLACE, OFFSET_HALO3_PF_TAG_LOADED,
         0x384, 0x40, 0x2C,
         0x390, 0x40, 0x28,
-        0x3A8,
+        0x3A8, 0x120,
+        0x174,
         false, 0x88, 0x08,
     };
 
@@ -57,7 +66,8 @@ namespace MCC::Spawn::Gen3 {
         OFFSET_HALO3ODST_PF_OBJECT_POST_CREATE, OFFSET_HALO3ODST_PF_AI_PLACE, OFFSET_HALO3ODST_PF_TAG_LOADED,
         0x3B8, 0x6C, 0x2A,
         0x3C4, 0x3C, 0x24,
-        0x3E8,
+        0x3E8, 0x13C,
+        0x198,
         true, 0x90, 0x14,
     };
 
@@ -80,6 +90,12 @@ namespace MCC::Spawn::Gen3 {
     }
     static int Count(const char* block) { return ((const Block*)block)->count; }
     static char* Scenario(const Game& g) { return EngineGlobal<char*>(g.id, g.scenario); }
+
+    static char* TagData(const Game& g, int tag) {
+        auto tags = EngineGlobal<TagsHeader*>(g.id, g.tags_header);
+        int index = tag & 0xFFFF;
+        return (tags && tag != -1 && index < tags->tag_count) ? Address(g, tags->instances[index].address) : nullptr;
+    }
 
     // tag names: int offsets[0x8000], char buffer[0x800000], const char* names[0x8000]
     static const char* TagName(const Game& g, int tag) {
@@ -202,6 +218,84 @@ namespace MCC::Spawn::Gen3 {
         return entry ? *(int*)(entry + 0xC) : -1;
     }
 
+    static int* PaletteWeaponTag(const Game& g, int index) {
+        auto entry = Element(g, Scenario(g) + g.weapon_palette, index, 0x10);
+        return entry ? (int*)(entry + 0xC) : nullptr;
+    }
+    static int PaletteWeapon(const Game& g, int index) {
+        auto tag = PaletteWeaponTag(g, index);
+        return tag ? *tag : -1;
+    }
+
+    // Character tag -> weapon tag -> how many of the mission's spawn points (Halo 3) or designer
+    // cells (ODST) give that character that weapon.
+    using WeaponVotes = std::map<int, std::map<int, int>>;
+
+    static WeaponVotes MissionWeapons(const Game& g) {
+        WeaponVotes votes;
+        auto vote = [&](short character_index, short weapon_index) {
+            int character = CharacterPaletteTag(g, character_index), weapon = PaletteWeapon(g, weapon_index);
+            if (character != -1 && weapon != -1) ++votes[character][weapon];
+        };
+        auto scenario = Scenario(g);
+        for (int s = 0; s < Count(scenario + g.squads); ++s) {
+            auto squad = Element(g, scenario + g.squads, s, g.squad_size);
+            if (g.single_locations) {
+                for (int p = 0; p < Count(squad + 0x3C); ++p) {
+                    auto location = Element(g, squad + 0x3C, p, g.location_size);
+                    vote(*(short*)(location + 0x32), *(short*)(location + 0x34));
+                }
+                for (int c = 0; c < Count(squad + 0x54); ++c) { // cells: character and weapon choices
+                    auto cell = Element(g, squad + 0x54, c, 0x84);
+                    for (int t = 0; t < Count(cell + 0x14); ++t)
+                        for (int w = 0; w < Count(cell + 0x20); ++w)
+                            vote(*(short*)(Element(g, cell + 0x14, t, 0x10) + 0xC), *(short*)(Element(g, cell + 0x20, w, 0x10) + 0xC));
+                }
+                continue;
+            }
+            for (int f = 0; f < Count(squad + 0x30); ++f) {
+                auto fire_team = Element(g, squad + 0x30, f, 0x60);
+                for (int p = 0; p < Count(fire_team + 0x54); ++p) { // a location's own choices win over its fire team's
+                    auto location = Element(g, fire_team + 0x54, p, g.location_size);
+                    short c = *(short*)(location + 0x28), w = *(short*)(location + 0x2A);
+                    vote(c != -1 ? c : *(short*)(fire_team + 0x08), w != -1 ? w : *(short*)(fire_team + 0x0A));
+                }
+            }
+        }
+        return votes;
+    }
+
+    // The weapon the mission usually gives `character`: the loaded one it's given most often.
+    // Otherwise the first weapon the character tag knows how to use (weapons properties,
+    // inherited from parent characters). The mission's choices are counted once per map, before
+    // any spawn: spawn points lent to recent spawns still hold our changes.
+    static int UsualWeapon(const Game& g, int character) {
+        static struct { unsigned generation = ~0u; WeaponVotes votes; } s_cache[2]; // Halo 3, ODST
+        auto& cache = s_cache[g.single_locations];
+        if (cache.generation != CGameManager::load_generation())
+            cache = {CGameManager::load_generation(), MissionWeapons(g)};
+
+        std::map<int, int> loaded;
+        for (auto [weapon, count] : cache.votes[character])
+            if (TagLoaded(g, weapon)) loaded[weapon] = count;
+        if (int weapon = MostVoted(loaded); weapon != -1) return weapon;
+
+        for (int depth = 0; depth < 8; ++depth) {
+            auto data = TagData(g, character);
+            if (data == nullptr) return -1;
+            auto block = data + g.character_weapons;
+            if (Count(block) > 0) {
+                for (int i = 0; i < Count(block); ++i) {
+                    int weapon = *(int*)(Element(g, block, i, 0xE0) + 0x10); // weapon tag reference
+                    if (weapon != -1 && TagLoaded(g, weapon) && !MountedWeapon(TagName(g, weapon))) return weapon;
+                }
+                return -1;
+            }
+            character = *(int*)(data + 0x10); // parent character
+        }
+        return -1;
+    }
+
     struct SpawnPoint {
         int squad, fire_team, point; // fire_team is -1 in ODST
         char *squad_data, *fire_team_data, *location;
@@ -278,7 +372,7 @@ namespace MCC::Spawn::Gen3 {
     }
 
     // Halo 3: the fire team and its starting location both carry character and loadout.
-    static void PrepareFireTeamPoint(const SpawnPoint& spawn, int palette_index, const Placement& place) {
+    static void PrepareFireTeamPoint(const SpawnPoint& spawn, int palette_index, short weapon, const Placement& place) {
         auto fire_team = spawn.fire_team_data, location = spawn.location;
 
         *(short*)(fire_team + 0x08) = (short)palette_index;
@@ -301,14 +395,15 @@ namespace MCC::Spawn::Gen3 {
         *(float*)(location + 0x1C) = 0.0f;
         *(float*)(location + 0x20) = 0.0f;
         *(short*)(location + 0x28) = (short)palette_index;
-        for (int offset : {0x2A, 0x2C, 0x30, 0x44, 0x46, 0x48, 0x6C, 0x6E}) *(short*)(location + offset) = -1;
+        for (int offset : {0x2C, 0x30, 0x44, 0x46, 0x48, 0x6C, 0x6E}) *(short*)(location + offset) = -1;
+        *(short*)(location + 0x2A) = weapon;
         *(short*)(location + 0x32) = 0; // seat type: none
         *(short*)(location + 0x36) = 0; // swarm count
     }
 
     // ODST: a single location's own character and loadout win; where they're unset the
     // engine picks from its cell's lists, so the cell's loadout choices are emptied too.
-    static void PrepareSingleLocation(const SpawnPoint& spawn, int palette_index, const Placement& place) {
+    static void PrepareSingleLocation(const SpawnPoint& spawn, int palette_index, short weapon, const Placement& place) {
         auto cell = spawn.cell, location = spawn.location;
 
         *(short*)(cell + 0x04) = 0xF; // every difficulty
@@ -323,7 +418,8 @@ namespace MCC::Spawn::Gen3 {
         *(float*)(location + 0x28) = 0.0f;
         *(float*)(location + 0x2C) = 0.0f;
         *(short*)(location + 0x32) = (short)palette_index;
-        for (int offset : {0x34, 0x36, 0x38, 0x3A, 0x52, 0x54, 0x56, 0x78, 0x80}) *(short*)(location + offset) = -1;
+        for (int offset : {0x36, 0x38, 0x3A, 0x52, 0x54, 0x56, 0x78, 0x80}) *(short*)(location + offset) = -1;
+        *(short*)(location + 0x34) = weapon;
         *(short*)(location + 0x3C) = 0; // seat type: none
         *(short*)(location + 0x40) = 0; // swarm count
         *(unsigned*)(location + 0x44) = 0; // actor variant
@@ -332,7 +428,7 @@ namespace MCC::Spawn::Gen3 {
         ((Block*)(location + 0x84))->count = 0; // no patrol points
     }
 
-    static std::string SpawnCharacter(const Game& g, int palette_index, int player, Team team) {
+    static std::string SpawnCharacter(const Game& g, int palette_index, int player, Team team, int weapon) {
         int character = CharacterPaletteTag(g, palette_index);
         std::string name = character == -1 ? "character" : DisplayName(TagName(g, character));
 
@@ -343,11 +439,15 @@ namespace MCC::Spawn::Gen3 {
         SpawnPoint spawn;
         if (!NearestSpawnPoint(g, origin, spawn))
             return "This mission has no free squads to spawn characters with";
+        if (weapon == kUsualWeapon) weapon = UsualWeapon(g, character);
 
         auto pending = std::make_shared<PendingRestore>(PendingRestore{{}, spawn.squad, player, name});
         for (auto [address, size] : {std::pair{spawn.squad_data, g.squad_size}, {spawn.fire_team_data, 0x60},
                                      {spawn.location, g.location_size}, {spawn.cell, 0x84}})
-            if (address) pending->borrowed.push_back({address, std::vector<char>(address, address + size)});
+            if (address) {
+                pending->borrowed.push_back({address, std::vector<char>(address, address + size)});
+                MCC::Command::RecordChange(address, size); // put back at once if ai_place faults
+            }
 
         // A free-roaming squad: no blind/deaf/braindead flags, no scripted objective or task.
         auto squad = spawn.squad_data;
@@ -357,8 +457,12 @@ namespace MCC::Spawn::Gen3 {
         *(short*)(squad + g.squad_objective) = -1;
         *(short*)(squad + g.squad_objective + 2) = -1; // task
 
-        if (g.single_locations) PrepareSingleLocation(spawn, palette_index, place);
-        else PrepareFireTeamPoint(spawn, palette_index, place);
+        ScopedPoke<int> lent; // held until ai_place has armed the actor
+        short weapon_index = WeaponPaletteIndex(weapon, Count(Scenario(g) + g.weapon_palette),
+                                                [&](int i) { return PaletteWeaponTag(g, i); }, lent);
+
+        if (g.single_locations) PrepareSingleLocation(spawn, palette_index, weapon_index, place);
+        else PrepareFireTeamPoint(spawn, palette_index, weapon_index, place);
 
         // ai index of one spawn point: (4 << 29) | (squad << 16) | [fire team << 8 |] point
         unsigned int ai = (4u << 29) | ((unsigned)(spawn.squad & 0x1FFF) << 16) | spawn.point;
@@ -366,8 +470,9 @@ namespace MCC::Spawn::Gen3 {
         LOG_INFO("Spawn: placing {} through squad {} point {}", name, spawn.squad, spawn.point);
         Call<void>(g, g.ai_place, ai, false);
 
+        for (auto& b : pending->borrowed) MCC::Command::ForgetChange(b.address); // RestoreLater's now
         RestoreLater(g, std::move(pending), 60);
-        return SpawnResult(true, name);
+        return SpawnResult(true, weapon_index != -1 ? WithWeapon(name, TagName(g, weapon)) : name);
     }
 
     // --- backend ---------------------------------------------------------------------------------
@@ -392,14 +497,14 @@ namespace MCC::Spawn::Gen3 {
             // mounted guns are separate vehicle and weapon tags that only work attached, and
             // objects\levels\ holds set pieces (security cameras, holograms)
             if (strstr(path, "\\turrets\\") || strstr(path, "levels\\")) return;
-            if (category == Weapons && strstr(path, "\\vehicles\\")) return;
+            if (category == Weapons && MountedWeapon(path)) return;
             out.push_back({tag, DisplayName(path)});
         });
     }
 
     template <const Game& g>
-    static std::string Spawn(Category category, int id, int player, Team team) {
-        if (category == Characters) return SpawnCharacter(g, id, player, team);
+    static std::string Spawn(Category category, int id, int player, Team team, int weapon) {
+        if (category == Characters) return SpawnCharacter(g, id, player, team, weapon);
         std::string name = DisplayName(TagName(g, id));
         return SpawnResult(SpawnObject(g, id, player, category) != -1, name);
     }

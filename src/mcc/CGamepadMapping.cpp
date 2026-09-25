@@ -103,6 +103,16 @@ void CGamepadMapping::ResetToDefaults() {
     actions[9]  = LeftThumb;     // Crouch
     actions[10] = RightThumb;    // Player Zoom
     actions[20] = Back;          // Multiplayer Scoreboard
+
+    // Dual-wield and vehicle actions share those buttons, as in MCC's own layout (defaults from
+    // MegaBit's megabitt01/AlphaRing 1.3.5-1.3.6): without them split-screen players can't fire
+    // or reload a left-hand weapon (Halo 2/3) or boost vehicles.
+    actions[13] = RightShoulder; // Swap/Reload Left Weapon
+    actions[49] = LeftTrigger;   // Use Left Weapon
+    actions[28] = LeftTrigger;   // Thrust
+    actions[24] = LeftTrigger;   // Vehicle Function 1
+    actions[21] = LeftThumb;     // Vehicle Function 2
+    actions[22] = A;             // Vehicle Function 3
 }
 
 #include <imgui.h>
