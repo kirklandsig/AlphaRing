@@ -39,8 +39,11 @@ namespace AlphaRing::Log {
             OutputDebugStringA(e.what());
         }
 
-        // Console sink - allocate console for debug visibility
-        console_allocated = AllocConsole();
+        // Console sink - allocate console for debug visibility. Not under Wine/Proton: there the
+        // console is a separate window that takes focus from the game (gamescope), and closing it
+        // closes MCC.
+        bool wine = GetProcAddress(GetModuleHandleA("ntdll.dll"), "wine_get_version") != nullptr;
+        console_allocated = !wine && AllocConsole();
         if (console_allocated) {
             freopen("CONIN$", "r", stdin);
             freopen("CONOUT$", "w", stdout);

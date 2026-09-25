@@ -19,6 +19,7 @@
 | `v1.4.4-experimental` | Testing | Fixed wcstombs crash in Profile::Save() (still not fully resolved) |
 | `v1.4.5-experimental` | Testing | Likely crash root-cause fix (ServiceTag %ls overread), settings data-loss fix, robustness pass, configurable hotkeys |
 | `v1.5.0-experimental` | Testing | Spawn menus (CE/H2/H3/ODST, per-player controller menus), 4-player fixes (H4 black screen, CE/H2 classic, second-load hang), overlay redesign |
+| `v1.6.0-experimental` | **Not released yet** (ready in the working tree, awaiting the user's go) | Per-player HUD (area presets, per-element, colour, controller page), H2 ultrawide HUD fix, XiaoDanny's Reach vertical split port, armed AI + weapon choice, profile/binding/patch/Proton fixes |
 
 ### Branches
 
@@ -165,6 +166,9 @@ Now works with **any Proton version** (9.0, Experimental, GE, etc.)
 | `custom_profiles.json` | Named profile presets (armor, colors, etc.) |
 | `alpharing.log` | Debug log file (v1.4.3+) |
 | `alpha_ring_menu.cfg` | Menu hotkey config (v1.4.5+, ported from MegaBit's fork) — keyboard key + controller combo, auto-created with defaults F4 / START+BACK |
+| `alpha_ring_hud.cfg` | Per-player HUD settings (v1.6.0): `pN.scale/area(index)/recolor/hue/strength`, `pN.<element>.x/y/scale/hidden` |
+| `alpha_ring_patches.cfg` | Saved Dev Tools patch on/off states (XiaoDanny, v1.6.0) — keys are `module.patch_name` lowercased with `_` for spaces |
+| `alpha_ring_splitscreen.cfg` | Reach split-screen layout / FOV / config-editor values (XiaoDanny, v1.6.0) |
 
 All files are stored in the game's `binaries/win64` folder alongside the DLL.
 
@@ -324,6 +328,26 @@ git checkout stable-v1.3.5
 
 ## Session History
 
+### 2026-09-25 - v1.6.0 all-inclusive update (ready in the working tree - not committed or pushed; the user reviews first)
+
+User asked for: integrate XiaoDanny's Reach vertical split (megabitt01 PRs #17/#20) with full credit; full per-player HUD customization (positions, colours, presets by monitor type - a tester's dual-monitor photo showed H2's HUD bunched in the middle); fix what the other forks/issues reveal; armed AI with a per-spawn weapon choice (H3 AI spawned unarmed and meleed); then a Codex adversarial review; report back before pushing.
+
+**Reach port (XiaoDanny, verbatim + credit headers):** `module/entry/haloreach/*` (vertical split render targets, HUD anchor, CUI canvas fit, FOV baseline, loadout fix, black bars), `PatchConfig`, `SplitscreenConfigStore`, `DebugFlags.h`, `docs/REVERSE_ENGINEERING.md`, Dev Tools window (Module.cpp). Dropped his two diagnostic probes (`chud_const.cpp`, `res_path.cpp`: hot-path hooks with compile-time-off flags). Our fixes on top: `PatchConfig::Load()` was never called (saved states ignored); `CPatchSet::hModule` uninitialized; write-list mutex in `SplitscreenConfigStore` (Codex). Verified: 2P Left/Right, 3P L/R, per-slot FOV logs, 4P Reach HUD placement.
+
+**Per-player HUD (`src/mcc/hud/`, `CGameManagerHud.cpp`, `module/entry/halo1/hud.cpp`):** MCC's host vtable has per-element HUD callbacks every game asks while drawing (`+0x2F8` anchor, `+0x300` transform dx/dy/scale, `+0x308` colour) - answering them for the drawing player gives per-player offsets/scale/hide/colour in H2/H3/ODST/Reach (CE adds host offsets to X only, so CE offsets come from a hook on `hud_calculate_point` 0xB56A58). Per-game table in Hud.cpp: drawing-user global, MCC element id -> ours, units (gen3 virtual canvas / H2 pixels x unit scale / CE none), the game's own HUD box (CE = centered 4:3) and each element's side. **HUD area presets** (Game default / Screen edges / 21:9 / 16:9 / 4:3) shift left/right elements so the HUD's sides land on a centered box of that shape - verified in all five games at 32:9 quadrants; CE "Screen edges" spreads its 4:3 HUD to the view edges. Controller "MY HUD" page (area/size/colour/reset) in the D-pad menu; in Reach (no spawn backend) the menu opens straight on it. Offsets in `offset_halo*.h` under "per-player HUD".
+
+**H2 ultrawide bunching (the tester's photo) root-caused + fixed:** with the profile's `LockMaxAspectRatio` ("HUD anchor: Centered", global in H2 at 0x197EE40) and a view wider than 16:9, `0x954DD0` insets H2's whole-screen HUD frame to a centered 16:9 box and `0x7E0A40` splits that among players -> HUDs bunched to the middle, crosshairs off-center. Patch `halo2+0x954DF2` 74->EB ("HUD at screen edges", default on). Before/after verified live with the flag set (doc/images/h2-ultrawide-*.jpg). H3 is different: its `chud_draw_begin` (0x2ED0D4) insets per player's own view with a per-player flag, so no bunching.
+
+**Armed AI (`src/mcc/spawn/`):** H2/H3/ODST squads arm actors only from the scenario weapon palette (weapon index -1 = unarmed; verified in H3 0x55D32C and H2 0x621AB0). The borrowed spawn point gets a palette index; a weapon missing from the palette borrows the last palette entry (`ScopedPoke` + `WeaponPaletteIndex` in Backend.h) for the duration of the synchronous `ai_place` (H3 path 0x577AA4 -> ... -> 0x55D32C arms the actor). "Their usual weapon" = the weapon the mission's own squads give that character most (counted once per map in gen3), else the character tag's first carriable weapons-properties entry. CE swaps the actor variant's weapon tag (actv+0x70) around `actor_customize_unit`. `MountedWeapon()` hides turret/vehicle/character-built/`_integrated` weapons. UI: LT/RT on the Characters page; Weapon combo in the F4 Spawn window. Verified by a temporary in-DLL readout of unit inventories (H3 unit+0x268, ODST +0x27C, H2 +0x22C): H3 Marine BR / Brute Spike Rifle / chosen weapons; ODST Brute Spike Rifle, Brute Captain Automag; H2 Elite Plasma Rifle, Marine chosen Plasma Rifle, Grunt Plasma Pistol; CE sniper swap. Fault safety: handlers record temporary game-data changes (`Command::RecordChange`) and the dispatcher's SEH handler restores them (Codex: /EHsc skips destructors on structured exceptions).
+
+**Fixes from the fork/issue survey (scratchpad research_repos.md):** players 2-4 got zeroed container profiles by default (no sound, FOV/sensitivity/HUD scale 0) -> seeded from player 1's real profile when FOVSetting==0; look sensitivity bytes (0x1B5/0x1B6) were bools; default dual-wield/vehicle bindings (MegaBit 1.3.5/1.3.6); CE level-end freeze candidate (all pad slots answer "connected, released" while a CE map loads - same as the overlay-open workaround; **untested**, needs a level end); version mismatch now disables the mod (assertm is compiled out of Release!); XInput LoadLibrary fallback; no console under Wine; overlay scale from screen size; `_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR`; ImGui WndProc only fed while the overlay is shown (+ ClearInputKeys on hide); 3-player and Reach L/R menu placement.
+
+**Patches:** `CPatch` now captures the module's original bytes once when the module loads (`CPatchSet::update`), guarded against unreadable patch.xml offsets; disabling re-applies the other enabled patches (overlaps). Fixes "a default-on patch saved as off got applied anyway".
+
+**Reviews:** /simplify (4 agents) applied; Codex adversarial review (plugin `adversarial-review` + a rescue bug-hunt): fixed SEH restore, Reach L/R menus, patch capture safety/overlap, usual-weapon counting, H2 weapon choice before squad edits, overlay stuck keys, Reach write-list race. Not fixed: HUD settings read without a lock while being edited (plain floats/bools; worst case one frame of mixed settings).
+
+**Observed, not ours:** one H2 load crash in the Saber renderer (halo2+0x3A76E4, null `[rbx+0x30]`, only halo2 frames on the stack) - did not reproduce on retry. H2/CE players 3/4 sometimes spawn outside the map (black view) - known engine limit, co-op mods.
+
 ### 2026-09-24 (part 2) - Spawn menus + per-player controller menus - RELEASED as v1.5.0-experimental
 
 User asked for a prettier/more intuitive menu and a spawn menu (vehicles, weapons, enemies/friendlies) for at least CE, H2, H3 (+ ODST), and for **each player to open their own menu in their own quadrant with D-pad Down**. All done and verified live on the Batocera box with 4 virtual pads (see "Test harness" below).
@@ -458,6 +482,8 @@ Diagnostics used (not in code any more): temporary `RSSetViewports` probe logged
 
 ## Next Steps
 
+00. **(2026-09-25) v1.6.0 is ready in the working tree, not committed.** When the user confirms: commit (trailers `Co-authored-by: Daniel Coyle <97255170+XiaoDanny@users.noreply.github.com>` + Claude), push `main`, tag `v1.6.0-experimental`, attach `build/Release/WTSAPI32.dll`, release notes = README "What's New in v1.6.0" (with the Batocera-only testing caveat), and tell XiaoDanny (megabitt01 #20 thread) his Reach work shipped with credit. Ask testers to try: CE level end (freeze fix), real ultrawide/multi-monitor, 3P menus, ODST/Reach HUD sides for health/grenades/equipment (only the weapon element was checked in ODST).
+00b. **Ideas not done:** "teleport to player 1" spawn-menu action for P3/P4 stuck outside the map (needs object_set_position per game); MegaBit-style per-game menu page lists; Halo 4 HUD/spawn; recolour for CE/H2 (they don't pass colours through the host).
 0. **(2026-09-24) v1.5.0-experimental shipped** (4-player fixes + spawn menus). Announced (user-approved) in megabitt01/AlphaRing issue #25 (mentions WinterSquire + Priception); unload-hook fix sent upstream as PR #24 against `master-chief` (compiles there; not runtime-tested on his tree - no local vcpkg/SDL2). Next: watch #24/#25 for replies; hear back from real-pad play; check the 3-player menu layout in game; investigate the H2 co-op-mod quit hang if it bothers them
 0b. **Spawn follow-ups (ideas):** spawned allies following the player (squad order/"follow" in H2 orders, H3 objectives), a "delete last spawn" action, Reach/H4 backends, prefer already-used squads for the hijack if a way to tell them apart is found (ODST/H2 runtime squad records are all-zero both for never-placed and wiped-out squads)
 1. **Tag and release v1.4.5-experimental** (2026-07-17 fixes) and get the crashing user to retest — the ServiceTag `%ls` overread is the best root-cause candidate yet

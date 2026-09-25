@@ -21,3 +21,8 @@
 #define OFFSET_HALO1_PF_OBJECT_GET_ORIENTATION 0xB37F98 // (int object, vector3* forward, vector3* up)
 #define OFFSET_HALO1_PF_ACTOR_CUSTOMIZE_UNIT 0xC01DD0 // (int actor_variant, int unit) - weapon, grenades, colors
 #define OFFSET_HALO1_PF_AI_ATTACH_FREE 0xBFF120 // (int unit, int actor_variant) - creates an encounterless actor
+
+// per-player HUD (mcc/hud)
+#define OFFSET_HALO1_PF_HUD_CALCULATE_POINT 0xB56A58 // (player, placement, header, -, bool, float, short2* out, int mcc element)
+#define OFFSET_HALO1_PV_HUD_VIEWPORT_BOUNDS 0x29AF2F0 // int16 top, left, bottom, right of the view being drawn
+#define OFFSET_HALO1_PV_HUD_DRAWING_PLAYER 0x29AF2B8 // int16 local player whose HUD is being drawn

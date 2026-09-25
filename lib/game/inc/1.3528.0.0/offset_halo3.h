@@ -214,3 +214,7 @@ struct halo3_teb_data_definition {
 #define OFFSET_HALO3_PF_OBJECT_POST_CREATE 0x1EA04 // (int object) - called by the engine after object_new
 #define OFFSET_HALO3_PF_AI_PLACE 0x577AA4 // (int ai_index, bool) - ai_scripting_place_internal
 #define OFFSET_HALO3_PF_TAG_LOADED 0x12C9EC // bool (int tag): in the loaded zone set (object_new refuses others)
+
+// per-player HUD (mcc/hud)
+#define OFFSET_HALO3_PV_HUD_DRAWING_PLAYER 0xAD317C // int user whose HUD is being drawn
+#define OFFSET_HALO3_PV_HUD_CANVAS 0xAD3148 // float width, height of that user's HUD virtual canvas

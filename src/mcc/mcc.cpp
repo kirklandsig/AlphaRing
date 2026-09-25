@@ -9,6 +9,7 @@
 #include "mcc/network/Network.h"
 #include "mcc/splitscreen/Splitscreen.h"
 #include "mcc/settings/Settings.h"
+#include "mcc/hud/Hud.h"
 
 namespace MCC {
     static bool* bIsInGame;
@@ -74,6 +75,7 @@ namespace MCC {
             // MCC::Settings::Profile::Initialize(game_manager);
         }
         MCC::Settings::Splitscreen::ApplyToRuntime();
+        MCC::Hud::Load();
 
 		////Ask user if they want to enable network
   //      if (MessageBox(nullptr, "Would you like to enable network?", "Network", MB_YESNO) == IDYES)

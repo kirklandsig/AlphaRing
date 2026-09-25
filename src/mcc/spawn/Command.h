@@ -30,6 +30,14 @@ namespace MCC::Command {
     // by then. False without a scheduler.
     bool Schedule(int game, const std::function<void()>& task);
 
+    // Game data a handler changes for the length of a call into the game. A fault in the game is
+    // a structured exception, which skips C++ destructors on its way to the dispatcher, so a
+    // handler records such a change first (`size` bytes at `at`, saved as they are now) and
+    // forgets it once it's put back or handed to a later task; after a fault the dispatcher puts
+    // back whatever is still recorded. Game thread only.
+    void RecordChange(void* at, size_t size);
+    void ForgetChange(void* at);
+
     // Called by the console hooks; true when `text` was an AlphaRing command.
     bool Dispatch(int game, const char* text);
 

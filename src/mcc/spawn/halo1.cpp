@@ -78,7 +78,7 @@ namespace MCC::Spawn::Halo1 {
         });
     }
 
-    static std::string Spawn(Category category, int tag, int player, Team team) {
+    static std::string Spawn(Category category, int tag, int player, Team team, int weapon) {
         std::string name = DisplayName(TagName(tag));
 
         if (category != Characters)
@@ -87,7 +87,17 @@ namespace MCC::Spawn::Halo1 {
         int unit = SpawnObject(ActorVariantUnit(tag), player, category, EngineTeam(team, -1));
         if (unit == -1) return SpawnResult(false, name);
 
-        Call<void>(OFFSET_HALO1_PF_ACTOR_CUSTOMIZE_UNIT, tag, unit);
+        // actor_customize_unit arms the unit with the actor variant's weapon (+0x64, tag index
+        // 12 bytes in); a chosen weapon stands in for it during the call.
+        {
+            ScopedPoke<int> variant_weapon;
+            if (weapon != kUsualWeapon) {
+                variant_weapon.Set((int*)(TagData(tag) + 0x70), weapon);
+                name = WithWeapon(name, TagName(weapon));
+            }
+            Call<void>(OFFSET_HALO1_PF_ACTOR_CUSTOMIZE_UNIT, tag, unit);
+        }
+
         Call<void>(OFFSET_HALO1_PF_AI_ATTACH_FREE, unit, tag);
         return SpawnResult(true, name);
     }

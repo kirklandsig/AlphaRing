@@ -30,3 +30,10 @@
 #define OFFSET_HALO2_PF_OBJECT_NEW 0x8D79D0 // int (data*)
 #define OFFSET_HALO2_PF_AI_PLACE 0x618890 // (int ai_index); starting location = (3 << 30) | (squad << 16) | location
 #define OFFSET_HALO2_PF_AI_LIVING_COUNT 0x619B10 // int (int ai_index); a squad's ai index is its index
+
+// per-player HUD (mcc/hud)
+#define OFFSET_HALO2_PF_HUD_ASPECT_LOCK 0x954DF2 // je (74 3C) that skips the centred 16:9 HUD frame when the profile's aspect lock is off
+#define OFFSET_HALO2_PV_HUD_ASPECT_LOCK 0x197EE40 // bool: the profiles' LockMaxAspectRatio ("HUD anchor: Centered"), the last loaded wins
+#define OFFSET_HALO2_PV_HUD_DRAWING_PLAYER 0x165C398 // int local player whose HUD is being drawn
+#define OFFSET_HALO2_PV_HUD_VIEW_BOUNDS 0x165C298 // int16 top, left, bottom, right of that player's HUD (window bounds)
+#define OFFSET_HALO2_PV_HUD_UNIT_SCALE 0xE14F28 // float: pixels per HUD offset unit (times the element's scale)

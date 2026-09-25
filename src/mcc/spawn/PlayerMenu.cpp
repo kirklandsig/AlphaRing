@@ -1,36 +1,99 @@
-// Per-player spawn menus: a player presses the spawn button (D-pad Down by default) and
-// drives a small menu in their own split-screen view with their controller while their
-// Spartan stands still. Input arrives on the game's input thread (HandlePlayerInput), the
-// menus act and draw on the render thread (RenderPlayerMenus).
+// Per-player menus: a player presses the menu button (D-pad Down by default) and drives a
+// small menu in their own split-screen view with their controller while their Spartan stands
+// still - a page per spawn category, and a page for their own HUD (mcc/hud). Input arrives on
+// the game's input thread (HandlePlayerInput), the menus act and draw on the render thread
+// (RenderPlayerMenus).
 
 #define NOMINMAX // std::min/std::max
 #include "Spawn.h"
 
 #include "global/Global.h"
 #include "input/MenuConfig.h"
+#include "mcc/CGameGlobal.h"
+#include "mcc/hud/Hud.h"
+#include "mcc/module/patch/SplitscreenConfigStore.h"
 #include "render/imgui/ImGui.h"
 
 #include "imgui.h"
 
 #include <algorithm>
+#include <cmath>
 #include <mutex>
+#include <string>
 
 namespace MCC::Spawn {
     namespace {
-        constexpr const char* kCategoryTitles[kCategoryCount] = {"VEHICLES", "WEAPONS", "EQUIPMENT", "CHARACTERS"};
+        // the spawn categories, then the player's HUD
+        constexpr int kHudPage = kCategoryCount, kPages = kCategoryCount + 1;
+        constexpr const char* kPageTitles[kPages] = {"VEHICLES", "WEAPONS", "EQUIPMENT", "CHARACTERS", "MY HUD"};
         constexpr const char* kTeamNames[kTeamCount] = {"Their own side", "Ally", "Enemy"};
+
+        enum HudRow { HudArea, HudSize, HudColor, HudReset, kHudRows };
+        constexpr const char* kHudRowNames[kHudRows] = {"AREA", "SIZE", "COLOUR", "RESET"};
+        constexpr int kHues = 12; // colour choices: off, then every 30 degrees
+
+        // `value` moved `step` places around 0..count-1.
+        int Cycle(int value, int step, int count) { return ((value + step) % count + count) % count; }
+
+        // D-pad left/right (`turn`) on `row` of `player`'s HUD page; true when it changed a setting.
+        bool TurnHud(int player, int row, int turn) {
+            auto& hud = MCC::Hud::Player(player);
+            switch (row) {
+                case HudArea:
+                    hud.area = Cycle(hud.area, turn, MCC::Hud::kAreaCount);
+                    return true;
+                case HudSize:
+                    hud.scale = std::clamp(std::round(hud.scale * 10.0f + turn) / 10.0f, 0.5f, 2.0f);
+                    return true;
+                case HudColor: { // off, then a hue
+                    int hue = hud.recolor ? (int)std::lround(hud.hue / 30.0f) % kHues : -1;
+                    hue = Cycle(hue + 1, turn, kHues + 1) - 1;
+                    hud.recolor = hue >= 0;
+                    if (hue >= 0) hud.hue = hue * 30.0f;
+                    return true;
+                }
+                default:
+                    return false;
+            }
+        }
+
+        // The triggers, as two of the button bits XInput leaves unused.
+        constexpr WORD kLeftTrigger = 0x0400, kRightTrigger = 0x0800;
+        WORD Buttons(const XINPUT_GAMEPAD& pad) {
+            return pad.wButtons | (pad.bLeftTrigger > 128 ? kLeftTrigger : 0) | (pad.bRightTrigger > 128 ? kRightTrigger : 0);
+        }
+
+        // Up/down on the D-pad or the left stick: -1 up, 1 down.
+        int Vertical(const XINPUT_GAMEPAD& pad) {
+            return (pad.wButtons & XINPUT_GAMEPAD_DPAD_UP) || pad.sThumbLY > 20000 ? -1
+                 : (pad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN) || pad.sThumbLY < -20000 ? 1 : 0;
+        }
+
+        // A direction held on the pad: one step at once, then repeated steps while held.
+        struct Repeat {
+            int dir = 0;
+            ULONGLONG at = 0;
+
+            int Step(int held, ULONGLONG now) {
+                int step = 0;
+                if (held != dir) { step = held; at = now + 350; }
+                else if (held && now >= at) { step = held; at = now + 70; }
+                dir = held;
+                return step;
+            }
+        };
 
         struct Menu {
             bool open = false;
             bool refresh = false;       // ask for a fresh catalog on the next frame
-            int category = Vehicles;
-            int selected[kCategoryCount] = {};
+            int category = Vehicles;    // a spawn category or kHudPage
+            int selected[kPages] = {};
             int team = TeamEnemy;
+            int weapon = -1;            // characters' weapon: index in the Weapons list, -1 their usual one
             XINPUT_GAMEPAD pad = {};    // latest pad (input thread)
             WORD seen = 0;              // buttons at the previous poll (input thread)
-            WORD handled = 0;           // buttons already acted on (render thread)
-            int repeat_dir = 0;         // held up/down direction and its next repeat time
-            ULONGLONG repeat_at = 0;
+            WORD handled = 0;           // Buttons() already acted on (render thread)
+            Repeat rows, weapon_turns;  // up/down through the list, LT/RT through the weapons
             int first_row = 0;          // scroll position
             bool held = false;          // closed, but the pad is kept until its buttons are released
         };
@@ -38,11 +101,27 @@ namespace MCC::Spawn {
         std::mutex s_mutex;
         Menu s_menus[kMaxPlayers];
 
-        // Screen area of `player`'s view: stacked halves for two players, quarters for three or four.
-        ImVec4 ViewRect(int player, int count, ImVec2 display) {
-            if (count <= 1) return {0, 0, display.x, display.y};
-            if (count == 2) return {0, display.y * 0.5f * player, display.x, display.y * 0.5f};
+        // Whether Reach's Left/Right split (mcc/module/patch/SplitscreenConfigStore) is on screen.
+        bool ReachLeftRight(int count) {
+            auto p_global = GameGlobal();
+            return p_global && p_global->current_game == CGameGlobal::HaloReach &&
+                   AlphaRing::SplitscreenConfigStore::ResolveActiveLayout(count) ==
+                       AlphaRing::SplitscreenConfigStore::ActiveLayout::LeftRight;
+        }
+
+        // Screen area of `player`'s view (x, y, width, height), as the games' split-screen tables
+        // lay them out: stacked halves for two players; for three, player 1 on the top half and
+        // players 2 and 3 on the bottom quarters; quarters for four. Reach's Left/Right split
+        // puts player 1 on the left half and the others on the right half (stacked for three).
+        ImVec4 ViewRect(int player, int count, ImVec2 display, bool left_right) {
             float w = display.x * 0.5f, h = display.y * 0.5f;
+            if (count <= 1) return {0, 0, display.x, display.y};
+            if (left_right && count <= 3) {
+                if (player == 0 || count == 2) return {w * player, 0, w, display.y};
+                return {w, h * (player - 1), w, h};
+            }
+            if (count == 2 || (count == 3 && player == 0)) return {0, h * player, display.x, h};
+            if (count == 3) return {w * (player - 1), h, w, h};
             return {w * (player % 2), h * (player / 2), w, h};
         }
 
@@ -89,7 +168,7 @@ namespace MCC::Spawn {
             return std::string(text.c_str(), end) + "...";
         }
 
-        struct Snapshot { int category, selected, team, first_row; };
+        struct Snapshot { int category, selected, team, weapon, first_row; };
 
         void Draw(int player, const Snapshot& m, int game, ImVec4 view) {
             ImFont* font = AlphaRing::Render::ImGui::MenuFont();
@@ -107,8 +186,9 @@ namespace MCC::Spawn {
             dl->AddRectFilled(p0, {p1.x, p0.y + 5.0f * scale}, accent, 10.0f * scale, ImDrawFlags_RoundCornersTop);
 
             float x = p0.x + pad, y = p0.y + pad;
+            bool hud_page = m.category == kHudPage;
             char title[48];
-            snprintf(title, sizeof(title), "PLAYER %d  SPAWN", player + 1);
+            snprintf(title, sizeof(title), "PLAYER %d  %s", player + 1, hud_page ? "MENU" : "SPAWN");
             Text(dl, font, minor, {x, y}, accent, title);
             y += minor + pad * 0.6f;
 
@@ -116,12 +196,12 @@ namespace MCC::Spawn {
             float lb = ButtonHint(dl, font, minor, {x, y + (text - minor) * 0.3f}, "LB", nullptr);
             float rb = ButtonWidth(font, minor, "RB");
             ButtonHint(dl, font, minor, {p1.x - pad - rb, y + (text - minor) * 0.3f}, "RB", nullptr);
-            const char* name = kCategoryTitles[m.category];
+            const char* name = kPageTitles[m.category];
             float name_w = font->CalcTextSizeA(text, FLT_MAX, 0, name).x;
             Text(dl, font, text, {x + lb + (w - 2 * pad - lb - rb - name_w) * 0.5f, y}, IM_COL32_WHITE, name);
             y += text + pad * 0.3f;
-            float dots_x = p0.x + w * 0.5f - (kCategoryCount - 1) * 6.0f * scale;
-            for (int c = 0; c < kCategoryCount; ++c)
+            float dots_x = p0.x + w * 0.5f - (kPages - 1) * 6.0f * scale;
+            for (int c = 0; c < kPages; ++c)
                 dl->AddCircleFilled({dots_x + c * 12.0f * scale, y}, 3.0f * scale,
                                     c == m.category ? accent : IM_COL32(90, 98, 110, 255));
             y += pad;
@@ -132,20 +212,52 @@ namespace MCC::Spawn {
                 sx += Text(dl, font, minor, {sx, y}, kTeamColors[m.team], kTeamNames[m.team]);
                 Text(dl, font, minor, {sx, y}, IM_COL32(150, 160, 172, 255), " >");
                 y += minor + pad * 0.6f;
+
+                float wx = x + Text(dl, font, minor, {x, y}, IM_COL32(150, 160, 172, 255), "WEAPON  ");
+                wx += ButtonHint(dl, font, minor * 0.85f, {wx, y}, "LT", nullptr) + pad * 0.4f;
+                float rt = ButtonWidth(font, minor * 0.85f, "RT");
+                auto weapon = Fit(font, minor, Catalog::WeaponName(game, m.weapon), p1.x - pad - rt - pad * 0.4f - wx);
+                wx += Text(dl, font, minor, {wx, y}, m.weapon < 0 ? IM_COL32(190, 200, 210, 255) : IM_COL32_WHITE, weapon.c_str());
+                ButtonHint(dl, font, minor * 0.85f, {wx + pad * 0.4f, y}, "RT", nullptr);
+                y += minor + pad * 0.6f;
             }
 
             // footer: status line and button hints
             float hints_y = p1.y - pad - minor * 1.1f;
             float status_y = hints_y - minor - pad * 0.5f;
             float hx = x;
-            hx += ButtonHint(dl, font, minor, {hx, hints_y}, "A", "Spawn") + pad;
+            hx += ButtonHint(dl, font, minor, {hx, hints_y}, "A", hud_page ? "Reset" : "Spawn") + pad;
             hx += ButtonHint(dl, font, minor, {hx, hints_y}, "B", "Close") + pad;
-            ButtonHint(dl, font, minor, {hx, hints_y}, "Y", "Refresh");
-            auto status = Catalog::Status(player);
+            if (!hud_page) ButtonHint(dl, font, minor, {hx, hints_y}, "Y", "Refresh");
+            auto status = hud_page ? std::string("D-pad left / right changes a setting; saved automatically")
+                                   : Catalog::Status(player);
             Text(dl, font, minor, {x, status_y}, IM_COL32(170, 180, 190, 255), Fit(font, minor, status, w - 2 * pad).c_str());
 
-            // the list
             float row = text * 1.45f, top = y, bottom = status_y - pad * 0.5f;
+            if (hud_page) {
+                auto& hud = MCC::Hud::Player(player);
+                for (int r = 0; r < kHudRows; ++r) {
+                    float ry = top + r * row, ty = ry + (row - text) * 0.4f;
+                    bool chosen = r == m.selected;
+                    if (chosen)
+                        dl->AddRectFilled({p0.x + pad * 0.5f, ry}, {p1.x - pad * 0.5f, ry + row - 2.0f * scale},
+                                          WithAlpha(accent, 70), 6.0f * scale);
+                    Text(dl, font, minor, {x, ty + (text - minor) * 0.5f}, IM_COL32(150, 160, 172, 255), kHudRowNames[r]);
+                    char value[48] = "";
+                    ImU32 color = chosen ? IM_COL32_WHITE : IM_COL32(185, 194, 204, 255);
+                    if (r == HudArea) snprintf(value, sizeof(value), "<  %s  >", MCC::Hud::kAreaNames[hud.area]);
+                    else if (r == HudSize) snprintf(value, sizeof(value), "<  %d%%  >", (int)std::lround(hud.scale * 100.0f));
+                    else if (r == HudColor && !hud.recolor) snprintf(value, sizeof(value), "<  Game colours  >");
+                    else if (r == HudColor) {
+                        snprintf(value, sizeof(value), "<  Hue %d  >", (int)std::lround(hud.hue));
+                        color = MCC::Hud::HueColor(hud.hue);
+                    } else if (chosen) snprintf(value, sizeof(value), "Press A");
+                    Text(dl, font, text, {x + w * 0.3f, ty}, color, value);
+                }
+                return;
+            }
+
+            // the list
             int visible = std::max(1, (int)((bottom - top) / row));
             dl->PushClipRect({p0.x, top}, {p1.x, bottom}, true);
             Catalog::Read(game, (Category)m.category, [&](const std::vector<Item>* items) {
@@ -198,13 +310,15 @@ namespace MCC::Spawn {
 
             WORD button = g_menuConfig.spawnMenuMask;
             if (button == 0 || (pad.wButtons & button) != button || !(pressed & button)) return false;
-            if (AlphaRing::Global::Global()->show_imgui || Catalog::CurrentGame() < 0) return false;
+            // games without spawning (Reach) still get the HUD page
+            bool spawning = Catalog::CurrentGame() >= 0;
+            if (AlphaRing::Global::Global()->show_imgui || (!spawning && !MCC::Hud::Supported())) return false;
             m.open = true;
+            if (!spawning) m.category = kHudPage;
             m.refresh = true;
             // the press that opened the menu isn't a menu action, nor the start of a scroll
-            m.handled = pad.wButtons;
-            m.repeat_dir = pad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN ? 1 : pad.wButtons & XINPUT_GAMEPAD_DPAD_UP ? -1 : 0;
-            m.repeat_at = ~0ull;
+            m.handled = Buttons(pad);
+            m.rows = {Vertical(pad), ~0ull};
         }
         m.pad = pad;
         return true;
@@ -219,50 +333,62 @@ namespace MCC::Spawn {
         int game = Catalog::CurrentGame();
         int count = LocalPlayerCount();
         ImVec2 display = ImGui::GetIO().DisplaySize;
+        bool left_right = ReachLeftRight(count);
 
         for (int player = 0; player < kMaxPlayers; ++player) {
             Snapshot snapshot;
-            bool refresh = false, spawn = false;
+            bool refresh = false, spawn = false, hud_changed = false;
             {
                 std::lock_guard<std::mutex> lock(s_mutex);
                 auto& m = s_menus[player];
                 if (!m.open) continue;
-                if (game < 0 || player >= count) { m.open = false; m.held = true; continue; }
+                if ((game < 0 && !MCC::Hud::Supported()) || player >= count) { m.open = false; m.held = true; continue; }
 
-                WORD pressed = m.pad.wButtons & ~m.handled;
-                m.handled = m.pad.wButtons;
+                WORD buttons = Buttons(m.pad);
+                WORD pressed = buttons & ~m.handled;
+                m.handled = buttons;
 
                 if (pressed & XINPUT_GAMEPAD_B) { m.open = false; m.held = true; continue; }
-                if (pressed & XINPUT_GAMEPAD_LEFT_SHOULDER) m.category = (m.category + kCategoryCount - 1) % kCategoryCount;
-                if (pressed & XINPUT_GAMEPAD_RIGHT_SHOULDER) m.category = (m.category + 1) % kCategoryCount;
-                if (m.category == Characters) {
-                    if (pressed & XINPUT_GAMEPAD_DPAD_LEFT) m.team = (m.team + kTeamCount - 1) % kTeamCount;
-                    if (pressed & XINPUT_GAMEPAD_DPAD_RIGHT) m.team = (m.team + 1) % kTeamCount;
-                }
+                if (pressed & XINPUT_GAMEPAD_LEFT_SHOULDER) m.category = Cycle(m.category, -1, kPages);
+                if (pressed & XINPUT_GAMEPAD_RIGHT_SHOULDER) m.category = Cycle(m.category, 1, kPages);
+                if (game < 0) m.category = kHudPage; // nothing to spawn in this game
+                int turn = pressed & XINPUT_GAMEPAD_DPAD_LEFT ? -1 : pressed & XINPUT_GAMEPAD_DPAD_RIGHT ? 1 : 0;
+                bool a = pressed & XINPUT_GAMEPAD_A;
                 refresh = m.refresh || (pressed & XINPUT_GAMEPAD_Y);
                 m.refresh = false;
-                spawn = pressed & XINPUT_GAMEPAD_A;
+                if (m.category == kHudPage) {
+                    int row = m.selected[kHudPage];
+                    if (a && row == HudReset) MCC::Hud::Player(player) = MCC::Hud::PlayerHud();
+                    hud_changed = (a && row == HudReset) || (turn && TurnHud(player, row, turn));
+                } else {
+                    spawn = a;
+                }
 
                 // up/down (D-pad or left stick) move once, then repeat while held
-                int dir = (m.pad.wButtons & XINPUT_GAMEPAD_DPAD_UP) || m.pad.sThumbLY > 20000 ? -1
-                        : (m.pad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN) || m.pad.sThumbLY < -20000 ? 1 : 0;
                 auto now = GetTickCount64();
-                int step = 0;
-                if (dir != m.repeat_dir) { step = dir; m.repeat_at = now + 350; }
-                else if (dir && now >= m.repeat_at) { step = dir; m.repeat_at = now + 70; }
-                m.repeat_dir = dir;
+                int step = m.rows.Step(Vertical(m.pad), now);
+                if (int size = !step ? 0 : m.category == kHudPage ? kHudRows : Catalog::Size(game, (Category)m.category))
+                    m.selected[m.category] = Cycle(m.selected[m.category], step, size);
 
-                if (int size = step ? Catalog::Size(game, (Category)m.category) : 0)
-                    m.selected[m.category] = (m.selected[m.category] + step + size) % size;
-                snapshot = {m.category, m.selected[m.category], m.team, m.first_row};
+                // characters: left/right the side, LT/RT the weapon - "their usual weapon" (-1), then
+                // the Weapons list
+                if (m.category == Characters) {
+                    m.team = Cycle(m.team, turn, kTeamCount);
+                    int weapons = Catalog::Size(game, Weapons);
+                    if (m.weapon >= weapons) m.weapon = -1;
+                    int held = buttons & kLeftTrigger ? -1 : buttons & kRightTrigger ? 1 : 0;
+                    if (int w = m.weapon_turns.Step(held, now)) m.weapon = Cycle(m.weapon + 1, w, weapons + 1) - 1;
+                }
+                snapshot = {m.category, m.selected[m.category], m.team, m.weapon, m.first_row};
             }
 
+            if (hud_changed) MCC::Hud::Save(); // outside the lock: it writes a file
             Catalog::Refresh(game, refresh); // also picks up a newly loaded map
             Item item;
             if (spawn && Catalog::Get(game, (Category)snapshot.category, snapshot.selected, item))
-                Catalog::Spawn((Category)snapshot.category, item, player, (Team)snapshot.team);
+                Catalog::Spawn((Category)snapshot.category, item, player, (Team)snapshot.team, snapshot.weapon);
 
-            Draw(player, snapshot, game, ViewRect(player, count, display));
+            Draw(player, snapshot, game, ViewRect(player, count, display, left_right));
         }
     }
 }

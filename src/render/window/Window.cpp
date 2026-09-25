@@ -21,7 +21,9 @@ namespace AlphaRing::Render::Window {
         if (uMsg == WM_DEVICECHANGE)
             AlphaRing::Input::RequestPadRescan();
 
-        if (ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam))
+        // ImGui reads mouse and keyboard only while the overlay is open; fed while it's hidden,
+        // its event queue would grow all session and flood in when the overlay next opens.
+        if (AlphaRing::Global::Global()->show_imgui && ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam))
             return true;
 
 

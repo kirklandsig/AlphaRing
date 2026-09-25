@@ -38,13 +38,30 @@ static constexpr ULONGLONG kDeferredJoinDelayMs = 3000;
 static std::atomic<ULONGLONG> s_running_since; // 0 until the current session first runs
 
 static std::atomic<unsigned> s_load_generation;
+static std::atomic<bool> s_loading; // from a map's Loading state until it runs or the session ends
 
 unsigned CGameManager::load_generation() { return s_load_generation; }
 
+// Halo CE can wedge between missions (the "level-end freeze"; WinterSquire #19/#46/#135),
+// and opening the overlay unsticks it: that makes every pad slot answer "connected, nothing
+// pressed". The game polls every slot while it sets up the next map, so while a CE map loads
+// the slots answer the same way.
+static bool LoadingHalo1() {
+    auto p_global = GameGlobal();
+    return s_loading && p_global && p_global->current_game == CGameGlobal::Halo1;
+}
+
 void CGameManager::track_state(eState state) {
-    if (state == Loading) ++s_load_generation;
-    if (state == Running && !s_running_since) // also re-sent after level transitions
-        s_running_since = GetTickCount64();
+    if (state == Loading) {
+        ++s_load_generation;
+        s_loading = true;
+    } else if (state == Running) {
+        s_loading = false;
+        if (!s_running_since) // also re-sent after level transitions
+            s_running_since = GetTickCount64();
+    } else if (state == Exit || state == Exiting) {
+        s_loading = false;
+    }
 }
 
 // MCC ends every session with a restart after the exit states. The clock is cleared there,
@@ -52,6 +69,7 @@ void CGameManager::track_state(eState state) {
 // it, and the next session queries its players before its own loading state.
 void CGameManager::end_session() {
     s_running_since = 0;
+    s_loading = false;
 }
 
 static int deferred_player_count(int count) {
@@ -123,6 +141,9 @@ bool CGameManager::get_key_state(CGameManager *self, DWORD index, input_data_t *
             return true;
     }
 
+    if (LoadingHalo1())
+        return true;
+
     if (!p_profile->b_override) {
         // MCC reads the pads itself; its player 0 is the first controller.
         XINPUT_STATE state;
@@ -175,10 +196,14 @@ CUserProfile* CGameManager::get_player_profile(CGameManager *self, __int64 xid) 
     if (!p_setting->b_override_profile && ((!index) || (index && p_setting->b_use_player0_profile)))
         return ppOriginal.get_player_profile(self, get_xuid(0));
 
-    if (p_setting->b_use_player0_profile)
-        return &get_profile(0)->profile;
-
-    return &get_profile(get_index(xid))->profile;
+    // AlphaRing's own profiles start zeroed - no volume, FOV, HUD scale or look sensitivity -
+    // until the user edits or loads one; until then they take player 1's real profile. A real
+    // profile never has an FOV of 0.
+    auto& profile = get_profile(p_setting->b_use_player0_profile ? 0 : index)->profile;
+    if (profile.FOVSetting == 0)
+        if (auto player1 = ppOriginal.get_player_profile(self, get_xuid(0)))
+            profile = *player1;
+    return &profile;
 }
 
 CGamepadMapping* CGameManager::retrive_gamepad_mapping(CGameManager *self, __int64 xid) {

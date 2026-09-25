@@ -27,7 +27,10 @@ public:
     void remove();
 
 private:
-    inline static const int MAX_ENTRY = 20;
+    // Halo Reach reached the old limit of 20 with the FOV baseline seam (5
+    // hooks); the append assert compiles out in Release, so overflow would be
+    // silent. Keep headroom. (XiaoDanny, megabitt01/AlphaRing#20)
+    inline static const int MAX_ENTRY = 32;
     int entryCount;
     Entry* entryArray[MAX_ENTRY];
 

@@ -10,7 +10,10 @@
 
 #include <cstdarg>
 #include <cstdio>
+#include <cstring>
+#include <iterator>
 #include <unordered_map>
+#include <vector>
 
 namespace MCC::Command {
     static constexpr const char* kPrefix = "@ar ";
@@ -83,6 +86,31 @@ namespace MCC::Command {
         return args;
     }
 
+    struct Change {
+        char* at;
+        std::vector<char> saved;
+    };
+    static thread_local std::vector<Change> t_changes;
+
+    void RecordChange(void* at, size_t size) {
+        t_changes.push_back({(char*)at, std::vector<char>((char*)at, (char*)at + size)});
+    }
+
+    void ForgetChange(void* at) {
+        for (auto it = t_changes.rbegin(); it != t_changes.rend(); ++it)
+            if (it->at == at) {
+                t_changes.erase(std::next(it).base());
+                return;
+            }
+    }
+
+    // After a fault: the recorded changes, newest first.
+    static void RestoreChanges() {
+        for (auto it = t_changes.rbegin(); it != t_changes.rend(); ++it)
+            memcpy(it->at, it->saved.data(), it->saved.size());
+        t_changes.clear();
+    }
+
     static int RecordFault(EXCEPTION_POINTERS* info, DWORD* code, void** address) {
         *code = info->ExceptionRecord->ExceptionCode;
         *address = info->ExceptionRecord->ExceptionAddress;
@@ -93,8 +121,10 @@ namespace MCC::Command {
     static bool CallHandler(Handler handler, int game, const Args& args, DWORD* code, void** address) {
         __try {
             handler(game, args);
+            t_changes.clear(); // anything a handler recorded is back by now
             return true;
         } __except (RecordFault(GetExceptionInformation(), code, address)) {
+            RestoreChanges();
             return false;
         }
     }
