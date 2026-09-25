@@ -19,7 +19,7 @@
 | `v1.4.4-experimental` | Testing | Fixed wcstombs crash in Profile::Save() (still not fully resolved) |
 | `v1.4.5-experimental` | Testing | Likely crash root-cause fix (ServiceTag %ls overread), settings data-loss fix, robustness pass, configurable hotkeys |
 | `v1.5.0-experimental` | Testing | Spawn menus (CE/H2/H3/ODST, per-player controller menus), 4-player fixes (H4 black screen, CE/H2 classic, second-load hang), overlay redesign |
-| `v1.6.0-experimental` | **Not released yet** (ready in the working tree, awaiting the user's go) | Per-player HUD (area presets, per-element, colour, controller page), H2 ultrawide HUD fix, XiaoDanny's Reach vertical split port, armed AI + weapon choice, profile/binding/patch/Proton fixes |
+| `v1.6.0-experimental` | Testing | Per-player HUD (area presets, per-element, colour, controller page), H2 ultrawide HUD fix, XiaoDanny's Reach vertical split port, armed AI + weapon choice, profile/binding/patch/Proton fixes |
 
 ### Branches
 
@@ -328,7 +328,7 @@ git checkout stable-v1.3.5
 
 ## Session History
 
-### 2026-09-25 - v1.6.0 all-inclusive update (ready in the working tree - not committed or pushed; the user reviews first)
+### 2026-09-25 - v1.6.0 all-inclusive update - RELEASED as v1.6.0-experimental (commit 49afa5f)
 
 User asked for: integrate XiaoDanny's Reach vertical split (megabitt01 PRs #17/#20) with full credit; full per-player HUD customization (positions, colours, presets by monitor type - a tester's dual-monitor photo showed H2's HUD bunched in the middle); fix what the other forks/issues reveal; armed AI with a per-spawn weapon choice (H3 AI spawned unarmed and meleed); then a Codex adversarial review; report back before pushing.
 
@@ -482,7 +482,7 @@ Diagnostics used (not in code any more): temporary `RSSetViewports` probe logged
 
 ## Next Steps
 
-00. **(2026-09-25) v1.6.0 is ready in the working tree, not committed.** When the user confirms: commit (trailers `Co-authored-by: Daniel Coyle <97255170+XiaoDanny@users.noreply.github.com>` + Claude), push `main`, tag `v1.6.0-experimental`, attach `build/Release/WTSAPI32.dll`, release notes = README "What's New in v1.6.0" (with the Batocera-only testing caveat), and tell XiaoDanny (megabitt01 #20 thread) his Reach work shipped with credit. Ask testers to try: CE level end (freeze fix), real ultrawide/multi-monitor, 3P menus, ODST/Reach HUD sides for health/grenades/equipment (only the weapon element was checked in ODST).
+00. **(2026-09-25) v1.6.0-experimental released** (user-approved): https://github.com/kirklandsig/AlphaRing/releases/tag/v1.6.0-experimental (prerelease, DLL + screenshots). XiaoDanny thanked on megabitt01/AlphaRing#20 (merged) with a heads-up on the CPatch default-on/saved-off bug and the unsynchronized `g_writes` in his tree. Next: watch for tester reports - CE level end (freeze fix), real ultrawide/multi-monitor, 3P menus, ODST/Reach HUD sides for health/grenades/equipment.
 00b. **Ideas not done:** "teleport to player 1" spawn-menu action for P3/P4 stuck outside the map (needs object_set_position per game); MegaBit-style per-game menu page lists; Halo 4 HUD/spawn; recolour for CE/H2 (they don't pass colours through the host).
 0. **(2026-09-24) v1.5.0-experimental shipped** (4-player fixes + spawn menus). Announced (user-approved) in megabitt01/AlphaRing issue #25 (mentions WinterSquire + Priception); unload-hook fix sent upstream as PR #24 against `master-chief` (compiles there; not runtime-tested on his tree - no local vcpkg/SDL2). Next: watch #24/#25 for replies; hear back from real-pad play; check the 3-player menu layout in game; investigate the H2 co-op-mod quit hang if it bothers them
 0b. **Spawn follow-ups (ideas):** spawned allies following the player (squad order/"follow" in H2 orders, H3 objectives), a "delete last spawn" action, Reach/H4 backends, prefer already-used squads for the hijack if a way to tell them apart is found (ODST/H2 runtime squad records are all-zero both for never-placed and wiped-out squads)
