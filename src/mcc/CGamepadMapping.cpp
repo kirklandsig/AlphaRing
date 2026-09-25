@@ -1,6 +1,8 @@
 #include "CGamepadMapping.h"
 #include "CGameEngine.h"
 
+#include <utility>
+
 static std::array<const char*, 17> button_names {
         "Left Trigger","Right Trigger",
         "Dpad Up","Dpad Down","Dpad Left","Dpad Right",
@@ -84,6 +86,24 @@ const std::array<const char *, 17>* CGamepadMapping::ButtonNames() {return &butt
 
 const std::array<const char *, 66>* CGamepadMapping::ActionNames() {return &action_names;}
 
+// Dual-wield and vehicle actions share a button with another action, as in MCC's own layout (MegaBit's
+// megabitt01/AlphaRing defaults): without them split-screen players can't fire or reload a left-hand
+// weapon (Halo 2/3) or boost vehicles. {shared action, the action whose button it uses}
+static constexpr std::pair<int, int> kSharedActions[] = {
+    {13, 3}, // Swap/Reload Left Weapon: Reload Right Weapon
+    {49, 7}, // Use Left Weapon: Throw Grenade
+    {28, 7}, // Thrust
+    {24, 7}, // Vehicle Function 1
+    {21, 9}, // Vehicle Function 2: Crouch
+    {22, 0}, // Vehicle Function 3: Jump
+};
+
+void CGamepadMapping::FillSharedActions() {
+    for (auto [shared, source] : kSharedActions)
+        if (actions[shared] != None) return;
+    for (auto [shared, source] : kSharedActions) actions[shared] = actions[source];
+}
+
 void CGamepadMapping::ResetToDefaults() {
     // Set all to None (unbound) first
     for (int i = 0; i < 66; i++) {
@@ -104,15 +124,7 @@ void CGamepadMapping::ResetToDefaults() {
     actions[10] = RightThumb;    // Player Zoom
     actions[20] = Back;          // Multiplayer Scoreboard
 
-    // Dual-wield and vehicle actions share those buttons, as in MCC's own layout (defaults from
-    // MegaBit's megabitt01/AlphaRing 1.3.5-1.3.6): without them split-screen players can't fire
-    // or reload a left-hand weapon (Halo 2/3) or boost vehicles.
-    actions[13] = RightShoulder; // Swap/Reload Left Weapon
-    actions[49] = LeftTrigger;   // Use Left Weapon
-    actions[28] = LeftTrigger;   // Thrust
-    actions[24] = LeftTrigger;   // Vehicle Function 1
-    actions[21] = LeftThumb;     // Vehicle Function 2
-    actions[22] = A;             // Vehicle Function 3
+    FillSharedActions(); // all unbound above
 }
 
 #include <imgui.h>
@@ -253,7 +265,12 @@ void CGamepadMapping::ImGuiContext() {
     if (binding_action >= 0) {
         int pressed = DetectPressedButton(binding_controller);
         if (pressed >= 0) {
+            auto previous = actions[binding_action];
             actions[binding_action] = static_cast<CGamepadMapping::eButton>(pressed);
+            // the actions still sharing its button move with it; ones bound on their own stay
+            for (auto [shared, source] : kSharedActions)
+                if (source == binding_action && previous != None && actions[shared] == previous)
+                    actions[shared] = actions[source];
             binding_action = -1;
             result = true;
         }

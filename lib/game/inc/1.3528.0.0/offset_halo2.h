@@ -37,3 +37,7 @@
 #define OFFSET_HALO2_PV_HUD_DRAWING_PLAYER 0x165C398 // int local player whose HUD is being drawn
 #define OFFSET_HALO2_PV_HUD_VIEW_BOUNDS 0x165C298 // int16 top, left, bottom, right of that player's HUD (window bounds)
 #define OFFSET_HALO2_PV_HUD_UNIT_SCALE 0xE14F28 // float: pixels per HUD offset unit (times the element's scale)
+
+// Left/Right split screen (mcc/splitscreen/LeftRight)
+#define OFFSET_HALO2_PF_SPLIT_GRID 0x7E09D0 // void (int views, int mode, short grid[2] columns, rows) - mode 1 stacks, others side by side
+#define OFFSET_HALO2_PF_SPLIT_CELL 0x7E0BD0 // void (int view, int views, int mode, short grid[2], short cell[2], short span[2])

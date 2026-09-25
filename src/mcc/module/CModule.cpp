@@ -15,6 +15,10 @@ void CModule::load_module(const module_info_t *p_info) {
 
     if (m_info.hModule == 0 || m_info.errorCode != 0) return;
 
+    // The split-screen layout choice has to be known before the game builds its render targets
+    // (mcc/splitscreen/LeftRight), in every game, not only Reach.
+    AlphaRing::SplitscreenConfigStore::Load();
+
     m_patches.update(m_info.hModule);
 
     // Saved-settings restore below is XiaoDanny's (Daniel Coyle),
@@ -50,8 +54,6 @@ void CModule::load_module(const module_info_t *p_info) {
     // drawn. HaloReach::Entry::Render re-asserts them per frame; this is the
     // "already correct before the first frame" half.
     if (m_info.title == MCC::Module::MODULE_HALOREACH) {
-        AlphaRing::SplitscreenConfigStore::Load();
-
         // User debug setting only. The Left/Right layout's own painter bypass is
         // derived per frame in blackbars.cpp, so it never overwrites this.
         float debug_bars_value;
@@ -134,7 +136,7 @@ static struct {
         {"Remove Black Bar1", "remove black bar", 0x8AE150/*0x8AD160*/, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", true},
         {"Remove Black Bar2", "remove black bar", 0x8AE164/*0x8AD174*/, "\x00\x00\x00\x00\x00\x00\x00\x3F\x00\x00\x80\x3F\x00\x00\x80\x3F\x01\x00\x00\x00", true},
         {"Remove Black Bar3", "remove black bar", 0x8AE1A0/*0x8AD1B0*/, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", true},
-}}, {nullptr, {
+}}, {Halo4SplitscreenEntrySet(), {
         {"splitscreen_patch1", "", OFFSET_HALO4_PF_COOP_JOIN, "\x31\xC0\xC3\x90", true},
         {"splitscreen_patch2", "", OFFSET_HALO4_PF_COOP_REJOIN, "\xEB", true},
         {"splitscreen_patch3", "", OFFSET_HALO4_PF_COOP_PLAYER_LIMIT, "\x90\x90\x90\x90\x90\x90", true},

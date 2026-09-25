@@ -10,6 +10,7 @@
 #include "mcc/CGameManager.h"
 #include "mcc/module/patch/PatchConfig.h"
 #include "mcc/module/patch/SplitscreenConfigStore.h"
+#include "mcc/splitscreen/LeftRight.h"
 #include "global/Global.h"
 #include "log/DebugFlags.h"
 
@@ -282,19 +283,13 @@ namespace MCC::Module {
                     if (ImGui::Combo("Two-player layout", &layout_index, layout_names, 2)) {
                         layout = (AlphaRing::SplitscreenConfigStore::TwoPlayerLayout)layout_index;
 
-                        auto h = GetSubModule((eModule)i)->info().hModule;
-                        AlphaRing::SplitscreenConfigStore::SetTwoPlayerLayout(layout, h);
-
-                        if (layout == AlphaRing::SplitscreenConfigStore::TwoPlayerLayout::TopBottom) {
-                            CPatch* bars[3] = { p_bar1, p_bar2, p_bar3 };
-                            for (auto p_bar : bars)
-                                if (p_bar != nullptr && p_bar->enabled())
-                                    p_bar->apply();
-                        }
+                        // also re-applies any enabled black-bar patch over the stock entries
+                        MCC::Splitscreen::LeftRight::Choose(
+                                layout == AlphaRing::SplitscreenConfigStore::TwoPlayerLayout::LeftRight);
                     }
                     ImGui::PopID();
                     if (ImGui::IsItemHovered())
-                        ImGui::SetTooltip("Selects the 2- and 3-player rectangles explicitly. Left / Right: 2 players get equal full-height halves; 3 players put player 1 on the full left half (as in 2 players) and players 2/3 on the right half. 1 and 4 players always use Reach's own layout.");
+                        ImGui::SetTooltip("Everyone's split-screen layout, in every game (also Splitscreen > Options, and MY HUD > SPLIT in each player's menu). Left / Right: 2 players get equal full-height halves; 3 players put player 1 on the full left half and players 2/3 on the right half. 1 and 4 players always use the game's own layout.");
 
                     const bool left_right =
                             layout == AlphaRing::SplitscreenConfigStore::TwoPlayerLayout::LeftRight;

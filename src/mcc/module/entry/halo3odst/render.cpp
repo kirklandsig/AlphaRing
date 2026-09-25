@@ -3,6 +3,7 @@
 #include <functional>
 
 namespace Halo3ODST::Entry::World {void AddTask(const std::function<void()>& func);}
+namespace Halo3ODST::Entry::Splitscreen {void Frame(__int64 module);}
 
 namespace Halo3ODST::Entry::Render {
     void Prologue() {
@@ -22,6 +23,7 @@ namespace Halo3ODST::Entry::Render {
     }
 
     Halo3ODSTEntry(entry, OFFSET_HALO3ODST_PF_RENDER, void, detour) {
+        Splitscreen::Frame(entry.m_target - entry.m_offset);
         Prologue();
         ((detour_t)entry.m_pOriginal)();
         Epilogue();

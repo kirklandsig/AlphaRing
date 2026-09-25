@@ -11,7 +11,7 @@
 #include "input/MenuConfig.h"
 #include "mcc/CGameGlobal.h"
 #include "mcc/hud/Hud.h"
-#include "mcc/module/patch/SplitscreenConfigStore.h"
+#include "mcc/splitscreen/LeftRight.h"
 #include "render/imgui/ImGui.h"
 
 #include "imgui.h"
@@ -28,8 +28,18 @@ namespace MCC::Spawn {
         constexpr const char* kPageTitles[kPages] = {"VEHICLES", "WEAPONS", "EQUIPMENT", "CHARACTERS", "MY HUD"};
         constexpr const char* kTeamNames[kTeamCount] = {"Their own side", "Ally", "Enemy"};
 
-        enum HudRow { HudArea, HudSize, HudColor, HudReset, kHudRows };
-        constexpr const char* kHudRowNames[kHudRows] = {"AREA", "SIZE", "COLOUR", "RESET"};
+        // SPLIT is everyone's: the split-screen layout (mcc/splitscreen/LeftRight)
+        enum HudRow { HudArea, HudSize, HudColor, HudSplit, HudReset, kHudRows };
+        constexpr const char* kHudRowNames[kHudRows] = {"AREA", "SIZE", "COLOUR", "SPLIT", "RESET"};
+
+        // The page shows every row where the per-player HUD works (mcc/hud), only SPLIT where just the
+        // split layout does (Halo 4), else nothing: the number of rows shown, and the `i`th of them.
+        int ShownRowCount() {
+            if (MCC::Hud::Supported()) return kHudRows;
+            auto p_global = GameGlobal();
+            return p_global && MCC::Splitscreen::LeftRight::Supports(p_global->current_game, 2) ? 1 : 0;
+        }
+        HudRow ShownRow(int i) { return MCC::Hud::Supported() ? (HudRow)i : HudSplit; }
         constexpr int kHues = 12; // colour choices: off, then every 30 degrees
 
         // `value` moved `step` places around 0..count-1.
@@ -101,18 +111,10 @@ namespace MCC::Spawn {
         std::mutex s_mutex;
         Menu s_menus[kMaxPlayers];
 
-        // Whether Reach's Left/Right split (mcc/module/patch/SplitscreenConfigStore) is on screen.
-        bool ReachLeftRight(int count) {
-            auto p_global = GameGlobal();
-            return p_global && p_global->current_game == CGameGlobal::HaloReach &&
-                   AlphaRing::SplitscreenConfigStore::ResolveActiveLayout(count) ==
-                       AlphaRing::SplitscreenConfigStore::ActiveLayout::LeftRight;
-        }
-
         // Screen area of `player`'s view (x, y, width, height), as the games' split-screen tables
         // lay them out: stacked halves for two players; for three, player 1 on the top half and
-        // players 2 and 3 on the bottom quarters; quarters for four. Reach's Left/Right split
-        // puts player 1 on the left half and the others on the right half (stacked for three).
+        // players 2 and 3 on the bottom quarters; quarters for four. The Left/Right split puts
+        // player 1 on the left half and the others on the right half (stacked for three).
         ImVec4 ViewRect(int player, int count, ImVec2 display, bool left_right) {
             float w = display.x * 0.5f, h = display.y * 0.5f;
             if (count <= 1) return {0, 0, display.x, display.y};
@@ -196,7 +198,7 @@ namespace MCC::Spawn {
             float lb = ButtonHint(dl, font, minor, {x, y + (text - minor) * 0.3f}, "LB", nullptr);
             float rb = ButtonWidth(font, minor, "RB");
             ButtonHint(dl, font, minor, {p1.x - pad - rb, y + (text - minor) * 0.3f}, "RB", nullptr);
-            const char* name = kPageTitles[m.category];
+            const char* name = hud_page && !MCC::Hud::Supported() ? "SCREEN" : kPageTitles[m.category];
             float name_w = font->CalcTextSizeA(text, FLT_MAX, 0, name).x;
             Text(dl, font, text, {x + lb + (w - 2 * pad - lb - rb - name_w) * 0.5f, y}, IM_COL32_WHITE, name);
             y += text + pad * 0.3f;
@@ -229,16 +231,21 @@ namespace MCC::Spawn {
             hx += ButtonHint(dl, font, minor, {hx, hints_y}, "A", hud_page ? "Reset" : "Spawn") + pad;
             hx += ButtonHint(dl, font, minor, {hx, hints_y}, "B", "Close") + pad;
             if (!hud_page) ButtonHint(dl, font, minor, {hx, hints_y}, "Y", "Refresh");
-            auto status = hud_page ? std::string("D-pad left / right changes a setting; saved automatically")
-                                   : Catalog::Status(player);
+            auto p_global = GameGlobal();
+            bool split_waits = hud_page && p_global &&
+                               MCC::Splitscreen::LeftRight::WaitsForNextMission(p_global->current_game, LocalPlayerCount());
+            auto status = split_waits ? std::string("Split changes at mission start")
+                        : hud_page    ? std::string("D-pad left / right changes a setting; saved automatically")
+                                      : Catalog::Status(player);
             Text(dl, font, minor, {x, status_y}, IM_COL32(170, 180, 190, 255), Fit(font, minor, status, w - 2 * pad).c_str());
 
             float row = text * 1.45f, top = y, bottom = status_y - pad * 0.5f;
             if (hud_page) {
                 auto& hud = MCC::Hud::Player(player);
-                for (int r = 0; r < kHudRows; ++r) {
-                    float ry = top + r * row, ty = ry + (row - text) * 0.4f;
-                    bool chosen = r == m.selected;
+                for (int i = 0, rows = ShownRowCount(); i < rows; ++i) {
+                    int r = ShownRow(i);
+                    float ry = top + i * row, ty = ry + (row - text) * 0.4f;
+                    bool chosen = i == m.selected;
                     if (chosen)
                         dl->AddRectFilled({p0.x + pad * 0.5f, ry}, {p1.x - pad * 0.5f, ry + row - 2.0f * scale},
                                           WithAlpha(accent, 70), 6.0f * scale);
@@ -247,6 +254,9 @@ namespace MCC::Spawn {
                     ImU32 color = chosen ? IM_COL32_WHITE : IM_COL32(185, 194, 204, 255);
                     if (r == HudArea) snprintf(value, sizeof(value), "<  %s  >", MCC::Hud::kAreaNames[hud.area]);
                     else if (r == HudSize) snprintf(value, sizeof(value), "<  %d%%  >", (int)std::lround(hud.scale * 100.0f));
+                    else if (r == HudSplit)
+                        snprintf(value, sizeof(value), "<  %s  >",
+                                 MCC::Splitscreen::LeftRight::Chosen() ? "Left / Right" : "Top / Bottom");
                     else if (r == HudColor && !hud.recolor) snprintf(value, sizeof(value), "<  Game colours  >");
                     else if (r == HudColor) {
                         snprintf(value, sizeof(value), "<  Hue %d  >", (int)std::lround(hud.hue));
@@ -312,7 +322,7 @@ namespace MCC::Spawn {
             if (button == 0 || (pad.wButtons & button) != button || !(pressed & button)) return false;
             // games without spawning (Reach) still get the HUD page
             bool spawning = Catalog::CurrentGame() >= 0;
-            if (AlphaRing::Global::Global()->show_imgui || (!spawning && !MCC::Hud::Supported())) return false;
+            if (AlphaRing::Global::Global()->show_imgui || (!spawning && ShownRowCount() == 0)) return false;
             m.open = true;
             if (!spawning) m.category = kHudPage;
             m.refresh = true;
@@ -333,16 +343,19 @@ namespace MCC::Spawn {
         int game = Catalog::CurrentGame();
         int count = LocalPlayerCount();
         ImVec2 display = ImGui::GetIO().DisplaySize;
-        bool left_right = ReachLeftRight(count);
+        auto p_global = GameGlobal();
+        bool left_right = p_global && MCC::Splitscreen::LeftRight::OnScreen(p_global->current_game, count);
 
         for (int player = 0; player < kMaxPlayers; ++player) {
             Snapshot snapshot;
-            bool refresh = false, spawn = false, hud_changed = false;
+            bool refresh = false, spawn = false, hud_changed = false, turn_split = false;
             {
                 std::lock_guard<std::mutex> lock(s_mutex);
                 auto& m = s_menus[player];
                 if (!m.open) continue;
-                if ((game < 0 && !MCC::Hud::Supported()) || player >= count) { m.open = false; m.held = true; continue; }
+                int rows = ShownRowCount();
+                if ((game < 0 && rows == 0) || player >= count) { m.open = false; m.held = true; continue; }
+                if (rows) m.selected[kHudPage] = std::min(m.selected[kHudPage], rows - 1);
 
                 WORD buttons = Buttons(m.pad);
                 WORD pressed = buttons & ~m.handled;
@@ -357,9 +370,10 @@ namespace MCC::Spawn {
                 refresh = m.refresh || (pressed & XINPUT_GAMEPAD_Y);
                 m.refresh = false;
                 if (m.category == kHudPage) {
-                    int row = m.selected[kHudPage];
+                    int row = rows ? ShownRow(m.selected[kHudPage]) : -1;
                     if (a && row == HudReset) MCC::Hud::Player(player) = MCC::Hud::PlayerHud();
                     hud_changed = (a && row == HudReset) || (turn && TurnHud(player, row, turn));
+                    turn_split = turn && row == HudSplit;
                 } else {
                     spawn = a;
                 }
@@ -367,7 +381,7 @@ namespace MCC::Spawn {
                 // up/down (D-pad or left stick) move once, then repeat while held
                 auto now = GetTickCount64();
                 int step = m.rows.Step(Vertical(m.pad), now);
-                if (int size = !step ? 0 : m.category == kHudPage ? kHudRows : Catalog::Size(game, (Category)m.category))
+                if (int size = !step ? 0 : m.category == kHudPage ? rows : Catalog::Size(game, (Category)m.category))
                     m.selected[m.category] = Cycle(m.selected[m.category], step, size);
 
                 // characters: left/right the side, LT/RT the weapon - "their usual weapon" (-1), then
@@ -382,7 +396,8 @@ namespace MCC::Spawn {
                 snapshot = {m.category, m.selected[m.category], m.team, m.weapon, m.first_row};
             }
 
-            if (hud_changed) MCC::Hud::Save(); // outside the lock: it writes a file
+            if (hud_changed) MCC::Hud::Save(); // outside the lock: these write files
+            if (turn_split) MCC::Splitscreen::LeftRight::Choose(!MCC::Splitscreen::LeftRight::Chosen());
             Catalog::Refresh(game, refresh); // also picks up a newly loaded map
             Item item;
             if (spawn && Catalog::Get(game, (Category)snapshot.category, snapshot.selected, item))

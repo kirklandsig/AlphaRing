@@ -25,3 +25,15 @@
 // per-player HUD (mcc/hud)
 #define OFFSET_HALO3ODST_PV_HUD_DRAWING_PLAYER 0xB1AA04 // int user whose HUD is being drawn
 #define OFFSET_HALO3ODST_PV_HUD_CANVAS 0xB1A9D8 // float width, height of that user's HUD virtual canvas
+
+// Left/Right split screen (mcc/splitscreen/LeftRight); see offset_halo3.h for the signatures
+#define OFFSET_HALO3ODST_PV_SPLITSCREEN_TABLE 0x8F1F10
+#define OFFSET_HALO3ODST_PV_SCREEN_SIZE 0x8F0278
+#define OFFSET_HALO3ODST_PF_SPLITSCREEN_PLAYER_COUNT 0x313AF0
+#define OFFSET_HALO3ODST_PF_DRAW_SPLITSCREEN_BARS 0x303C54
+#define OFFSET_HALO3ODST_PF_FILL_RECT 0x1BA498
+#define OFFSET_HALO3ODST_PF_RT_CREATE 0x2A2C64 // (target*, int sizes[], descriptor*, int variant, int)
+#define OFFSET_HALO3ODST_PF_RT_POOL_RELEASE 0x2A3400
+#define OFFSET_HALO3ODST_PF_RT_POOL_INIT 0x2A30F0
+#define OFFSET_HALO3ODST_PF_HUD_RESOLUTION 0x32DD0C
+#define OFFSET_HALO3ODST_PF_HUD_LAYOUT 0x3284B4 // record* - +0x94 int canvas width, height; 0x110 bytes

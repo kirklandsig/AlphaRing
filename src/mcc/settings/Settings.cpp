@@ -277,6 +277,7 @@ namespace MCC::Settings {
                     for (size_t a = 0; a < actionsJson.size() && a < 66; ++a) {
                         dst2.actions[a] = static_cast<CGamepadMapping::eButton>(actionsJson[a].get<int>());
                     }
+                    dst2.FillSharedActions();
                 }
             }
 
@@ -859,6 +860,7 @@ namespace MCC::Settings {
             for (size_t i = 0; i < actionsArray.size() && i < 66; ++i) {
                 mapping.actions[i] = static_cast<CGamepadMapping::eButton>(actionsArray[i].get<int>());
             }
+            mapping.FillSharedActions();
 
             return true;
         } catch (...) {
