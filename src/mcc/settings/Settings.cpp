@@ -17,6 +17,24 @@ namespace MCC::Settings {
     static SplitscreenConfig g_Config;
     static CGameManager::Profile_t g_Profiles[4];
 
+    // Writes a whole JSON file or leaves the old one: dumped first (text that isn't valid UTF-8 is replaced,
+    // not thrown midway through the write), then written beside `path` and moved over it.
+    static bool WriteJson(const fs::path& path, const json& j) {
+        std::string text = j.dump(4, ' ', false, json::error_handler_t::replace);
+        fs::path temp = path;
+        temp += ".tmp";
+        std::ofstream file(temp, std::ios::trunc);
+        file << text;
+        file.close(); // flushes: a failed open, write or flush all leave the stream failed
+        std::error_code error;
+        if (!file) {
+            fs::remove(temp, error);
+            return false;
+        }
+        fs::rename(temp, path, error);
+        return !error;
+    }
+
     static fs::path GetConfigPath() {
     char exePath[MAX_PATH] = {0};
     if (!GetModuleFileNameA(nullptr, exePath, MAX_PATH))
@@ -224,9 +242,6 @@ namespace MCC::Settings {
                         mbstowcs(dst.LoadoutSlots[o].Name, name.c_str(), 14);
                     }
                 }
-                std::string gs = prof.value("GameSpecific", std::string{});
-                std::memset(dst.GameSpecific, 0, sizeof(dst.GameSpecific));
-                std::strncpy(dst.GameSpecific, gs.c_str(), sizeof(dst.GameSpecific) - 1);
                 dst.MouseSensitivity = prof.value("MouseSensitivity", dst.MouseSensitivity);
                 dst.MouseSmoothing = prof.value("MouseSmoothing", dst.MouseSmoothing);
                 dst.MouseAcceleration = prof.value("MouseAcceleration", dst.MouseAcceleration);
@@ -320,12 +335,7 @@ namespace MCC::Settings {
             {"b_override_profile", g_Config.b_override_profile}
         };
 
-        std::ofstream file(path, std::ios::trunc);
-        if (!file.is_open())
-            return false;
-
-        file << j.dump(4);
-        return true;
+        return WriteJson(path, j);
     }
 
     bool Profile::Save() {
@@ -494,7 +504,7 @@ namespace MCC::Settings {
                     loadoutArray.push_back(slot);
                 }
                 prof["LoadoutSlots"] = loadoutArray;
-                prof["GameSpecific"] = std::string(src.GameSpecific, strnlen(src.GameSpecific, sizeof(src.GameSpecific)));
+                // not GameSpecific: the game's runtime pointers, which a saved profile would hand back stale
                 prof["MouseSensitivity"] = src.MouseSensitivity;
                 prof["MouseSmoothing"] = src.MouseSmoothing;
                 prof["MouseAcceleration"] = src.MouseAcceleration;
@@ -551,13 +561,10 @@ namespace MCC::Settings {
                 };
             }
 
-            std::ofstream file(path, std::ios::trunc);
-            if (!file.is_open()) {
-                LOG_ERROR("Profile::Save: Failed to open file for writing");
+            if (!WriteJson(path, j)) {
+                LOG_ERROR("Profile::Save: Failed to write the file");
                 return false;
             }
-
-            file << j.dump(4);
             LOG_INFO("Profile::Save: Successfully saved all profiles");
             return true;
         }
@@ -827,12 +834,7 @@ namespace MCC::Settings {
             {"actions", actionsArray}
         };
 
-        std::ofstream file(path, std::ios::trunc);
-        if (!file.is_open())
-            return false;
-
-        file << j.dump(4);
-        return true;
+        return WriteJson(path, j);
     }
 
     bool CustomMapping::LoadProfile(const std::string& name, CGamepadMapping& mapping) {
@@ -891,12 +893,7 @@ namespace MCC::Settings {
 
         j["profiles"].erase(name);
 
-        std::ofstream outfile(path, std::ios::trunc);
-        if (!outfile.is_open())
-            return false;
-
-        outfile << j.dump(4);
-        return true;
+        return WriteJson(path, j);
     }
 
     // Custom Profile Presets (armor, colors, sensitivities, etc.)
@@ -1117,7 +1114,7 @@ namespace MCC::Settings {
         prof["LoadoutSlots"] = loadoutArray;
         LOG_DEBUG("SaveProfile: LoadoutSlots done");
 
-        prof["GameSpecific"] = std::string(src.GameSpecific, strnlen(src.GameSpecific, sizeof(src.GameSpecific)));
+        // not GameSpecific: the game's runtime pointers (see Profile::Save)
         prof["MouseSensitivity"] = src.MouseSensitivity;
         prof["MouseSmoothing"] = src.MouseSmoothing;
         prof["MouseAcceleration"] = src.MouseAcceleration;
@@ -1170,13 +1167,10 @@ namespace MCC::Settings {
 
         j["profiles"][name] = prof;
 
-        std::ofstream file(path, std::ios::trunc);
-        if (!file.is_open()) {
-            LOG_ERROR("SaveProfile: Failed to open file for writing: {}", path.string());
+        if (!WriteJson(path, j)) {
+            LOG_ERROR("SaveProfile: Failed to write {}", path.string());
             return false;
         }
-
-        file << j.dump(4);
         LOG_INFO("SaveProfile: Successfully saved preset '{}'", name);
         return true;
 
@@ -1338,10 +1332,6 @@ namespace MCC::Settings {
                 }
             }
 
-            std::string gs = prof.value("GameSpecific", std::string{});
-            std::memset(dst.GameSpecific, 0, sizeof(dst.GameSpecific));
-            std::strncpy(dst.GameSpecific, gs.c_str(), sizeof(dst.GameSpecific) - 1);
-
             dst.MouseSensitivity = prof.value("MouseSensitivity", dst.MouseSensitivity);
             dst.MouseSmoothing = prof.value("MouseSmoothing", dst.MouseSmoothing);
             dst.MouseAcceleration = prof.value("MouseAcceleration", dst.MouseAcceleration);
@@ -1424,12 +1414,7 @@ namespace MCC::Settings {
 
         j["profiles"].erase(name);
 
-        std::ofstream outfile(path, std::ios::trunc);
-        if (!outfile.is_open())
-            return false;
-
-        outfile << j.dump(4);
-        return true;
+        return WriteJson(path, j);
     }
 
 }

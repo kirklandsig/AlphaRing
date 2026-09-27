@@ -9,13 +9,16 @@
 // design, so each says where those live in a Gen3 below; Halo 2 and CE lay their views out on a grid
 // (module/entry/halo2, halo1).
 namespace MCC::Splitscreen::LeftRight {
+    // A screen rectangle in the engines' order.
+    struct Rect { short top, left, bottom, right; };
+
     // Left/Right is the saved choice.
     bool Chosen();
 
     // Left/Right is what `player_count` local players see: it is chosen and 2 or 3 players are on screen.
     bool Active(int player_count);
 
-    // `game` (CGameGlobal::eGame) has the layout for `player_count` players (Halo CE: two only).
+    // `game` (CGameGlobal::eGame) has the layout for `player_count` players.
     bool Supports(int game, int player_count);
 
     // Left/Right is what `player_count` players of `game` see.
@@ -41,7 +44,10 @@ namespace MCC::Splitscreen::LeftRight {
         void (*before_painting)(__int64 module) = nullptr; // render state the painter sets up itself (Halo 4)
         bool double_rounding = false; // render-target sizes are rounded in double precision (Halo 3), not float
         int hud_layout_size = 0;      // bytes in a HUD layout record (chud globals) ...
-        int hud_canvas = 0;           // ... and where it keeps its int canvas width, height
+        int hud_canvas = 0;           // ... where it keeps its int canvas width, height ...
+        int hud_safe_frame = 0;       // ... and the share of the screen a HUD is clamped to, float H, V (Halo 3, ODST)
+        __int64 title_safe_return = 0; // where the view setup's call for the title-safe box returns (Halo 3, ODST)
+        bool whole_quarter_hud = false; // quarters use the full-screen HUD layout (ODST: its quarter ones lack most elements)
     };
 
     constexpr int kMaxHudLayoutSize = 0x110;
@@ -65,6 +71,15 @@ namespace MCC::Splitscreen::LeftRight {
     // is on screen; returns false to let the game paint its own bars.
     bool PaintDividers(const Gen3& game, __int64 module);
 
+    // The Left/Right dividers on `screen`, bands `half_width` either side of its middle: one down it, and for
+    // three players one across the right half, where players 2 and 3 share it.
+    void PaintBands(const Rect& screen, short half_width, int players, void (*fill)(Rect*, unsigned argb));
+
+    // HudLayout also leaves off, for every split view, the share of the whole screen Halo 3 and ODST clamp
+    // each view's HUD frame to (hud_safe_frame): it trimmed a view on its outer sides only, which sat a
+    // quarter's HUD ~34 px toward the middle of the screen, and each view's frame now comes from its own
+    // safe box (ViewSafeBox).
+    //
     // The HUD of a full-height half. The engine picks a player's HUD layout by the shape of their view
     // (resolution 1 for a two-player half, 4 for a quarter; 5 and 6 on 4:3 screens) and each layout has a
     // virtual canvas, stretched over the view. No layout is taller than 4:3, so a Left/Right half takes a
@@ -73,6 +88,26 @@ namespace MCC::Splitscreen::LeftRight {
     // layout anchors at the bottom (the motion tracker) at the bottom of the half.
     int HudResolution(const Gen3& game, __int64 module, State& state, int user, int resolution);
     const void* HudLayout(const Gen3& game, __int64 module, State& state, int user, const void* layout);
+
+    // A split-screen view's title-safe box: the box its HUD is laid out in, whose centre its crosshair and
+    // aim sit on. The engines clip each view by the whole screen's box (5% in from each edge), which pulls
+    // every view's box toward the middle of the screen - a 1080p quarter's crosshair sits 48 px off its
+    // centre, and on a screen spanning two monitors the HUD crowds the seam. This is the view's own box
+    // instead: the same size, 5% in from the view's edges; a lone view keeps the game's box.
+    Rect ViewSafeBox(const Rect& view);
+
+    // Halo 3 and ODST: the view setup asks for the screen's box, then clips the view by it. Their hooks
+    // put a ViewSetup around the view setup, and in the title-safe function answer the view setup's call
+    // with TitleSafe (true: `box` is the view's own).
+    struct ViewSetup {
+        ViewSetup(int slot, int players);
+        ~ViewSetup();
+    };
+    bool TitleSafe(const Gen3& game, __int64 module, __int64 return_address, short box[4]);
+
+    // Halo 4 and Reach work a view and its box out together in one function, (int slot, int players,
+    // short view[4], short box[4]). From its hook: calls the game's and makes the box the view's own.
+    __int64 ViewportRect(void* original, void* slot, void* players, void* view, void* box);
 
     // From a render-target sizing hook: records that the pool is being built for the current choice, and
     // returns true when a target of this variant is the full-height halves' surface while Left/Right is

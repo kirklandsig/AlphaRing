@@ -36,4 +36,7 @@
 #define OFFSET_HALO3ODST_PF_RT_POOL_RELEASE 0x2A3400
 #define OFFSET_HALO3ODST_PF_RT_POOL_INIT 0x2A30F0
 #define OFFSET_HALO3ODST_PF_HUD_RESOLUTION 0x32DD0C
+#define OFFSET_HALO3ODST_PF_VIEW_SETUP 0x2ABAC8 // void (view*, int slot, int players, int, int, void*) - as Halo 3's
+#define OFFSET_HALO3ODST_PF_TITLE_SAFE 0x29F634 // void (short rect[4]) - the screen's title-safe box, 5% in from each edge
+#define OFFSET_HALO3ODST_VIEW_SETUP_TITLE_SAFE_RETURN 0x2ABB14 // where the view setup's call to it returns
 #define OFFSET_HALO3ODST_PF_HUD_LAYOUT 0x3284B4 // record* - +0x94 int canvas width, height; 0x110 bytes

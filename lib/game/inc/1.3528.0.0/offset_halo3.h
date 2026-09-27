@@ -229,4 +229,7 @@ struct halo3_teb_data_definition {
 #define OFFSET_HALO3_PF_RT_POOL_RELEASE 0x27613C // void () - the resize path's teardown ...
 #define OFFSET_HALO3_PF_RT_POOL_INIT 0x275BBC // void () - ... and rebuild
 #define OFFSET_HALO3_PF_HUD_RESOLUTION 0x2F1E38 // int (int user) - HUD layout of a view: 0 full, 1 half, 4 quarter (2, 5, 6 on 4:3)
+#define OFFSET_HALO3_PF_VIEW_SETUP 0x282EC4 // void (view*, int slot, int players, int, int, void*) - a split-screen view's rect, title-safe box, projection
+#define OFFSET_HALO3_PF_TITLE_SAFE 0x272010 // void (short rect[4] {top, left, bottom, right}) - the screen's title-safe box, 5% in from each edge
+#define OFFSET_HALO3_VIEW_SETUP_TITLE_SAFE_RETURN 0x282F10 // where the view setup's call to it returns
 #define OFFSET_HALO3_PF_HUD_LAYOUT 0x2ECF38 // record* (int user, int resolution) - +0x10 int canvas width, height; 0x64 bytes

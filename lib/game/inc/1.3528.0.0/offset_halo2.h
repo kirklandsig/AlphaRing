@@ -41,3 +41,6 @@
 // Left/Right split screen (mcc/splitscreen/LeftRight)
 #define OFFSET_HALO2_PF_SPLIT_GRID 0x7E09D0 // void (int views, int mode, short grid[2] columns, rows) - mode 1 stacks, others side by side
 #define OFFSET_HALO2_PF_SPLIT_CELL 0x7E0BD0 // void (int view, int views, int mode, short grid[2], short cell[2], short span[2])
+#define OFFSET_HALO2_PF_SPLIT_DIVIDERS 0x831D90 // void () - paints the black bands between the views, by the frame's mode
+#define OFFSET_HALO2_PV_SPLIT_MODE 0x165C168 // int - the frame's grid mode, which only the dividers read
+#define OFFSET_HALO2_PV_SPLIT_VIEWS 0x165C16C // int - the frame's views

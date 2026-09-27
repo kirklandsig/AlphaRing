@@ -10,7 +10,9 @@
 #include "global/Global.h"
 #include "input/MenuConfig.h"
 #include "mcc/CGameGlobal.h"
+#include "mcc/CGameManager.h"
 #include "mcc/hud/Hud.h"
+#include "mcc/settings/Settings.h"
 #include "mcc/splitscreen/LeftRight.h"
 #include "render/imgui/ImGui.h"
 
@@ -28,18 +30,44 @@ namespace MCC::Spawn {
         constexpr const char* kPageTitles[kPages] = {"VEHICLES", "WEAPONS", "EQUIPMENT", "CHARACTERS", "MY HUD"};
         constexpr const char* kTeamNames[kTeamCount] = {"Their own side", "Ally", "Enemy"};
 
-        // SPLIT is everyone's: the split-screen layout (mcc/splitscreen/LeftRight)
-        enum HudRow { HudArea, HudSize, HudColor, HudSplit, HudReset, kHudRows };
-        constexpr const char* kHudRowNames[kHudRows] = {"AREA", "SIZE", "COLOUR", "SPLIT", "RESET"};
+        // SPLIT is everyone's: the split-screen layout (mcc/splitscreen/LeftRight). SPECIES is the
+        // player's profile's: Spartan or Elite, where the game has both (multiplayer).
+        enum HudRow { HudArea, HudSize, HudColor, HudSplit, HudSpecies, HudReset, kHudRows };
+        constexpr const char* kHudRowNames[kHudRows] = {"AREA", "SIZE", "COLOUR", "SPLIT", "SPECIES", "RESET"};
 
-        // The page shows every row where the per-player HUD works (mcc/hud), only SPLIT where just the
-        // split layout does (Halo 4), else nothing: the number of rows shown, and the `i`th of them.
-        int ShownRowCount() {
-            if (MCC::Hud::Supported()) return kHudRows;
-            auto p_global = GameGlobal();
-            return p_global && MCC::Splitscreen::LeftRight::Supports(p_global->current_game, 2) ? 1 : 0;
+        bool HasSpecies(int game) {
+            return game == CGameGlobal::Halo2 || game == CGameGlobal::Halo3 || game == CGameGlobal::HaloReach;
         }
-        HudRow ShownRow(int i) { return MCC::Hud::Supported() ? (HudRow)i : HudSplit; }
+
+        // Whether the game takes an AlphaRing profile of `player`'s own (CGameManager::player_profile): none
+        // without the split-screen override (MCC's own profiles, which MCC rebuilds on every read); player 1
+        // only while "Override profile" is on, the others unless they share player 1's ("use player 1's
+        // profile").
+        bool OwnsProfile(int player) {
+            auto p_setting = AlphaRing::Global::MCC::Splitscreen();
+            if (p_setting == nullptr || !p_setting->b_override) return false;
+            return player == 0 ? p_setting->b_override_profile : !p_setting->b_use_player0_profile;
+        }
+
+        // The page shows every row where the per-player HUD works (mcc/hud) - SPECIES only where it
+        // applies to a profile of the player's own - and only SPLIT where just the split layout does
+        // (Halo 4), else nothing.
+        int ShownRows(int player, HudRow rows[kHudRows]) {
+            auto p_global = GameGlobal();
+            int game = p_global ? p_global->current_game : -1, n = 0;
+            if (MCC::Hud::Supported()) {
+                for (int r = 0; r < kHudRows; ++r)
+                    if (r != HudSpecies || (HasSpecies(game) && OwnsProfile(player))) rows[n++] = (HudRow)r;
+            } else if (p_global && MCC::Splitscreen::LeftRight::Supports(game, 2)) {
+                rows[n++] = HudSplit;
+            }
+            return n;
+        }
+        int ShownRowCount(int player) { HudRow rows[kHudRows]; return ShownRows(player, rows); }
+        HudRow ShownRow(int player, int i) {
+            HudRow rows[kHudRows];
+            return i >= 0 && i < ShownRows(player, rows) ? rows[i] : HudSplit;
+        }
         constexpr int kHues = 12; // colour choices: off, then every 30 degrees
 
         // `value` moved `step` places around 0..count-1.
@@ -234,7 +262,11 @@ namespace MCC::Spawn {
             auto p_global = GameGlobal();
             bool split_waits = hud_page && p_global &&
                                MCC::Splitscreen::LeftRight::WaitsForNextMission(p_global->current_game, LocalPlayerCount());
+            HudRow shown[kHudRows];
+            int rows = hud_page ? ShownRows(player, shown) : 0;
+            bool species_row = m.selected >= 0 && m.selected < rows && shown[m.selected] == HudSpecies;
             auto status = split_waits ? std::string("Split changes at mission start")
+                        : species_row ? std::string("Species changes when you next spawn")
                         : hud_page    ? std::string("D-pad left / right changes a setting; saved automatically")
                                       : Catalog::Status(player);
             Text(dl, font, minor, {x, status_y}, IM_COL32(170, 180, 190, 255), Fit(font, minor, status, w - 2 * pad).c_str());
@@ -242,8 +274,9 @@ namespace MCC::Spawn {
             float row = text * 1.45f, top = y, bottom = status_y - pad * 0.5f;
             if (hud_page) {
                 auto& hud = MCC::Hud::Player(player);
-                for (int i = 0, rows = ShownRowCount(); i < rows; ++i) {
-                    int r = ShownRow(i);
+                if (rows > 0) row = std::min(row, (bottom - top) / rows); // all of them fit a half-height view
+                for (int i = 0; i < rows; ++i) {
+                    int r = shown[i];
                     float ry = top + i * row, ty = ry + (row - text) * 0.4f;
                     bool chosen = i == m.selected;
                     if (chosen)
@@ -257,6 +290,10 @@ namespace MCC::Spawn {
                     else if (r == HudSplit)
                         snprintf(value, sizeof(value), "<  %s  >",
                                  MCC::Splitscreen::LeftRight::Chosen() ? "Left / Right" : "Top / Bottom");
+                    else if (r == HudSpecies) {
+                        auto profile = CGameManager::player_profile(player);
+                        snprintf(value, sizeof(value), "<  %s  >", profile && profile->UseEliteModel ? "Elite" : "Spartan");
+                    }
                     else if (r == HudColor && !hud.recolor) snprintf(value, sizeof(value), "<  Game colours  >");
                     else if (r == HudColor) {
                         snprintf(value, sizeof(value), "<  Hue %d  >", (int)std::lround(hud.hue));
@@ -322,7 +359,7 @@ namespace MCC::Spawn {
             if (button == 0 || (pad.wButtons & button) != button || !(pressed & button)) return false;
             // games without spawning (Reach) still get the HUD page
             bool spawning = Catalog::CurrentGame() >= 0;
-            if (AlphaRing::Global::Global()->show_imgui || (!spawning && ShownRowCount() == 0)) return false;
+            if (AlphaRing::Global::Global()->show_imgui || (!spawning && ShownRowCount(player) == 0)) return false;
             m.open = true;
             if (!spawning) m.category = kHudPage;
             m.refresh = true;
@@ -348,12 +385,12 @@ namespace MCC::Spawn {
 
         for (int player = 0; player < kMaxPlayers; ++player) {
             Snapshot snapshot;
-            bool refresh = false, spawn = false, hud_changed = false, turn_split = false;
+            bool refresh = false, spawn = false, hud_changed = false, turn_split = false, turn_species = false;
             {
                 std::lock_guard<std::mutex> lock(s_mutex);
                 auto& m = s_menus[player];
                 if (!m.open) continue;
-                int rows = ShownRowCount();
+                int rows = ShownRowCount(player);
                 if ((game < 0 && rows == 0) || player >= count) { m.open = false; m.held = true; continue; }
                 if (rows) m.selected[kHudPage] = std::min(m.selected[kHudPage], rows - 1);
 
@@ -370,10 +407,11 @@ namespace MCC::Spawn {
                 refresh = m.refresh || (pressed & XINPUT_GAMEPAD_Y);
                 m.refresh = false;
                 if (m.category == kHudPage) {
-                    int row = rows ? ShownRow(m.selected[kHudPage]) : -1;
+                    int row = rows ? ShownRow(player, m.selected[kHudPage]) : -1;
                     if (a && row == HudReset) MCC::Hud::Player(player) = MCC::Hud::PlayerHud();
                     hud_changed = (a && row == HudReset) || (turn && TurnHud(player, row, turn));
                     turn_split = turn && row == HudSplit;
+                    turn_species = turn && row == HudSpecies;
                 } else {
                     spawn = a;
                 }
@@ -397,6 +435,11 @@ namespace MCC::Spawn {
             }
 
             if (hud_changed) MCC::Hud::Save(); // outside the lock: these write files
+            if (turn_species) {
+                if (auto profile = CGameManager::player_profile(player)) profile->UseEliteModel = !profile->UseEliteModel;
+                MCC::Settings::Profile::CaptureFromRuntime();
+                MCC::Settings::Profile::Save();
+            }
             if (turn_split) MCC::Splitscreen::LeftRight::Choose(!MCC::Splitscreen::LeftRight::Chosen());
             Catalog::Refresh(game, refresh); // also picks up a newly loaded map
             Item item;

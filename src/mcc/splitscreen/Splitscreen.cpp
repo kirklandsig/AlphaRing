@@ -190,6 +190,9 @@ namespace MCC::Splitscreen {
         if (ImGui::CollapsingHeader("Profile")) {
             ImGui::Indent();
             ImGui::BeginDisabled(is_disabled);
+            // seeded before the first edit, which a profile edited in only, say, its look deadzones
+            // would otherwise lose to player 1's settings at match start (a zero FOV marks it unseeded)
+            if (!is_disabled) CGameManager::seed_profile(p_profile->profile);
             p_profile->profile.ImGuiContext();
             ImGui::EndDisabled();
             ImGui::Unindent();
@@ -234,8 +237,7 @@ namespace MCC::Splitscreen {
                     ImGui::SetTooltip("Left / Right instead of Top / Bottom: 2 players get a full-height half each; with 3, "
                                       "player 1 has the left half and players 2 and 3 share the right. Everyone's "
                                       "setting, also in each player's menu (MY HUD > SPLIT). Halo CE and Halo 2 change at "
-                                      "the next mission start, in Classic graphics; Halo CE keeps its own 3-player "
-                                      "layout.");
+                                      "the next mission start, in Classic graphics.");
                 ImGui::EndMenu();
             }
 #pragma region player count

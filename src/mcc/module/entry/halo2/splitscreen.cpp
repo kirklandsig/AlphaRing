@@ -19,4 +19,15 @@ namespace Halo2::Entry::Splitscreen {
                const short* grid, short* cell, short* span) {
         ((split_cell_t)entry_cell.m_pOriginal)(view, views, Mode(views, mode), grid, cell, span);
     }
+
+    // The dividers take the frame's mode from a global the frame's render entry sets: side by side, a band
+    // down the middle (and across the right half for three players) instead of across the screen.
+    Halo2Entry(entry_dividers, OFFSET_HALO2_PF_SPLIT_DIVIDERS, void, split_dividers) {
+        __int64 module = entry_dividers.m_target - entry_dividers.m_offset;
+        auto& mode = *(int*)(module + OFFSET_HALO2_PV_SPLIT_MODE);
+        int stock = mode;
+        mode = Mode(*(const int*)(module + OFFSET_HALO2_PV_SPLIT_VIEWS), stock);
+        ((split_dividers_t)entry_dividers.m_pOriginal)();
+        mode = stock;
+    }
 }
