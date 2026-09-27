@@ -4,12 +4,6 @@
 #include "mcc/module/entry/PreservingThunk.h"
 #include "mcc/splitscreen/LeftRight.h"
 
-#define Halo4SplitscreenEntry(name, offset, returnType, pDetour, ...) \
-    returnType pDetour(__VA_ARGS__); \
-    typedef returnType (*pDetour##_t)(__VA_ARGS__); \
-    ::Entry name(Halo4SplitscreenEntrySet(), offset, pDetour); \
-    returnType pDetour(__VA_ARGS__)
-
 namespace Halo4::Entry::Splitscreen {
     namespace LeftRight = MCC::Splitscreen::LeftRight;
 
@@ -36,16 +30,17 @@ namespace Halo4::Entry::Splitscreen {
     // two-player layout, which is as wide as a top/bottom half: in a Left/Right half it ran off the right edge.
     // The quarter layout is exactly a half's width.
     Halo4SplitscreenEntry(entry_hud_layout, OFFSET_HALO4_PF_HUD_LAYOUT, int, hud_layout, int user) {
-        constexpr int kHalf = 0x80077, kQuarter = 0x80078;
         int layout = ((hud_layout_t)entry_hud_layout.m_pOriginal)(user);
-        if (layout != kHalf || !LeftRight::Chosen()) return layout;
+        if (layout != kHalfHudLayout || !LeftRight::Chosen()) return layout;
         __int64 module = entry_hud_layout.m_target - entry_hud_layout.m_offset;
         int players = ((int (*)())(module + OFFSET_HALO4_PF_SPLITSCREEN_PLAYER_COUNT))();
-        return LeftRight::Active(players) ? kQuarter : layout;
+        return LeftRight::Active(players) ? kQuarterHudLayout : layout;
     }
 
     Halo4SplitscreenEntry(entry_render, OFFSET_HALO4_PF_RENDER, void, render) {
-        LeftRight::Frame(kGame, entry_render.m_target - entry_render.m_offset, s_state);
+        __int64 module = entry_render.m_target - entry_render.m_offset;
+        LeftRight::Frame(kGame, module, s_state);
+        HudFit::Refresh(module);
         ((render_t)entry_render.m_pOriginal)();
     }
 

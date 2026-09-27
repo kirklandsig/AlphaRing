@@ -7,6 +7,7 @@
 
 #include "mcc/module/entry/PreservingThunk.h"
 #include "mcc/splitscreen/LeftRight.h"
+#include "mcc/splitscreen/Splitscreen.h"
 
 namespace Halo1::Entry::Splitscreen {
     using MCC::Splitscreen::LeftRight::Rect;
@@ -28,6 +29,8 @@ namespace Halo1::Entry::Splitscreen {
         if (views == 3 && view >= 0 && view < 3 && OnScreen(3)) {
             views = view == 0 ? 2 : 4;
             if (view == 2) view = 3;
+        } else if (views == 3 && MCC::Splitscreen::AnniversaryQuadActive()) {
+            views = 4; // Anniversary graphics draw every view in a quarter (anniversary.cpp)
         }
         ((split_window_t)entry_window.m_pOriginal)(view, views, rect, copy);
     }

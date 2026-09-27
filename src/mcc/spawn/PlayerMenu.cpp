@@ -14,6 +14,7 @@
 #include "mcc/hud/Hud.h"
 #include "mcc/settings/Settings.h"
 #include "mcc/splitscreen/LeftRight.h"
+#include "mcc/splitscreen/Splitscreen.h"
 #include "render/imgui/ImGui.h"
 
 #include "imgui.h"
@@ -30,10 +31,13 @@ namespace MCC::Spawn {
         constexpr const char* kPageTitles[kPages] = {"VEHICLES", "WEAPONS", "EQUIPMENT", "CHARACTERS", "MY HUD"};
         constexpr const char* kTeamNames[kTeamCount] = {"Their own side", "Ally", "Enemy"};
 
-        // SPLIT is everyone's: the split-screen layout (mcc/splitscreen/LeftRight). SPECIES is the
+        // SPLIT is everyone's: the split-screen layout (mcc/splitscreen/LeftRight), and so is ANNIV 3-4P, the graphics
+        // of Halo CE and Halo 2 with 3-4 players (Classic, or Anniversary: mcc/splitscreen/Splitscreen.h). SPECIES is the
         // player's profile's: Spartan or Elite, where the game has both (multiplayer).
-        enum HudRow { HudArea, HudSize, HudColor, HudSplit, HudSpecies, HudReset, kHudRows };
-        constexpr const char* kHudRowNames[kHudRows] = {"AREA", "SIZE", "COLOUR", "SPLIT", "SPECIES", "RESET"};
+        enum HudRow { HudArea, HudSize, HudColor, HudSplit, HudAnniversary, HudSpecies, HudReset, kHudRows };
+        constexpr const char* kHudRowNames[kHudRows] = {"AREA", "SIZE", "COLOUR", "SPLIT", "ANNIV 3-4P", "SPECIES", "RESET"};
+
+        bool HasAnniversaryQuad(int game) { return MCC::Splitscreen::AnniversaryQuadGame(game) && LocalPlayerCount() > 2; }
 
         bool HasSpecies(int game) {
             return game == CGameGlobal::Halo2 || game == CGameGlobal::Halo3 || game == CGameGlobal::HaloReach;
@@ -57,7 +61,9 @@ namespace MCC::Spawn {
             int game = p_global ? p_global->current_game : -1, n = 0;
             if (MCC::Hud::Supported()) {
                 for (int r = 0; r < kHudRows; ++r)
-                    if (r != HudSpecies || (HasSpecies(game) && OwnsProfile(player))) rows[n++] = (HudRow)r;
+                    if ((r != HudSpecies || (HasSpecies(game) && OwnsProfile(player))) &&
+                        (r != HudAnniversary || HasAnniversaryQuad(game)))
+                        rows[n++] = (HudRow)r;
             } else if (p_global && MCC::Splitscreen::LeftRight::Supports(game, 2)) {
                 rows[n++] = HudSplit;
             }
@@ -264,11 +270,12 @@ namespace MCC::Spawn {
                                MCC::Splitscreen::LeftRight::WaitsForNextMission(p_global->current_game, LocalPlayerCount());
             HudRow shown[kHudRows];
             int rows = hud_page ? ShownRows(player, shown) : 0;
-            bool species_row = m.selected >= 0 && m.selected < rows && shown[m.selected] == HudSpecies;
-            auto status = split_waits ? std::string("Split changes at mission start")
-                        : species_row ? std::string("Species changes when you next spawn")
-                        : hud_page    ? std::string("D-pad left / right changes a setting; saved automatically")
-                                      : Catalog::Status(player);
+            HudRow selected = m.selected >= 0 && m.selected < rows ? shown[m.selected] : kHudRows;
+            auto status = selected == HudAnniversary ? std::string("Graphics change at mission start")
+                        : split_waits                ? std::string("Split changes at mission start")
+                        : selected == HudSpecies     ? std::string("Species changes when you next spawn")
+                        : hud_page                   ? std::string("D-pad left / right changes a setting; saved automatically")
+                                                     : Catalog::Status(player);
             Text(dl, font, minor, {x, status_y}, IM_COL32(170, 180, 190, 255), Fit(font, minor, status, w - 2 * pad).c_str());
 
             float row = text * 1.45f, top = y, bottom = status_y - pad * 0.5f;
@@ -290,6 +297,9 @@ namespace MCC::Spawn {
                     else if (r == HudSplit)
                         snprintf(value, sizeof(value), "<  %s  >",
                                  MCC::Splitscreen::LeftRight::Chosen() ? "Left / Right" : "Top / Bottom");
+                    else if (r == HudAnniversary)
+                        snprintf(value, sizeof(value), "<  %s  >",
+                                 MCC::Splitscreen::AnniversaryQuadChosen() ? "Anniversary (experimental)" : "Classic");
                     else if (r == HudSpecies) {
                         auto profile = CGameManager::player_profile(player);
                         snprintf(value, sizeof(value), "<  %s  >", profile && profile->UseEliteModel ? "Elite" : "Spartan");
@@ -385,7 +395,8 @@ namespace MCC::Spawn {
 
         for (int player = 0; player < kMaxPlayers; ++player) {
             Snapshot snapshot;
-            bool refresh = false, spawn = false, hud_changed = false, turn_split = false, turn_species = false;
+            bool refresh = false, spawn = false, hud_changed = false, turn_split = false, turn_species = false,
+                 turn_anniversary = false;
             {
                 std::lock_guard<std::mutex> lock(s_mutex);
                 auto& m = s_menus[player];
@@ -412,6 +423,7 @@ namespace MCC::Spawn {
                     hud_changed = (a && row == HudReset) || (turn && TurnHud(player, row, turn));
                     turn_split = turn && row == HudSplit;
                     turn_species = turn && row == HudSpecies;
+                    turn_anniversary = turn && row == HudAnniversary;
                 } else {
                     spawn = a;
                 }
@@ -441,6 +453,7 @@ namespace MCC::Spawn {
                 MCC::Settings::Profile::Save();
             }
             if (turn_split) MCC::Splitscreen::LeftRight::Choose(!MCC::Splitscreen::LeftRight::Chosen());
+            if (turn_anniversary) MCC::Splitscreen::ChooseAnniversaryQuad(!MCC::Splitscreen::AnniversaryQuadChosen());
             Catalog::Refresh(game, refresh); // also picks up a newly loaded map
             Item item;
             if (spawn && Catalog::Get(game, (Category)snapshot.category, snapshot.selected, item))

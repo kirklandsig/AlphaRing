@@ -14,7 +14,7 @@ inline void* EmitCode(std::initializer_list<std::pair<const void*, size_t>> piec
     if (code == nullptr) return nullptr;
     auto at = code;
     for (auto& piece : pieces) {
-        memcpy(at, piece.first, piece.second);
+        if (piece.second != 0) memcpy(at, piece.first, piece.second);
         at += piece.second;
     }
     FlushInstructionCache(GetCurrentProcess(), code, size);
@@ -23,13 +23,15 @@ inline void* EmitCode(std::initializer_list<std::pair<const void*, size_t>> piec
 
 // The detour of a small leaf function whose callers count on it leaving registers alone.
 // Compilers keep values in volatile registers across calls to leaves they can see into (Halo 3 keeps the
-// screen height in r10 across its title-safe box function), which a C++ detour would clobber.
+// screen height in r10 across its title-safe box function, Halo 4 an xmm register across its ultrawide
+// helpers), which a C++ detour would clobber. The detour takes the four register arguments and the caller's
+// return address: (void* rcx, void* rdx, void* r8, void* r9, __int64 return_address), and returns in rax or
+// xmm0 as the leaf does.
 using PreservedDetour = __int64 (*)(void* rcx, void* rdx, void* r8, void* r9, __int64 return_address);
 
-// Code to hook in the detour's place: it saves every volatile register but rax, xmm0, xmm2 and xmm3,
-// calls the detour with the four register arguments and the caller's return address, restores them and
-// returns what the detour returned.
-inline void* PreservingThunk(PreservedDetour detour) {
+// Code to hook in the detour's place: it saves every volatile register but rax and xmm0, calls `detour`,
+// restores them and returns what the detour returned.
+inline void* PreservingThunk(const void* detour) {
     static const unsigned char kBefore[] = {
         0x51,                                     // push rcx
         0x52,                                     // push rdx
@@ -37,20 +39,24 @@ inline void* PreservingThunk(PreservedDetour detour) {
         0x41, 0x51,                               // push r9
         0x41, 0x52,                               // push r10
         0x41, 0x53,                               // push r11
-        0x48, 0x83, 0xEC, 0x68,                   // sub rsp, 0x68     (shadow space, 5th argument, xmm1/4/5)
+        0x48, 0x81, 0xEC, 0x88, 0, 0, 0,          // sub rsp, 0x88     (shadow space, 5th argument, xmm1-5)
         0xF3, 0x0F, 0x7F, 0x4C, 0x24, 0x30,       // movdqu [rsp+0x30], xmm1
-        0xF3, 0x0F, 0x7F, 0x64, 0x24, 0x40,       // movdqu [rsp+0x40], xmm4
-        0xF3, 0x0F, 0x7F, 0x6C, 0x24, 0x50,       // movdqu [rsp+0x50], xmm5
-        0x48, 0x8B, 0x84, 0x24, 0x98, 0, 0, 0,    // mov rax, [rsp+0x98] (the return address) ...
+        0xF3, 0x0F, 0x7F, 0x54, 0x24, 0x40,       // movdqu [rsp+0x40], xmm2
+        0xF3, 0x0F, 0x7F, 0x5C, 0x24, 0x50,       // movdqu [rsp+0x50], xmm3
+        0xF3, 0x0F, 0x7F, 0x64, 0x24, 0x60,       // movdqu [rsp+0x60], xmm4
+        0xF3, 0x0F, 0x7F, 0x6C, 0x24, 0x70,       // movdqu [rsp+0x70], xmm5
+        0x48, 0x8B, 0x84, 0x24, 0xB8, 0, 0, 0,    // mov rax, [rsp+0xB8] (the return address) ...
         0x48, 0x89, 0x44, 0x24, 0x20,             // mov [rsp+0x20], rax ... as the 5th argument
         0x48, 0xB8,                               // mov rax, detour
     };
     static const unsigned char kAfter[] = {
         0xFF, 0xD0,                               // call rax
         0xF3, 0x0F, 0x6F, 0x4C, 0x24, 0x30,       // movdqu xmm1, [rsp+0x30]
-        0xF3, 0x0F, 0x6F, 0x64, 0x24, 0x40,       // movdqu xmm4, [rsp+0x40]
-        0xF3, 0x0F, 0x6F, 0x6C, 0x24, 0x50,       // movdqu xmm5, [rsp+0x50]
-        0x48, 0x83, 0xC4, 0x68,                   // add rsp, 0x68
+        0xF3, 0x0F, 0x6F, 0x54, 0x24, 0x40,       // movdqu xmm2, [rsp+0x40]
+        0xF3, 0x0F, 0x6F, 0x5C, 0x24, 0x50,       // movdqu xmm3, [rsp+0x50]
+        0xF3, 0x0F, 0x6F, 0x64, 0x24, 0x60,       // movdqu xmm4, [rsp+0x60]
+        0xF3, 0x0F, 0x6F, 0x6C, 0x24, 0x70,       // movdqu xmm5, [rsp+0x70]
+        0x48, 0x81, 0xC4, 0x88, 0, 0, 0,          // add rsp, 0x88
         0x41, 0x5B,                               // pop r11
         0x41, 0x5A,                               // pop r10
         0x41, 0x59,                               // pop r9
@@ -121,5 +127,5 @@ inline void* MidFunctionThunk(void (*detour)(char* locals), void* const* resume,
 // PreservedDetour's (the register arguments, then the caller's return address).
 #define PreservedEntry(name, set, offset, pDetour, ...) \
     __int64 pDetour(__VA_ARGS__); \
-    ::Entry name(set, offset, PreservingThunk(&pDetour)); \
+    ::Entry name(set, offset, PreservingThunk((const void*)&pDetour)); \
     __int64 pDetour(__VA_ARGS__)
