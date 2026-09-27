@@ -332,7 +332,7 @@ git checkout stable-v1.3.5
 
 ## Session History
 
-### 2026-09-27 (part 2) - v1.9.1: Reach split-screen black/invisible Spartans fixed
+### 2026-09-27 (part 2) - v1.9.1: Reach split-screen black/invisible Spartans fixed - RELEASED as v1.9.1-experimental (commit 34f710b)
 
 User: "keep debugging it and see if we can find some sort of way to correct this if possible. If not... at least update the Discord... this is our new findings", then "Go" (commit and release it as 1.9.1).
 
@@ -355,6 +355,8 @@ User: "keep debugging it and see if we can find some sort of way to correct this
   - Final hook build, 4P, 40 deaths: fine.
 - Simplify skill not run: the change is ~30 lines, reviewed twice by Codex.
 - Discord: findings posted to #general before the release (that post's "skips anything a player can see" explanation was wrong; corrected in the release post).
+- Released on the user's go: tag v1.9.1-experimental, GitHub pre-release with the DLL (https://github.com/kirklandsig/AlphaRing/releases/tag/v1.9.1-experimental), #general announcement with the corrected explanation. SR388 replied: the H2 3-4P Save & exit infinite load happens on an older AlphaRing (360-style menu) with the H2 co-op fix mod - asked him to say if it happens on ours.
+- Box restored after testing: v1.9.1 release DLL (sha256 561344ec...), cfg-backup-0926 configs, alpha_ring_patches.cfg removed, vpad stopped, MCC quit from its menu (the Reach resume point is now this test's Package checkpoint).
 - Box: Steam wedged after a launch (MCC exited after "PatchConfig::Load"). Killing Steam/Wine by PID restarted EmulationStation too, so the first ES API launch was lost; a second `mcc.sh launch` worked.
 
 ### 2026-09-27 - v1.9.0: Halo CE and Halo 2 Anniversary 3-4P, Halo 4 bars-removed HUD, Reach/settings fixes - RELEASED as v1.9.0-experimental (commit f6ed415)
@@ -597,6 +599,7 @@ Diagnostics used (not in code any more): temporary `RSSetViewports` probe logged
 
 ## Next Steps
 
+000. **(2026-09-27) v1.9.1-experimental released** (commit 34f710b, https://github.com/kirklandsig/AlphaRing/releases/tag/v1.9.1-experimental; announced on #general) - Reach split-screen black/invisible Spartans fixed; see the 2026-09-27 part 2 entry. Still open: salty's Reach 21:9 side-by-side HUD asymmetry, Reach 2P top/bottom bottom-view HUD squeeze, SR388's H2 3-4P Save & exit infinite load (older AlphaRing + co-op fix mod; unknown on ours).
 000. **(2026-09-27) v1.9.0-experimental released** (commit f6ed415, https://github.com/kirklandsig/AlphaRing/releases/tag/v1.9.0-experimental; announced on the AlphaRing Discord #general; published autonomously under the user's standing v1.9 mandate) - see the 2026-09-27 entry. Open: XiaoDanny's Reach black/invisible Spartans fixed in v1.9.1 (see the 2026-09-27 part 2 entry).
 Also seen: in Reach 2P top/bottom the BOTTOM view's HUD is squeezed toward centre-right (radar ~x1280, sprint icon mid, weapon panel ~x1180) from level load, top view normal - separate bug, possibly same family as salty's 21:9 report. Posted to Discord. Box harness: `vpad.py 3` leaves slot 1 for a real pad (user's controller = player 1). Also open: salty's Reach side-by-side HUD asymmetric at 21:9 (3440x1440, 2P L/R, crosshair Centered) - margins differ left vs right in each half; SR388: H2 4P Save & Quit hang (asked if the co-op mod is on) and an "exiting level crash" (details asked); H2A 4P performance (~30 fps on the box); CE Back toggle mid-mission in 3-4P Anniversary untested; H2 intermittent load crash (2 seen, during probe builds).
 000. **(2026-09-26) v1.8.0-experimental released** (commit c778e71, https://github.com/kirklandsig/AlphaRing/releases/tag/v1.8.0-experimental; announced on the AlphaRing Discord #general). Next (v1.9, user: "I don't care what it takes"): Halo CE Anniversary graphics with 4 players, and the Halo 4 HUD with black bars removed (see the 2026-09-26 entry's "Not done" notes).
