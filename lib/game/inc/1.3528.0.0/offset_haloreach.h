@@ -99,6 +99,16 @@
 #define OFFSET_HALOREACH_DAT_MCC_QUALITY_SETTINGS       0x29F5909
 #define OFFSET_HALOREACH_V_MCC_QUALITY_SETTING_COUNT    10
 
+// Game-thread TLS block (gs:[0x58][*DAT_TLS_INDEX]): the players data array (live count at +0x48).
+#define OFFSET_HALOREACH_TLS_PLAYERS 0x18
+
+// Runs Reach's garbage collector 0x4FF1FC (its only caller; from the world tick and loading paths). In automatic
+// mode it starts once more than 120 objects are waiting (cmp [gc+4], 0x78) and keeps collecting, biggest pile
+// first, while more than 115 are (cmp edx, 0x73 in the pressure flags 0x4FEE78). The imm8 of each compare:
+#define OFFSET_HALOREACH_PF_COLLECT_GARBAGE 0x47B76C
+#define OFFSET_HALOREACH_V_GARBAGE_COLLECT_START 0x4FF314 // 0x78
+#define OFFSET_HALOREACH_V_GARBAGE_COLLECT_STOP  0x4FEF10 // 0x73
+
 #define OFFSET_HALOREACH_V_ENTRY_PLAYERS 0x3
 #define OFFSET_HALOREACH_V_ENTRY_PLAYERS_ACTION 0x23
 #define OFFSET_HALOREACH_V_ENTRY_SPLIT_SCREEN 0x2B

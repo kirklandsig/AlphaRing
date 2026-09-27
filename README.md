@@ -8,6 +8,40 @@
 
 ---
 
+## What's New in v1.9.1 (experimental)
+
+> **Testing status:** like v1.9.0, this build has only been tested on **one Batocera Linux machine running the
+> latest Batocera** (MCC 1.3528 on Steam through Proton, virtual Xbox 360 controllers, 1920x1080). It needs a lot
+> more testing on other machines and setups - expect bugs, and please report what you find in
+> [Issues](https://github.com/kirklandsig/AlphaRing/issues).
+
+### Reach split screen: black or invisible Spartans after many deaths
+Reported by XiaoDanny: after a lot of deaths in one place, players 3 and 4 saw Spartans and their own first-person
+weapon black, over-bright or invisible, and bodies flickered.
+
+- **Cause:** this is Reach itself. It still happens with all of AlphaRing's Reach hooks switched off, and even at
+  two players. The render-quality patch only makes it happen sooner.
+- **When it happens:** once enough bodies and dropped weapons pile up, Reach stops drawing Spartans and
+  first-person weapons properly in the later split-screen views, the last player's view first. At the start of
+  The Package that's about 440 objects with four players, or 495 with two (roughly 30-40 deaths in one spot).
+- **Why Reach doesn't fix it itself:** Reach does clean up bodies and dropped weapons. But it only starts once
+  more than 120 are lying around, and it stops again at 115, so the pile stays big enough to hit the limit.
+- **The fix:** in split screen, AlphaRing makes Reach start that cleanup much sooner: above 40 bodies and dropped
+  weapons with three or four players, or 60 with two. Online games with players on other machines keep Reach's
+  normal behaviour.
+- **Tested:** on the test box, every view kept drawing everyone through 100 deaths at two players and at four
+  players. Before the fix, it broke after about 30-40.
+- **Side effect:** bodies and dropped weapons can vanish while you're looking at them. Reach picks what goes,
+  starting with the biggest pile, so a weapon just dropped in a big pile can go too.
+
+### Still open
+- salty's Reach side-by-side HUD at 21:9 sits differently on the left and right of each half.
+- In Reach two-player top/bottom, the bottom view's HUD is squeezed toward the centre-right.
+- SR388's Halo 2 four-player Save & Quit hang and exit crash (more details welcome).
+- Everything under v1.9.0's known limitations still applies, except the Reach black Spartans, which are fixed.
+
+---
+
 ## What's New in v1.9.0 (experimental)
 
 > **Testing status:** like v1.8.0, this build has only been tested on **one Batocera Linux machine running the
@@ -59,7 +93,7 @@ crosshair and nametags centred.
   less testing than Classic. In Halo CE, start the mission in Anniversary; switching with Back in the middle of a
   3-4 player mission isn't supported there.
 - **Reach, players 3 and 4 seeing black or invisible Spartans** (reported by XiaoDanny on his own build, after many
-  deaths at the start of The Package): not reproduced on this build yet - please report it if you see it here.
+  deaths at the start of The Package): fixed in v1.9.1.
 - Everything under v1.8.0's known limitations still applies, except the Halo 4 black-bars HUD, which is fixed.
 
 ---
