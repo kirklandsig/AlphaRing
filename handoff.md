@@ -331,7 +331,7 @@ git checkout stable-v1.3.5
 
 ## Session History
 
-### 2026-09-27 - v1.9.0: Halo CE and Halo 2 Anniversary 3-4P, Halo 4 bars-removed HUD, Reach/settings fixes
+### 2026-09-27 - v1.9.0: Halo CE and Halo 2 Anniversary 3-4P, Halo 4 bars-removed HUD, Reach/settings fixes - RELEASED as v1.9.0-experimental (commit f6ed415)
 
 User: "Get that Halo CE anniversary four-player co-op working, as well as the Halo 4 HUD fix", then (2026-09-27, stepping away, autonomous mandate incl. box reboots and the final release): fix salty's and XiaoDanny's Discord reports and add Halo 2 Anniversary 4-player as a surprise.
 
@@ -571,7 +571,7 @@ Diagnostics used (not in code any more): temporary `RSSetViewports` probe logged
 
 ## Next Steps
 
-000. **(2026-09-27) v1.9.0-experimental** - see the 2026-09-27 entry. Open: XiaoDanny's Reach P3/P4 black Spartans (not reproduced on ours; asked him to retry with our DLL); H2A 4P performance (~30 fps on the box); CE Back toggle mid-mission in 3-4P Anniversary untested; H2 intermittent load crash (2 seen, during probe builds).
+000. **(2026-09-27) v1.9.0-experimental released** (commit f6ed415, https://github.com/kirklandsig/AlphaRing/releases/tag/v1.9.0-experimental; announced on the AlphaRing Discord #general; published autonomously under the user's standing v1.9 mandate) - see the 2026-09-27 entry. Open: XiaoDanny's Reach P3/P4 black Spartans (not reproduced on ours; asked him to retry with our DLL); H2A 4P performance (~30 fps on the box); CE Back toggle mid-mission in 3-4P Anniversary untested; H2 intermittent load crash (2 seen, during probe builds).
 000. **(2026-09-26) v1.8.0-experimental released** (commit c778e71, https://github.com/kirklandsig/AlphaRing/releases/tag/v1.8.0-experimental; announced on the AlphaRing Discord #general). Next (v1.9, user: "I don't care what it takes"): Halo CE Anniversary graphics with 4 players, and the Halo 4 HUD with black bars removed (see the 2026-09-26 entry's "Not done" notes).
 000. **(2026-09-25) v1.7.0-experimental released** (user-approved, Halo 4 labelled work in progress): https://github.com/kirklandsig/AlphaRing/releases/tag/v1.7.0-experimental. Announced (user-approved) on megabitt01/AlphaRing PR #20 (to XiaoDanny, with the H3/ODST/H4/H2 findings incl. the H3 off-axis reticle lead for his open Reach question) and issue #25. Open: Halo 4 HUD canvas (and H4 3P untested), H2/CE stock divider line, CE 3P layout, in-game dual-wield check, second Codex pass (Codex login returned 401).
 00. **(2026-09-25) v1.6.0-experimental released** (user-approved): https://github.com/kirklandsig/AlphaRing/releases/tag/v1.6.0-experimental (prerelease, DLL + screenshots). XiaoDanny thanked on megabitt01/AlphaRing#20 (merged) with a heads-up on the CPatch default-on/saved-off bug and the unsynchronized `g_writes` in his tree. Next: watch for tester reports - CE level end (freeze fix), real ultrawide/multi-monitor, 3P menus, ODST/Reach HUD sides for health/grenades/equipment.
