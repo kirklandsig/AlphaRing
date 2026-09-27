@@ -45,22 +45,42 @@ namespace MCC::Spawn::Halo1 {
         return *(int*)(element + 0x64);
     }
 
-    // Returns the new object index, or -1.
-    static int SpawnObject(int tag, int player, Category category, short team) {
-        int unit = PlayerUnit(player);
-        if (unit == -1) return -1;
+    // Object data by object type: bipeds and vehicles are units.
+    enum : unsigned { kUnitTypes = 1 << 0 | 1 << 1, kWeaponType = 1 << 2 };
+    static char* ObjectData(int object, unsigned types) { return Call<char*>(OFFSET_HALO1_PF_OBJECT_TRY_AND_GET, object, types); }
 
-        Vector3 origin, forward, up;
+    // Whether `unit` carries a weapon made from tag `weapon` (unit +0x2D8: four weapon slots).
+    static bool Carries(int unit, int weapon) {
+        auto data = ObjectData(unit, kUnitTypes);
+        if (data == nullptr) return false;
+        for (int i = 0; i < 4; ++i) {
+            auto held = ObjectData(((int*)(data + 0x2D8))[i], kWeaponType);
+            if (held != nullptr && *(int*)held == weapon) return true; // object +0: its tag
+        }
+        return false;
+    }
+
+    // Returns the new object index, or -1. TeamDefault keeps the object's own team.
+    static int SpawnObject(int tag, int player, Category category, Team team) {
+        int unit = PlayerUnit(player);
+        auto body = ObjectData(unit, kUnitTypes);
+        if (body == nullptr) return -1;
+
+        // unit +0x204: where the player looks (desired facing). The body turns only once the look
+        // strays far enough, so its forward can be up to a right angle off.
+        Vector3 origin;
         Call<void>(OFFSET_HALO1_PF_OBJECT_GET_ORIGIN, unit, &origin);
-        Call<void>(OFFSET_HALO1_PF_OBJECT_GET_ORIENTATION, unit, &forward, &up);
-        auto place = PlaceAhead(origin, forward, SpawnDistance(category), 0.8f);
+        auto place = PlaceAhead(origin, *(Vector3*)(body + 0x204), SpawnDistance(category), 0.8f);
 
         alignas(16) char data[0x100] = {}; // object_placement_data is 0x8C bytes
         Call<void>(OFFSET_HALO1_PF_OBJECT_PLACEMENT_DATA_NEW, data, tag, -1);
         *(Vector3*)(data + 0x1C) = place.position;
         *(Vector3*)(data + 0x38) = place.forward;
         *(Vector3*)(data + 0x44) = place.up;
-        if (team >= 0) *(short*)(data + 0x18) = team;
+        // Allies join the player's own team (object +0x74): the human team is friendly only where
+        // the mission's script allies it with the player, which The Maw's doesn't.
+        short side = team == TeamAlly ? *(short*)(body + 0x74) : EngineTeam(team, -1);
+        if (side >= 0) *(short*)(data + 0x18) = side;
         return Call<int>(OFFSET_HALO1_PF_OBJECT_NEW, data);
     }
 
@@ -82,24 +102,26 @@ namespace MCC::Spawn::Halo1 {
         std::string name = DisplayName(TagName(tag));
 
         if (category != Characters)
-            return SpawnResult(SpawnObject(tag, player, category, -1) != -1, name);
+            return SpawnResult(SpawnObject(tag, player, category, TeamDefault) != -1, name);
 
-        int unit = SpawnObject(ActorVariantUnit(tag), player, category, EngineTeam(team, -1));
+        int unit = SpawnObject(ActorVariantUnit(tag), player, category, team);
         if (unit == -1) return SpawnResult(false, name);
 
         // actor_customize_unit arms the unit with the actor variant's weapon (+0x64, tag index
-        // 12 bytes in); a chosen weapon stands in for it during the call.
+        // 12 bytes in); a chosen weapon stands in for it during the call. The game refuses a
+        // weapon the character has no animations for (an Elite with a human weapon), and the
+        // actor then keeps its usual one.
+        bool chosen = weapon != kUsualWeapon;
         {
             ScopedPoke<int> variant_weapon;
-            if (weapon != kUsualWeapon) {
-                variant_weapon.Set((int*)(TagData(tag) + 0x70), weapon);
-                name = WithWeapon(name, TagName(weapon));
-            }
+            if (chosen) variant_weapon.Set((int*)(TagData(tag) + 0x70), weapon);
             Call<void>(OFFSET_HALO1_PF_ACTOR_CUSTOMIZE_UNIT, tag, unit);
         }
+        bool refused = chosen && !Carries(unit, weapon);
 
         Call<void>(OFFSET_HALO1_PF_AI_ATTACH_FREE, unit, tag);
-        return SpawnResult(true, name);
+        if (refused) return "Can't use " + DisplayName(TagName(weapon)) + ": " + name; // the menu cuts long lines
+        return SpawnResult(true, chosen ? WithWeapon(name, TagName(weapon)) : name);
     }
 
     static const Backend s_backend = {List, Spawn};

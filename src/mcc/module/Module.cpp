@@ -236,6 +236,9 @@ namespace MCC::Module {
 
         if (!ImGui::BeginTabBar("patch")) return;
 
+        // under each game's black-bar controls, disabled while Left / Right is chosen
+        static constexpr const char* kBarsKept = "Black-bar settings are kept and return with Top / Bottom.";
+
         counter = 0;
 
         for (int i = MODULE_HALO1; i < MODULE_MCC; ++i) {
@@ -293,8 +296,7 @@ namespace MCC::Module {
 
                     const bool left_right =
                             layout == AlphaRing::SplitscreenConfigStore::TwoPlayerLayout::LeftRight;
-                    if (left_right)
-                        ImGui::TextDisabled("Black-bar settings are kept and return with Top / Bottom.");
+                    if (left_right) ImGui::TextDisabled(kBarsKept);
 
                     if (left_right) ImGui::BeginDisabled();
 
@@ -607,6 +609,13 @@ namespace MCC::Module {
                         bool player1_on = (p_bar1 == nullptr || p_bar3 == nullptr)
                                 ? true : (p_bar1->enabled() && p_bar3->enabled());
 
+                        // Left / Right owns the same table entries and puts back the ones it
+                        // found when the player returns to Top / Bottom, so the bars hold still
+                        // meanwhile (as in Reach).
+                        const bool left_right = i != MODULE_GROUNDHOG && MCC::Splitscreen::LeftRight::Chosen();
+                        if (left_right) ImGui::TextDisabled(kBarsKept);
+                        ImGui::BeginDisabled(left_right);
+
                         if (p_bar1 != nullptr && p_bar3 != nullptr) {
                             bool top = player1_on;
                             ImGui::PushID(counter++);
@@ -646,6 +655,8 @@ namespace MCC::Module {
                                     ? "Removes the black bar for player 2's half of the screen."
                                     : "Enable Player 1's black-bar removal first. On this game, Player 2's toggle only takes effect when Player 1's is also on - same shared-painter bug Reach had before its dedicated fix.");
                         }
+
+                        ImGui::EndDisabled();
 
                         ImGui::Separator();
                     }

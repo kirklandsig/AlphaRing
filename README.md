@@ -8,6 +8,97 @@
 
 ---
 
+## What's New in v1.8.0 (experimental)
+
+Fixes from the community's v1.7.0 feedback on Discord - thanks to everyone who reported and posted screenshots.
+
+> **Testing status:** like v1.7.0, this build has only been tested on **one Batocera Linux machine running the
+> latest Batocera** (MCC 1.3528 on Steam through Proton, virtual Xbox 360 controllers, 1920x1080). It needs a lot
+> more testing on other machines and setups - expect bugs, and please report what you find in
+> [Issues](https://github.com/kirklandsig/AlphaRing/issues).
+
+### Split-screen crosshair and HUD centred in each view - Halo 3, ODST, Halo 4 and Reach
+These games clipped every split-screen view by the whole screen's TV-safe area, so each player's crosshair, aim and
+HUD were pulled toward the middle of the screen - on a screen spanning two monitors, toward the bezel (reported by
+Tuko Mas). Each view now gets its own safe area: the crosshair and aim sit in the centre of every half and quarter
+(2, 3 and 4 players, both layouts), and the HUD is centred with them. Halo 3 and ODST also clamped each HUD to a
+share of the whole screen, which trimmed a quarter only on its outer sides and pushed its HUD toward the middle;
+each HUD now fills its own view's safe area instead.
+
+![Halo 3 4-player, before and after](doc/images/h3-4p-centre-compare.jpg)
+
+### Halo CE side by side: zoom, divider and three players
+- **Zooming works:** with the pistol or sniper zoomed in, each player's scope showed a squeezed piece of the screen
+  with the rest left unpainted (reported by salty). MCC's scope effect worked out where each view sits for the
+  top/bottom layout only; it now uses the view's own window, so each scope shows its own view.
+- **The divider runs down the middle** (Halo CE and Halo 2): their top/bottom divider line was still drawn straight
+  across both halves. With three players there's also one across the right half.
+- **Three players side by side:** player 1 gets the full-height left half and players 2 and 3 the right quarters, as
+  in the other games (CE kept its own 3-player layout before).
+
+![Halo CE zoomed in side by side, before and after](doc/images/ce-side-by-side-zoom.jpg)
+
+### Halo 4 side by side: the HUD fits each half
+Halo 4 gave each half its two-player HUD layout, as wide as a top/bottom half, so the weapon panel ran off the right
+edge. Each half now takes the quarter-screen layout, which is exactly its width.
+
+![Halo 4 side by side](doc/images/h4-side-by-side-hud.jpg)
+
+### ODST with 3-4 players and side by side: the whole HUD
+ODST never shipped four-player split screen, and its quarter-screen HUD shows only the ammo counter - no compass,
+health or grenades (reported by ArtoriusOPOr). Quarters and side-by-side halves now use ODST's full HUD.
+
+| | |
+|--|--|
+| ![ODST 4 players](doc/images/odst-4p-hud.jpg) | ![ODST 2 players side by side](doc/images/odst-vertical-2p-hud.jpg) |
+
+### Pick your species - Halo 2, Halo 3 and Reach
+Each player's menu (**D-pad Down → MY HUD**) has a **SPECIES** row: Spartan or Elite, for that player alone, from
+their next spawn in multiplayer (requested by nanomohchine). It shows for each player with an AlphaRing profile of
+their own: players 2-4 unless "use player 1's profile" is on, and player 1 with "Override profile" on - otherwise
+player 1's species is MCC's own setting.
+
+| | |
+|--|--|
+| ![The SPECIES row](doc/images/species-menu.jpg) | ![Reach: player 2 an Elite, player 1 a Spartan](doc/images/reach-species.jpg) |
+
+### Halo CE spawn menu fixes
+- **Allies are allies again:** on levels whose script doesn't ally the human team with the players (The Maw), an
+  "Ally" spawn turned on you. Allies now join the players' own team.
+- **Spawns appear where you look**, not where your body happens to face (it lags behind the camera by up to a right
+  angle until you move) - no more allies spawning inside walls beside you.
+- **Weapons a character can't hold:** a CE Elite has no animations for human weapons (the shotgun, assault rifle,
+  flamethrower...), so the game refuses them and it keeps its usual weapon. The menu now says so -
+  *Can't use Shotgun: Elite Minor*.
+
+![A CE ally Elite on The Maw](doc/images/ce-ally-elite.jpg)
+
+### Other fixes
+- **Player 2-4 profile edits kept:** a player's profile edited in the overlay only in, say, its look deadzones was
+  replaced by player 1's settings at the next match (reported by OPOriginal). It now takes player 1's settings before
+  the first edit instead.
+- **Saving settings can't empty settings.json any more:** saving a player's profile (the overlay's *Save Profile*, or
+  the SPECIES row) stopped halfway when the profile held raw game data that isn't text, leaving the file empty and
+  every saved profile gone. Settings are now written to a temporary file that replaces the old one only when
+  complete, and that raw data (the game's own runtime pointers) is no longer stored.
+- **Halo 3, ODST and Halo 4 black-bar settings** can't be changed while Left/Right is chosen (as in Reach), so
+  switching back to Top/Bottom always restores them correctly.
+- The MY HUD page's rows fit a half-height view (with SPECIES shown, the last row ran into the hint line).
+- Checked and already working in this fork: Reach's loadout menu with 3 players, wide top slot and side by side
+  (XiaoDanny's fix; reported by RoastCabose), and LB/B in Halo CE (the flashlight-and-grenade double actions come
+  from another build's presets).
+
+### Known limitations
+- **Halo 4 with its black bars removed:** its HUD stays in the left three quarters of each view (reported by
+  nanomohchine). Keep Halo 4's bars on for now. Moving it with Halo 4's own ultrawide anchoring also moves the
+  crosshair and the scope mask, so it needs more work.
+- **Halo 4 side by side:** the quarter layout is half as tall as the view, so the motion tracker sits at mid-height.
+- **Anniversary graphics with 3-4 players (CE and Halo 2):** still Classic only. Both Anniversary renderers are built
+  for exactly two stacked views (two cameras, render targets split in two), so this is a separate, larger project.
+- Everything under v1.7.0's known limitations still applies.
+
+---
+
 ## What's New in v1.7.0 (experimental)
 
 ![Halo 3, three players side by side](doc/images/h3-vertical-3p.jpg)
@@ -366,6 +457,8 @@ Output: `build/Release/WTSAPI32.dll`
   [#20](https://github.com/megabitt01/AlphaRing/pull/20)) - ported into this fork with his research notes in
   [`docs/REVERSE_ENGINEERING.md`](docs/REVERSE_ENGINEERING.md). The side-by-side split for the other games (v1.7.0)
   follows the path his Reach work mapped out.
+- Everyone on the AlphaRing Discord who reported the v1.7.0 issues fixed in v1.8.0 - Tuko Mas, salty,
+  nanomohchine, ArtoriusOPOr, OPOriginal, RoastCabose, SR388 and jbltecnicspr.
 - Research references for the spawn system: [Assembly](https://github.com/XboxChaos/Assembly) plugins
   (scenario layouts), [c20](https://c20.reclaimers.net) (HaloScript), and the ManagedDonkey, ElDorito and
   Project Cartographer projects.

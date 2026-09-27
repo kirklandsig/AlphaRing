@@ -15,6 +15,7 @@
 #define OFFSET_HALO4_V_ENTRY_PLAYERS_ACTION 0x22
 
 // Left/Right split screen (mcc/splitscreen/LeftRight); see offset_halo3.h for the signatures
+#define OFFSET_HALO4_PF_COMPUTE_VIEWPORT_RECT 0x38EE74 // (int slot, int players, short view[4], short box[4]) - a view and its title-safe box, as Reach's
 #define OFFSET_HALO4_PV_SPLITSCREEN_TABLE 0xE84DB0
 #define OFFSET_HALO4_PV_SCREEN_SIZE 0xE84608
 #define OFFSET_HALO4_PF_SPLITSCREEN_PLAYER_COUNT 0x122188
@@ -25,3 +26,4 @@
 #define OFFSET_HALO4_PF_RT_VARIANT_SIZE 0x37E8B4 // (descriptor*, int* w, int* h, int* w2, int* h2, int* face, int index)
 #define OFFSET_HALO4_PF_RT_POOL_RELEASE 0x37F610
 #define OFFSET_HALO4_PF_RT_POOL_INIT 0x37F3A8
+#define OFFSET_HALO4_PF_HUD_LAYOUT 0x3BD78C // int (int user) - the HUD layout by the view's table variant: 0x80076 full, 0x80077 half, 0x80078 quarter

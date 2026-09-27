@@ -18,7 +18,7 @@
 #define OFFSET_HALO1_PF_OBJECT_PLACEMENT_DATA_NEW 0xB35EBC // (data*, int tag, int owner_object)
 #define OFFSET_HALO1_PF_OBJECT_NEW 0xB35F80 // int (data*)
 #define OFFSET_HALO1_PF_OBJECT_GET_ORIGIN 0xB37DE0 // (int object, vector3* out)
-#define OFFSET_HALO1_PF_OBJECT_GET_ORIENTATION 0xB37F98 // (int object, vector3* forward, vector3* up)
+#define OFFSET_HALO1_PF_OBJECT_TRY_AND_GET 0xB389A4 // void* (int object, unsigned type_mask) - object data, or null
 #define OFFSET_HALO1_PF_ACTOR_CUSTOMIZE_UNIT 0xC01DD0 // (int actor_variant, int unit) - weapon, grenades, colors
 #define OFFSET_HALO1_PF_AI_ATTACH_FREE 0xBFF120 // (int unit, int actor_variant) - creates an encounterless actor
 
@@ -29,3 +29,10 @@
 
 // Left/Right split screen (mcc/splitscreen/LeftRight)
 #define OFFSET_HALO1_PF_SPLIT_GRID 0xAC4108 // void (int views, int* columns, int* rows) - the window grid, rows first
+#define OFFSET_HALO1_PF_SPLIT_WINDOW 0xAC4154 // void (int view, int views, short rect[4], short copy[4]) - a view's window
+#define OFFSET_HALO1_PF_SPLIT_DIVIDERS 0xB32238 // void () - paints the black bands between the views
+#define OFFSET_HALO1_PF_SPLIT_VIEWS 0xB321FC // int () - views on screen
+#define OFFSET_HALO1_PV_WINDOW_BOUNDS 0x29E05B4 // int16 top, left, bottom, right of the window being drawn
+#define OFFSET_HALO1_PV_SCREEN_BOUNDS 0x1B7D3DC // int16 top, left, bottom, right the windows are laid out on
+#define OFFSET_HALO1_SCOPE_GRID_SET 0xAC73DC // in the scope effects' texture transforms: the view's grid place is set
+#define OFFSET_HALO1_PF_FILL_RECT 0xAC63F4 // void (short rect[4] {top, left, bottom, right}, unsigned argb)

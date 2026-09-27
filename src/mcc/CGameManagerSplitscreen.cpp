@@ -196,14 +196,25 @@ CUserProfile* CGameManager::get_player_profile(CGameManager *self, __int64 xid) 
     if (!p_setting->b_override_profile && ((!index) || (index && p_setting->b_use_player0_profile)))
         return ppOriginal.get_player_profile(self, get_xuid(0));
 
-    // AlphaRing's own profiles start zeroed - no volume, FOV, HUD scale or look sensitivity -
-    // until the user edits or loads one; until then they take player 1's real profile. A real
-    // profile never has an FOV of 0.
     auto& profile = get_profile(p_setting->b_use_player0_profile ? 0 : index)->profile;
-    if (profile.FOVSetting == 0)
-        if (auto player1 = ppOriginal.get_player_profile(self, get_xuid(0)))
-            profile = *player1;
+    seed_profile(profile);
     return &profile;
+}
+
+// AlphaRing's own profiles start zeroed - no volume, FOV, HUD scale or look sensitivity - until the
+// user edits or loads one; until then they take player 1's real profile. A real profile never has an
+// FOV of 0.
+void CGameManager::seed_profile(CUserProfile& profile) {
+    auto self = GameManager();
+    __int64 xuid;
+    if (profile.FOVSetting != 0 || self == nullptr || !(xuid = get_xuid(0))) return;
+    if (auto player1 = ppOriginal.get_player_profile(self, xuid)) profile = *player1;
+}
+
+CUserProfile* CGameManager::player_profile(int index) {
+    auto self = GameManager();
+    __int64 xuid = get_xuid(index);
+    return self && xuid ? get_player_profile(self, xuid) : nullptr;
 }
 
 CGamepadMapping* CGameManager::retrive_gamepad_mapping(CGameManager *self, __int64 xid) {

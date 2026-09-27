@@ -35,6 +35,10 @@
         static __int64 get_xuid(int index);
         static int get_index(__int64 xuid);
         static Profile_t* get_profile(int index);
+        // The profile the game gets for local player `index` (get_player_profile), or null.
+        static CUserProfile* player_profile(int index);
+        // Gives a never-edited AlphaRing profile player 1's real one (see get_player_profile).
+        static void seed_profile(CUserProfile& profile);
         static CInputDevice* get_controller(int index);
         // Increments every time a map starts loading.
         static unsigned load_generation();

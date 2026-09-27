@@ -1,6 +1,7 @@
 // Left/Right split screen for Halo 4 (mcc/splitscreen/LeftRight), after XiaoDanny's Reach port.
 #include "halo4.h"
 
+#include "mcc/module/entry/PreservingThunk.h"
 #include "mcc/splitscreen/LeftRight.h"
 
 #define Halo4SplitscreenEntry(name, offset, returnType, pDetour, ...) \
@@ -18,12 +19,30 @@ namespace Halo4::Entry::Splitscreen {
         ((void (*)(int))(module + OFFSET_HALO4_PF_RENDER_SETUP_2))(0);
     }
 
+    // Each view's own title-safe box (LeftRight::ViewSafeBox, ViewportRect); a leaf, hence the preserving thunk.
+    PreservedEntry(entry_viewport_rect, Halo4SplitscreenEntrySet(), OFFSET_HALO4_PF_COMPUTE_VIEWPORT_RECT,
+                   viewport_rect, void* slot, void* players, void* view, void* box, __int64) {
+        return LeftRight::ViewportRect(entry_viewport_rect.m_pOriginal, slot, players, view, box);
+    }
+
     constexpr LeftRight::Gen3 kGame {
         OFFSET_HALO4_PV_SPLITSCREEN_TABLE, OFFSET_HALO4_PV_SCREEN_SIZE, OFFSET_HALO4_PF_SPLITSCREEN_PLAYER_COUNT,
         OFFSET_HALO4_PF_FILL_RECT, OFFSET_HALO4_PF_RT_POOL_RELEASE, OFFSET_HALO4_PF_RT_POOL_INIT,
         BeforePainting,
     };
     LeftRight::State s_state;
+
+    // Halo 4 lays each view's HUD out from the view's table variant, the full-height halves' (3) taking the
+    // two-player layout, which is as wide as a top/bottom half: in a Left/Right half it ran off the right edge.
+    // The quarter layout is exactly a half's width.
+    Halo4SplitscreenEntry(entry_hud_layout, OFFSET_HALO4_PF_HUD_LAYOUT, int, hud_layout, int user) {
+        constexpr int kHalf = 0x80077, kQuarter = 0x80078;
+        int layout = ((hud_layout_t)entry_hud_layout.m_pOriginal)(user);
+        if (layout != kHalf || !LeftRight::Chosen()) return layout;
+        __int64 module = entry_hud_layout.m_target - entry_hud_layout.m_offset;
+        int players = ((int (*)())(module + OFFSET_HALO4_PF_SPLITSCREEN_PLAYER_COUNT))();
+        return LeftRight::Active(players) ? kQuarter : layout;
+    }
 
     Halo4SplitscreenEntry(entry_render, OFFSET_HALO4_PF_RENDER, void, render) {
         LeftRight::Frame(kGame, entry_render.m_target - entry_render.m_offset, s_state);
