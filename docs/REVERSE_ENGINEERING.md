@@ -334,7 +334,45 @@ Multipliers: high `3.0` (light-count group `10.0`), mid `1.0`, low `0.5` (water 
 
 **Validated in game (2026-09-18):** 2P patch off → zeroed detail record as expected; 2P patch on → 1P-tier record restored, live-block hash byte-identical between forced 2P/3P/4P (confirms the index really is pinned); 4P patch on → user-reported major visual improvement, acceptable performance. The MCC quality tier still composes on top of the forced record — the toggle decides *which* record Reach starts from, the MCC preset still decides how it's scaled.
 
+**Known defect (2026-09-27): do not force the 1P tier at 3-4 players.** With the patch on and 4 local players, after repeated deaths/respawns (corpses accumulating) players 3/4 see Spartans and their own first-person weapon black or invisible (flashing on animation changes), and corpses flicker; what P1 looks at changes it. Reproduced on the box with a real pad at The Package and confirmed by toggling the 5 bytes live: off restores P3/P4 immediately, on breaks them again. Writing the stock 4P record into the 1P record slot (patch on) also restores them; the 2P record does not. No single field is responsible: the shadow fields or the object/structure budget floats each push P4 black - a per-frame budget exhausted by four full-detail views, with later slots starving. Player records and unit objects are identical for all four players; `disable_render_state_cache_optimization` has no effect. **Update (same day): not the whole story.** At 2 local players the same symptoms appear after enough deaths *with the patch off* (P2's first-person weapon black in 2/6 sampled frames off vs 4/6 on; P1's body invisible in P2's view; black and over-bright alternating). `disable_render_state_cache_optimization` has no effect. The patch only makes an underlying Reach split-screen fault hit sooner; gating it to 2 players is not a fix. Root cause and fix: next section.
+
 **Not done:** a forced-2P tier as a middle setting for 3P/4P (deliberately deferred — same 5 bytes, would need mutual exclusion with the 1P patch). Open: a per-game Performance-preset capture (low/mid tier values are currently derived, not measured); frame-cost measurement; portability to other Halo titles.
+
+## Halo Reach split screen: later views stop drawing objects as bodies pile up
+
+**Symptom** (XiaoDanny's report, reproduced 2026-09-27): after many deaths in one area, the later split-screen views draw Spartans and first-person weapons black, over-bright or not at all, and bodies flicker. The last view goes first (P4, then P3; P2 at 2 players), and what the earlier players look at changes it.
+
+**Known:**
+- It's Reach, not AlphaRing: it still happens with all 15 AlphaRing Reach hooks restored to their original bytes live, and with the render-quality patch off (the patch makes it hit sooner).
+- It follows the world object count (bodies and dropped weapons pile up at about 6 objects per death). At The Package it breaks from ~440 objects at 4 players (fine at 412) and ~495 at 2 (fine at 466 and below). Measured with a temporary in-DLL harness that kills local player 2 through `unit_kill`'s worker `0x47CAA8(unit, 0, 1, 2, 0)` in bursts of 5 and screenshots each step.
+- Reach's own collector holds the pile right at that level. `0x4FF1FC(mode 0)` starts collecting when any of these hold:
+  - more than 120 objects are waiting (`[gc+4]`, the imm8 at `0x4FF314`);
+  - object memory is low (`0xA990FC` / `0xA990F8`);
+  - fewer than 102 free object slots remain.
+- It then runs the strategy table at `0xB7393C` (0x28 per entry) while the pressure flags from `0x4FEE78` still hold. For garbage (more than 115 waiting, the imm8 at `0x4FEF10`), `0x4FF0A4` sorts the candidates' spatial groups by population (`0x4FEC3C`) and takes the earliest deadline in the first eligible group (`0x4FEF84`) - biggest pile first, not globally oldest. It works in three passes:
+  1. flags 4: past its deadline (`+0x148`) and out of every player's sight (`0x474A2C`);
+  2. flags 5: ignoring the deadline;
+  3. flags 7: visible ones too.
+- For garbage pressure, it stops as soon as 115 or fewer are waiting. So in split screen the pile sits at 115-120 garbage, about 500 objects at The Package, which is above the limit. (Lowering only the 120 live did nothing, because the 115 stop is checked first.)
+- `garbage_collect_unsafe` (request word `[[TLS+0x140]+1] = 0x0101`, i.e. flags 3; `garbage_collect_now` is `0x0001`; consumer `0x47B76C` → `0x4FF1FC`) brings every view back at once. It purges every candidate, including weapons dropped a moment ago. TLS is the game thread's block: objects at +0x10, players at +0x18.
+- Ruled out as the limit:
+  - the render-state cache ("cached object render states", 1024 × 0x270 at the render thread's TLS +0x218, created by `0x256564`) holds 804 after 100 deaths at 4P;
+  - no Blam data array is full in the broken state (all ~630 scanned);
+  - `0x229558`'s 0x200 cap is a clipping vertex pool.
+- Unverified: the real limit is probably a fixed per-frame render buffer shared by all views and filled in view order. Not found.
+
+**Fix (`haloreach/world.cpp`).** A hook on `0x47B76C` decides before every collection. `0x47B76C` reads the request word and runs `0x4FF1FC`; it is `0x4FF1FC`'s only caller (from the world tick and loading paths). With 2+ local players and no players from other machines (the players array at TLS+0x18 has a live count at +0x48 equal to the local count), it sets the two imm8s:
+- 2 players: 60 / 55;
+- 3-4 players: 40 / 35.
+
+Anything else gets 120 / 115 back, including online games and a missing players array, since every machine has to collect the same objects. A peer joining gets the host's state, so collections before the join don't diverge. Reach's own passes then keep the pile small. Side effect: bodies and dropped weapons can vanish in view, a fresh drop in a big pile included.
+
+The first version requested `garbage_collect_unsafe` from the world tick instead. It fixed the views too (4P: fired 7 times at 41-43 garbage, objects 313-389), but it purged every candidate each time and ignored network play; Codex flagged both. A second Codex pass moved the check from a once-a-second world-tick test to the collector hook.
+
+**Verified (box, The Package, TEMP harness killing P2 in bursts of 5):**
+- **4P, 100 deaths:** garbage held at 35-40, objects at 354-380; all four first-person weapons were drawn at all 19 checkpoints. Without the fix: P4's weapon gone and P3's over-bright at 443 objects, then broken at 503-536.
+- **2P (side by side), 100 deaths:** garbage held at 54-60, objects at 367-405; P2's weapon was drawn at all 19 checkpoints. Without the fix it broke from 496.
+- **Final collector-hook build, 4P, 40 deaths:** limits switched in at the level start (they briefly revert to 120/115 while it loads), garbage 31-40, all views fine.
 
 ## Other durable findings
 
