@@ -330,7 +330,7 @@ git checkout stable-v1.3.5
 
 ## Session History
 
-### 2026-09-26 - v1.8.0: Discord triage - CE spawn fixes, centred split-screen HUD/aim, ODST 4P HUD, species, CE side-by-side zoom/divider/3P - UNCOMMITTED, awaiting the user's go
+### 2026-09-26 - v1.8.0: Discord triage - CE spawn fixes, centred split-screen HUD/aim, ODST 4P HUD, species, CE side-by-side zoom/divider/3P - RELEASED as v1.8.0-experimental (commit c778e71)
 
 From the v1.7.0 Discord feedback and the user's own testing with Adonis (box log of 2026-09-25, Ruby's Rebalanced Halo: CE on The Maw):
 
@@ -542,7 +542,7 @@ Diagnostics used (not in code any more): temporary `RSSetViewports` probe logged
 
 ## Next Steps
 
-000. **(2026-09-26) v1.8.0 built and box-tested, UNCOMMITTED** - awaiting the user's go to commit/tag/release. Still open: H4 HUD with black bars removed (per-screen ultrawide anchoring + crosshair/scope-mask work, see the 2026-09-26 entry), H4 side-by-side tracker mid-height, Anniversary graphics 3-4P (weeks).
+000. **(2026-09-26) v1.8.0-experimental released** (commit c778e71, https://github.com/kirklandsig/AlphaRing/releases/tag/v1.8.0-experimental; announced on the AlphaRing Discord #general). Next (v1.9, user: "I don't care what it takes"): Halo CE Anniversary graphics with 4 players, and the Halo 4 HUD with black bars removed (see the 2026-09-26 entry's "Not done" notes).
 000. **(2026-09-25) v1.7.0-experimental released** (user-approved, Halo 4 labelled work in progress): https://github.com/kirklandsig/AlphaRing/releases/tag/v1.7.0-experimental. Announced (user-approved) on megabitt01/AlphaRing PR #20 (to XiaoDanny, with the H3/ODST/H4/H2 findings incl. the H3 off-axis reticle lead for his open Reach question) and issue #25. Open: Halo 4 HUD canvas (and H4 3P untested), H2/CE stock divider line, CE 3P layout, in-game dual-wield check, second Codex pass (Codex login returned 401).
 00. **(2026-09-25) v1.6.0-experimental released** (user-approved): https://github.com/kirklandsig/AlphaRing/releases/tag/v1.6.0-experimental (prerelease, DLL + screenshots). XiaoDanny thanked on megabitt01/AlphaRing#20 (merged) with a heads-up on the CPatch default-on/saved-off bug and the unsynchronized `g_writes` in his tree. Next: watch for tester reports - CE level end (freeze fix), real ultrawide/multi-monitor, 3P menus, ODST/Reach HUD sides for health/grenades/equipment.
 00b. **Ideas not done:** "teleport to player 1" spawn-menu action for P3/P4 stuck outside the map (needs object_set_position per game); MegaBit-style per-game menu page lists; Halo 4 HUD/spawn; recolour for CE/H2 (they don't pass colours through the host).
