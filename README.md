@@ -8,6 +8,62 @@
 
 ---
 
+## What's New in v1.9.0 (experimental)
+
+> **Testing status:** like v1.8.0, this build has only been tested on **one Batocera Linux machine running the
+> latest Batocera** (MCC 1.3528 on Steam through Proton, virtual Xbox 360 controllers, 1920x1080). It needs a lot
+> more testing on other machines and setups - expect bugs, and please report what you find in
+> [Issues](https://github.com/kirklandsig/AlphaRing/issues).
+
+### Anniversary graphics with 3-4 players - Halo CE and Halo 2 (experimental)
+Both Anniversary renderers only ever drew two stacked views, so until now missions with three or four players
+started in Classic graphics. They can now stay in Anniversary. Each frame still draws two views, and the pairs take
+turns - players 1 and 2, then players 3 and 4 - so every player gets a live view of their own with their own HUD,
+first-person weapon and scope zoom, their own body hidden and everyone else's visible. Each view updates at half
+the frame rate.
+
+- **Turn it on:** Splitscreen > Options > *Anniversary graphics with 3-4 players*, or any player's menu
+  (**D-pad Down → MY HUD → ANNIV 3-4P**). It's off by default (Classic, as before) and takes effect when a mission
+  starts.
+- **Graphics choice:** MCC's own setting still decides - Halo 2's is **Visuals and Audio** in the mission lobby's
+  options (Remastered). In Halo 2 the Back button still switches between Classic and Anniversary in the middle of
+  a mission.
+- **Three players:** Halo 2 gives player 1 the wide top half; Halo CE uses quarters and leaves the fourth black.
+- **Speed on the test box:** Halo CE runs at 60 fps with four players (30 per view). Halo 2's Anniversary
+  renderer is much heavier: about 30 fps with four players.
+- **Halo 2's players 3 and 4** appear at the first co-op respawn, as soon as the others move off the spawn point
+  (the missions only have starting places for two players); their views are black until then. The co-op fix mods
+  can't help here, because MCC runs mod campaigns in Classic graphics.
+
+| | |
+|--|--|
+| ![Halo CE Anniversary with 4 players](doc/images/ce-anniversary-4p.jpg) | ![Halo 2 Anniversary with 4 players](doc/images/h2a-anniversary-4p.jpg) |
+
+### Halo 4 with its black bars removed: the HUD fills each view
+With Halo 4's black bars removed, each player's HUD stayed in the left three quarters of their view, and side by
+side it sat in the top half (reported by nanomohchine). Halo 4 already stretches its HUD to fit ultrawide screens;
+while a split view's HUD is drawn it now fits that view instead, so the HUD reaches the view's edges with the
+crosshair and nametags centred.
+
+![Halo 4 with the black bars removed](doc/images/h4-bars-removed-hud.jpg)
+
+### Other fixes and answers
+- **Reach crosshair low in each view** (reported by salty): this is MCC's own *Crosshair Position* setting. Under
+  Settings > Gameplay > Halo: Reach, *Lowered* puts the reticle below the middle like the original Reach; pick
+  *Centered* to have it in the middle of every view.
+- **Side-by-side Reach drawing top/bottom with a side-by-side HUD:** a Left/Right choice saved without its layout
+  table entries is now completed when the settings load.
+
+### Known limitations
+- **Anniversary with 3-4 players is experimental:** each view updates at half the frame rate, and it has had far
+  less testing than Classic. In Halo CE, start the mission in Anniversary; switching with Back in the middle of a
+  3-4 player mission isn't supported there.
+- **Reach, players 3 and 4 seeing black or invisible Spartans** (reported by XiaoDanny on his own build, after many
+  deaths at the start of The Package): not reproduced on this build yet - please report it if you see it here.
+- Everything under v1.8.0's known limitations still applies, except the Halo 4 black-bars HUD, which is fixed.
+
+---
+
 ## What's New in v1.8.0 (experimental)
 
 Fixes from the community's v1.7.0 feedback on Discord - thanks to everyone who reported and posted screenshots.
@@ -458,7 +514,9 @@ Output: `build/Release/WTSAPI32.dll`
   [`docs/REVERSE_ENGINEERING.md`](docs/REVERSE_ENGINEERING.md). The side-by-side split for the other games (v1.7.0)
   follows the path his Reach work mapped out.
 - Everyone on the AlphaRing Discord who reported the v1.7.0 issues fixed in v1.8.0 - Tuko Mas, salty,
-  nanomohchine, ArtoriusOPOr, OPOriginal, RoastCabose, SR388 and jbltecnicspr.
+  nanomohchine, ArtoriusOPOr, OPOriginal, RoastCabose, SR388 and jbltecnicspr - and the v1.8.0 reports looked into
+  for v1.9.0 - nanomohchine (Halo 4 HUD with the bars removed), salty (Reach crosshair) and XiaoDanny (Reach
+  players 3 and 4).
 - Research references for the spawn system: [Assembly](https://github.com/XboxChaos/Assembly) plugins
   (scenario layouts), [c20](https://c20.reclaimers.net) (HaloScript), and the ManagedDonkey, ElDorito and
   Project Cartographer projects.

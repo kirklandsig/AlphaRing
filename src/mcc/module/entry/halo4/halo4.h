@@ -11,6 +11,21 @@ inline EntrySet* Halo4EntrySet() {return &g_pHalo4EntrySet;};
 extern EntrySet g_Halo4SplitscreenEntrySet;
 inline EntrySet* Halo4SplitscreenEntrySet() {return &g_Halo4SplitscreenEntrySet;};
 
+#define Halo4SplitscreenEntry(name, offset, returnType, pDetour, ...) \
+    returnType pDetour(__VA_ARGS__); \
+    typedef returnType (*pDetour##_t)(__VA_ARGS__); \
+    ::Entry name(Halo4SplitscreenEntrySet(), offset, pDetour); \
+    returnType pDetour(__VA_ARGS__)
+
+namespace Halo4::Entry {
+    // HUD layouts (OFFSET_HALO4_PF_HUD_LAYOUT): full screen 1280x720, two-player 960x360, quarter 640x360
+    constexpr int kFullHudLayout = 0x80076, kHalfHudLayout = 0x80077, kQuarterHudLayout = 0x80078;
+
+    namespace HudFit {
+        void Refresh(__int64 module); // each user's fit, once a frame (hud_fit.cpp)
+    }
+}
+
 #define Halo4Entry(name, offset, returnType, pDetour, ...) \
     returnType pDetour(__VA_ARGS__); \
     typedef returnType (*pDetour##_t)(...); \

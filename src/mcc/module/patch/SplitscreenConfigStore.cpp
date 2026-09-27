@@ -236,27 +236,30 @@ namespace AlphaRing::SplitscreenConfigStore {
         bool migrated = g_states.erase(MakeKey(-1, LEGACY_PAINTER_DEBUG_KEY)) != 0;
 
         auto layout = ResolveTwoPlayerLayoutState();
-        // The three-player entries are owned by the Left/Right layout. Bring a
+        // The two- and three-player entries are owned by the Left/Right layout. Bring a
         // saved preference up to the current placement: preferences saved before
-        // three-player support hold only entries 8/9, and ones saved before the
-        // 2026-09-16 placement change put player 1 on the right half.
+        // three-player support hold only entries 8/9, ones saved before the
+        // 2026-09-16 placement change put player 1 on the right half, and a file
+        // edited by hand can hold the choice without its entries.
         if (layout == TwoPlayerLayout::LeftRight) {
-            bool current = true;
-            for (int slot = 0; slot < 3 && current; ++slot) {
-                const LayoutEntry& want = kLeftRight3P[slot];
-                const int index = THREE_PLAYER_FIRST_ENTRY + slot;
+            auto current = [](int index, const LayoutEntry& want) {
                 const std::pair<const char*, float> fields[] = {
                     {"x0", want.x0}, {"y0", want.y0}, {"x1", want.x1}, {"y1", want.y1},
                     {"res", (float)want.resolution},
                 };
                 for (const auto& [name, value] : fields) {
                     auto it = g_states.find(MakeKey(index, name));
-                    if (it == g_states.end() || it->second != value) { current = false; break; }
+                    if (it == g_states.end() || it->second != value) return false;
                 }
-            }
-            if (!current) {
-                for (int slot = 0; slot < 3; ++slot)
-                    SetEntryState(THREE_PLAYER_FIRST_ENTRY + slot, kLeftRight3P[slot]);
+                return true;
+            };
+            bool all_current = true;
+            for (int slot = 0; slot < 2; ++slot)
+                all_current &= current(TWO_PLAYER_FIRST_ENTRY + slot, kLeftRight[slot]);
+            for (int slot = 0; slot < 3; ++slot)
+                all_current &= current(THREE_PLAYER_FIRST_ENTRY + slot, kLeftRight3P[slot]);
+            if (!all_current) {
+                SetLeftRightEntryStates();
                 migrated = true;
             }
         }

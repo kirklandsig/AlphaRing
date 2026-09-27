@@ -26,4 +26,16 @@
 #define OFFSET_HALO4_PF_RT_VARIANT_SIZE 0x37E8B4 // (descriptor*, int* w, int* h, int* w2, int* h2, int* face, int index)
 #define OFFSET_HALO4_PF_RT_POOL_RELEASE 0x37F610
 #define OFFSET_HALO4_PF_RT_POOL_INIT 0x37F3A8
+#define OFFSET_HALO4_PF_HUD_UPDATE 0x3BCF88 // (hud*, int user) - updates a user's HUD screens
+#define OFFSET_HALO4_PF_HUD_RENDER 0x3F7A7C // (?, int user, ?, ?) - draws a user's HUD
+#define OFFSET_HALO4_PF_UI_WIDE 0x3DBB8C // bool () - the screen is wider than 16:9
+#define OFFSET_HALO4_PF_UI_ASPECT 0x3DBBEC // float (bool inverse) - the screen's aspect over 16:9's (or its inverse)
+#define OFFSET_HALO4_PF_UI_EXTRA_WIDTH 0x3DBC40 // float () - UI units either side of a 1280-wide layout on a wider screen
+#define OFFSET_HALO4_PF_UI_EXTRA_HEIGHT 0x3DBC98 // float () - ... either side of a 720-high layout on a narrower one
+#define OFFSET_HALO4_PF_UI_ANCHOR 0x3FD3E8 // (element*, context*) - places an element anchored to the screen's edges
+#define OFFSET_HALO4_PF_UI_FIT_RANGE 0x4224F0 // (widget*, context*) - fits a widget's extent to the screen's shape
+#define OFFSET_HALO4_PF_UI_USER_INDEX 0x3A7BDC // int (int user id) - the local user index of a UI context's user (+0x28)
+#define OFFSET_HALO4_PF_UI_SCREEN_RENDER 0x3D6184 // (screen*, context*) - draws a UI screen, translated by the extra width/height
+#define OFFSET_HALO4_VT_HUD_RETICLE_GROUP 0xD6C2D0 // the vtable of the widget group holding the crosshair
+#define OFFSET_HALO4_VT_UI_GROUP 0xD7DE70 // the vtable of a UI screen's top-level widget groups
 #define OFFSET_HALO4_PF_HUD_LAYOUT 0x3BD78C // int (int user) - the HUD layout by the view's table variant: 0x80076 full, 0x80077 half, 0x80078 quarter

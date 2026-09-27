@@ -9,7 +9,10 @@
 #include <offset_mcc.h>
 
 #include "../CGameManager.h"
+#include "mcc/CGameGlobal.h"
 #include "LeftRight.h"
+
+#include <atomic>
 
 namespace MCC::Splitscreen {
     DefDetourFunction(__int64, __fastcall, get_index_by_xuid, void* a1, __int64 xuid) {
@@ -36,15 +39,50 @@ namespace MCC::Splitscreen {
         return true;
     }
 
+    // The choice is read on the render and worker threads, so it is kept here rather than read from the
+    // config store each time: the saved choice (-1 until read), and the current mission's.
+    constexpr const char* kAnniversaryQuad = "anniversary_quad";
+    std::atomic<int> g_anniversary_quad_chosen{-1};
+    std::atomic<bool> g_anniversary_quad_active{false};
+
+    bool AnniversaryQuadChosen() {
+        int chosen = g_anniversary_quad_chosen;
+        if (chosen < 0) {
+            float value = 0.0f;
+            chosen = AlphaRing::SplitscreenConfigStore::Get(-1, kAnniversaryQuad, value) && value != 0.0f;
+            g_anniversary_quad_chosen = chosen;
+        }
+        return chosen != 0;
+    }
+
+    void ChooseAnniversaryQuad(bool on) {
+        g_anniversary_quad_chosen = on;
+        AlphaRing::SplitscreenConfigStore::Set(-1, kAnniversaryQuad, on ? 1.0f : 0.0f);
+    }
+
+    bool AnniversaryQuadActive() { return g_anniversary_quad_active; }
+
+    bool AnniversaryQuadGame(int game) { return game == CGameGlobal::Halo1 || game == CGameGlobal::Halo2; }
+
     ClassicGraphicsScope::ClassicGraphicsScope(unsigned char* game_options, int game) {
         auto p_setting = AlphaRing::Global::MCC::Splitscreen();
 
         bool left_right = p_setting->b_override && game_options != nullptr && LeftRight::Chosen() &&
                           LeftRight::Supports(game, p_setting->player_count);
         LeftRight::StartClassicMission(game, left_right);
-        if (!p_setting->b_override || (p_setting->player_count <= 2 && !left_right) || game_options == nullptr ||
-            !(game_options[0] & 1))
+        g_anniversary_quad_active = false;
+        if (!p_setting->b_override || (p_setting->player_count <= 2 && !left_right) || game_options == nullptr)
             return;
+        bool quad = AnniversaryQuadGame(game) && !left_right && AnniversaryQuadChosen();
+        bool anniversary = game_options[0] & 1;
+        // Halo 2 switches graphics in place when a player presses Back, so its 3-4 player mode also follows a switch
+        // from a Classic start; Halo CE builds its views for the graphics it starts in.
+        g_anniversary_quad_active = quad && (anniversary || game == CGameGlobal::Halo2);
+        if (!anniversary) return;
+        if (quad) {
+            LOG_INFO("Splitscreen: {} players in Anniversary graphics (experimental)", p_setting->player_count);
+            return;
+        }
 
         LOG_INFO("Splitscreen: {} players{}, starting in Classic graphics", p_setting->player_count,
                  left_right ? " side by side" : "");
@@ -238,6 +276,15 @@ namespace MCC::Splitscreen {
                                       "player 1 has the left half and players 2 and 3 share the right. Everyone's "
                                       "setting, also in each player's menu (MY HUD > SPLIT). Halo CE and Halo 2 change at "
                                       "the next mission start, in Classic graphics.");
+                bool anniversary = AnniversaryQuadChosen();
+                if (ImGui::MenuItem("Anniversary graphics with 3-4 players (CE, H2; experimental)", nullptr, &anniversary))
+                    ChooseAnniversaryQuad(anniversary);
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("Keeps Anniversary graphics in Halo CE and Halo 2 with 3 or 4 players instead of "
+                                      "switching to Classic. The games' renderers only draw two views at a time, so they alternate: "
+                                      "players 1 and 2 on one frame, 3 and 4 on the next (each view updates at half the "
+                                      "frame rate). Changes at the next mission start; side by side stays Classic. "
+                                      "Everyone's setting, also in each player's menu (MY HUD > ANNIV 3-4P).");
                 ImGui::EndMenu();
             }
 #pragma region player count
