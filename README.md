@@ -12,8 +12,8 @@
 
 > **Testing status:** like v1.9, this build has only been tested on **one Batocera Linux machine running the
 > latest Batocera** (MCC 1.3528 on Steam through Proton, virtual Xbox 360 controllers, 1920x1080). It needs a lot
-> more testing on other machines and setups - expect bugs, and please report what you find in
-> [Issues](https://github.com/kirklandsig/AlphaRing/issues).
+> more testing on other machines and setups - expect bugs, and please report what you find on the
+> [AlphaRing Discord](https://discord.gg/TUyAnCrpuz).
 
 ### Ready for MCC updates
 Until now, every MCC update broke AlphaRing until someone found hundreds of addresses again by hand. AlphaRing now
