@@ -257,8 +257,13 @@ namespace MCC::Spawn::Halo2 {
 
     // --- backend ---------------------------------------------------------------------------------
 
+    // AI_LIVING_COUNT is a 13-byte thunk too generic to find again by pattern: on another MCC build, objects only.
+    static const AlphaRing::Feature s_characters("Halo 2 character spawning",
+                                                 {OFFSET_HALO2_PF_AI_PLACE, OFFSET_HALO2_PF_AI_LIVING_COUNT});
+
     static void List(Category category, std::vector<Item>& out) {
         if (category == Characters) {
+            if (!s_characters.Available()) return;
             std::vector<int> seen; // missions list some characters more than once
             for (int i = 0; i < Count(Scenario() + kCharacterPalette); ++i) {
                 int tag = CharacterPaletteTag(i);
@@ -281,11 +286,19 @@ namespace MCC::Spawn::Halo2 {
     }
 
     static std::string Spawn(Category category, int id, int player, Team team, int weapon) {
-        if (category == Characters) return SpawnCharacter(id, player, team, weapon);
+        if (category == Characters) {
+            if (!s_characters.Available()) return "Characters can't be spawned in this version of Halo 2";
+            return SpawnCharacter(id, player, team, weapon);
+        }
         std::string name = DisplayName(TagName(id));
         return SpawnResult(SpawnObject(id, player, category) != -1, name);
     }
 
-    static const Backend s_backend = {List, Spawn};
+    static const AlphaRing::Feature s_offsets("Halo 2 spawning", {
+        OFFSET_HALO2_PV_SHARED_TAG_BASE, OFFSET_HALO2_PV_TAG_BASE, OFFSET_HALO2_PV_SCENARIO, OFFSET_HALO2_PV_TAG_INSTANCES,
+        OFFSET_HALO2_PV_TAG_COUNT, OFFSET_HALO2_PV_TAG_NAMES, OFFSET_HALO2_PV_TAG_NAME_OFFSETS, OFFSET_HALO2_PV_OBJECTS,
+        OFFSET_HALO2_PV_OBJECT_MEMORY, OFFSET_HALO2_PV_PLAYERS, OFFSET_HALO2_PF_OBJECT_GET_ORIGIN,
+        OFFSET_HALO2_PF_OBJECT_PLACEMENT_DATA_NEW, OFFSET_HALO2_PF_OBJECT_NEW});
+    static const Backend s_backend = {List, Spawn, &s_offsets};
     static const bool s_registered = (RegisterBackend(kGame, &s_backend), true);
 }

@@ -7,10 +7,16 @@
 
 #include "global/Global.h"
 #include "mcc/module/patch/SplitscreenConfigStore.h"
+#include "mcc/splitscreen/LeftRight.h"
 
 #include <cstring>
 
 namespace HaloReach::Entry::HudAnchor {
+    EntryFeature("Reach split-screen HUD frame", OFFSET_HALOREACH_DAT_HUD_VIEW_BOUNDS,
+                 OFFSET_HALOREACH_DAT_CURRENT_HUD_RESOLUTION, OFFSET_HALOREACH_PV_HUD_CANVAS,
+                 OFFSET_HALOREACH_DAT_HUD_SCREEN_SCALE_AND_OFFSET, OFFSET_HALOREACH_DAT_HUD_BASIS,
+                 OFFSET_HALOREACH_PF_GET_SPLITSCREEN_PLAYER_COUNT, OFFSET_HALOREACH_DAT_CURRENT_HUD_PLAYER);
+
     // This function derives the per-player HUD "safe area" reference frame -
     // an (xInset, yInset, halfWidth, halfHeight) tuple - from a rect fit to a
     // target aspect (4:3 if resolution==1, else 16:9) inside the slot's raw
@@ -60,25 +66,28 @@ namespace HaloReach::Entry::HudAnchor {
     // output.
     constexpr bool g_centreHudBox = true;
 
+    // The view the HUD is laid out in (DAT_HUD_VIEW_BOUNDS, the engines' rect order).
+    const MCC::Splitscreen::LeftRight::Rect& ViewBounds(__int64 hModule) {
+        return *(const MCC::Splitscreen::LeftRight::Rect*)(hModule + OFFSET_HALOREACH_DAT_HUD_VIEW_BOUNDS);
+    }
+
     void LogFrameAndBasis(__int64 hModule, const char* when) {
         if (!g_logBasis) return;
 
-        short y0 = *(short*)(hModule + 0xD1F6D0);
-        short x0 = *(short*)(hModule + 0xD1F6D2);
-        short y1 = *(short*)(hModule + 0xD1F6D4);
-        short x1 = *(short*)(hModule + 0xD1F6D6);
+        auto& bounds = ViewBounds(hModule);
+        short y0 = bounds.top, x0 = bounds.left, y1 = bounds.bottom, x1 = bounds.right;
 
-        int   res    = *(int*)(hModule + 0xD1F710);
-        float szZ    = *(float*)(hModule + 0xD1F6F0);
-        float szW    = *(float*)(hModule + 0xD1F6F4);
-        float xInset = *(float*)(hModule + 0xD1F790);
-        float halfW  = *(float*)(hModule + 0xD1F798);
-        float yInset = *(float*)(hModule + 0xD1F794);
-        float halfH  = *(float*)(hModule + 0xD1F79C);
+        int   res    = *(int*)(hModule + OFFSET_HALOREACH_DAT_CURRENT_HUD_RESOLUTION);
+        float szZ    = *(float*)(hModule + OFFSET_HALOREACH_PV_HUD_CANVAS);
+        float szW    = *(float*)(hModule + OFFSET_HALOREACH_PV_HUD_CANVAS + 4);
+        float xInset = *(float*)(hModule + OFFSET_HALOREACH_DAT_HUD_SCREEN_SCALE_AND_OFFSET);
+        float halfW  = *(float*)(hModule + OFFSET_HALOREACH_DAT_HUD_SCREEN_SCALE_AND_OFFSET + 8);
+        float yInset = *(float*)(hModule + OFFSET_HALOREACH_DAT_HUD_SCREEN_SCALE_AND_OFFSET + 4);
+        float halfH  = *(float*)(hModule + OFFSET_HALOREACH_DAT_HUD_SCREEN_SCALE_AND_OFFSET + 0xC);
 
         // The basis block is 5 float4 at D1F740, ending exactly where
         // chud_screen_scale_and_offset begins at D1F790.
-        const float* b = (const float*)(hModule + 0xD1F740);
+        const float* b = (const float*)(hModule + OFFSET_HALOREACH_DAT_HUD_BASIS);
 
         // Change filter: remember whole distinct states (linear-scan, log only
         // a state never seen before, go quiet once full - bounded by
@@ -129,6 +138,23 @@ namespace HaloReach::Entry::HudAnchor {
                      when, row, b[row * 4 + 0], b[row * 4 + 1], b[row * 4 + 2], b[row * 4 + 3]);
     }
 
+    // Centres the HUD content box in the slot (see g_centreHudBox).
+    void CentreHudBox(__int64 hModule) {
+        auto& bounds = ViewBounds(hModule);
+        short y0 = bounds.top, x0 = bounds.left, y1 = bounds.bottom, x1 = bounds.right;
+        int width = x1 - x0;
+        int height = y1 - y0;
+        float halfW = *(float*)(hModule + OFFSET_HALOREACH_DAT_HUD_SCREEN_SCALE_AND_OFFSET + 8);
+        float halfH = *(float*)(hModule + OFFSET_HALOREACH_DAT_HUD_SCREEN_SCALE_AND_OFFSET + 0xC);
+
+        // Leave the original alone rather than write a degenerate frame.
+        if (halfW > 1.0f && halfH > 1.0f &&
+            halfW * 2.0f <= (float)width && halfH * 2.0f <= (float)height) {
+            *(float*)(hModule + OFFSET_HALOREACH_DAT_HUD_SCREEN_SCALE_AND_OFFSET) = ((float)width  - halfW * 2.0f) * 0.5f;
+            *(float*)(hModule + OFFSET_HALOREACH_DAT_HUD_SCREEN_SCALE_AND_OFFSET + 4) = ((float)height - halfH * 2.0f) * 0.5f;
+        }
+    }
+
     HaloReachEntry(entry, OFFSET_HALOREACH_PF_HUD_ANCHOR, void, detour) {
         ((detour_t)entry.m_pOriginal)();
 
@@ -136,7 +162,7 @@ namespace HaloReach::Entry::HudAnchor {
 
         LogFrameAndBasis(hModule, "original");
 
-        int resolution = *(int*)(hModule + 0xD1F710);
+        int resolution = *(int*)(hModule + OFFSET_HALOREACH_DAT_CURRENT_HUD_RESOLUTION);
 
         // LEFT/RIGHT CANVAS-HEIGHT FIT (production, g_lrHudCanvasFit; validated
         // in game 2026-09-16: Sx == Sy logged, radar/weapon/notifications/medals
@@ -164,24 +190,25 @@ namespace HaloReach::Entry::HudAnchor {
             int slot = *(int*)(hModule + OFFSET_HALOREACH_DAT_CURRENT_HUD_PLAYER);
 
             if (AlphaRing::SplitscreenConfigStore::UsesFullHeightLeftRightSlot(playerCount, slot)) {
-                float refW  = *(float*)(hModule + 0xD1F6F0);
-                float halfW = *(float*)(hModule + 0xD1F798);
-                float halfH = *(float*)(hModule + 0xD1F79C);
+                float refW  = *(float*)(hModule + OFFSET_HALOREACH_PV_HUD_CANVAS);
+                float halfW = *(float*)(hModule + OFFSET_HALOREACH_DAT_HUD_SCREEN_SCALE_AND_OFFSET + 8);
+                float halfH = *(float*)(hModule + OFFSET_HALOREACH_DAT_HUD_SCREEN_SCALE_AND_OFFSET + 0xC);
 
                 if (refW > 1.0f && halfW > 1.0f && halfH > 1.0f) {
-                    *(float*)(hModule + 0xD1F6F4) = refW * halfH / halfW;
+                    *(float*)(hModule + OFFSET_HALOREACH_PV_HUD_CANVAS + 4) = refW * halfH / halfW;
                     LogFrameAndBasis(hModule, "lr_canvas");
                 }
+                // The original box hugs the screen's centre line (1920x1080: insets 128 and 4 px,
+                // yInset 64 and 80), so both HUDs crowd the middle - more so on ultrawide screens.
+                if (g_centreHudBox) CentreHudBox(hModule);
                 return;
             }
         }
 
         if (resolution != 2) return;
 
-        short y0 = *(short*)(hModule + 0xD1F6D0);
-        short x0 = *(short*)(hModule + 0xD1F6D2);
-        short y1 = *(short*)(hModule + 0xD1F6D4);
-        short x1 = *(short*)(hModule + 0xD1F6D6);
+        auto& bounds = ViewBounds(hModule);
+        short y0 = bounds.top, x0 = bounds.left, y1 = bounds.bottom, x1 = bounds.right;
 
         int width = x1 - x0;
         int height = y1 - y0;
@@ -199,29 +226,19 @@ namespace HaloReach::Entry::HudAnchor {
         if (g_applyHudShapeTarget) {
             int target = AlphaRing::Global::Global()->splitscreen_hud_target;
             if (target != 0 && height > width) {
-                float halfW = *(float*)(hModule + 0xD1F798);
+                float halfW = *(float*)(hModule + OFFSET_HALOREACH_DAT_HUD_SCREEN_SCALE_AND_OFFSET + 8);
                 if (halfW > 1.0f) {
                     constexpr float T_MATCH_STOCK = 768.0f / 224.0f;   // 3.42857
                     constexpr float T_ROUND       = 1.0f / 0.3678f;    // 2.71887
                     float t = (target == 2) ? T_ROUND : T_MATCH_STOCK;
                     float halfH = halfW / t;
                     if (halfH > 1.0f && halfH * 2.0f <= (float)height)
-                        *(float*)(hModule + 0xD1F79C) = halfH;
+                        *(float*)(hModule + OFFSET_HALOREACH_DAT_HUD_SCREEN_SCALE_AND_OFFSET + 0xC) = halfH;
                 }
             }
         }
 
-        if (g_centreHudBox) {
-            float halfW = *(float*)(hModule + 0xD1F798);
-            float halfH = *(float*)(hModule + 0xD1F79C);
-
-            // Leave the original alone rather than write a degenerate frame.
-            if (halfW > 1.0f && halfH > 1.0f &&
-                halfW * 2.0f <= (float)width && halfH * 2.0f <= (float)height) {
-                *(float*)(hModule + 0xD1F790) = ((float)width  - halfW * 2.0f) * 0.5f;
-                *(float*)(hModule + 0xD1F794) = ((float)height - halfH * 2.0f) * 0.5f;
-            }
-        }
+        if (g_centreHudBox) CentreHudBox(hModule);
 
         if (height <= width) return;
 
@@ -236,8 +253,8 @@ namespace HaloReach::Entry::HudAnchor {
         // fix needs a second lever (the canvas-height fit is that lever).
         if (!g_applyPortraitYOverride) return;
 
-        *(float*)(hModule + 0xD1F794) = 0.0f;              // yInset
-        *(float*)(hModule + 0xD1F79C) = height * 0.5f;     // halfHeight
+        *(float*)(hModule + OFFSET_HALOREACH_DAT_HUD_SCREEN_SCALE_AND_OFFSET + 4) = 0.0f;              // yInset
+        *(float*)(hModule + OFFSET_HALOREACH_DAT_HUD_SCREEN_SCALE_AND_OFFSET + 0xC) = height * 0.5f;     // halfHeight
 
         LogFrameAndBasis(hModule, "override");
     }

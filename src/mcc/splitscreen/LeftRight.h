@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Offset.h"
 #include "mcc/module/patch/SplitscreenConfigStore.h"
 
 // The Left/Right split screen in every game. One saved choice (the store's TwoPlayerLayout) drives them all.
@@ -35,18 +36,18 @@ namespace MCC::Splitscreen::LeftRight {
 
     // Where a Gen3 engine keeps what the layout touches (module-relative addresses).
     struct Gen3 {
-        __int64 table;          // c_splitscreen_config::m_config_table, {x0, y0, x1, y1, variant}[players * 4 + slot]
-        __int64 screen;         // int width, height the views are laid out on
-        __int64 player_count;   // int () - local players on screen
-        __int64 fill_rect;      // void (short rect[4] {top, left, bottom, right}, unsigned argb)
-        __int64 pool_release;   // the render-target pool teardown and rebuild the engine's resize path runs
-        __int64 pool_init;
+        const AlphaRing::Offset& table;        // c_splitscreen_config::m_config_table, {x0, y0, x1, y1, variant}[players * 4 + slot]
+        const AlphaRing::Offset& screen;       // int width, height the views are laid out on
+        const AlphaRing::Offset& player_count; // int () - local players on screen
+        const AlphaRing::Offset& fill_rect;    // void (short rect[4] {top, left, bottom, right}, unsigned argb)
+        const AlphaRing::Offset& pool_release; // the render-target pool teardown and rebuild the engine's resize path runs
+        const AlphaRing::Offset& pool_init;
         void (*before_painting)(__int64 module) = nullptr; // render state the painter sets up itself (Halo 4)
         bool double_rounding = false; // render-target sizes are rounded in double precision (Halo 3), not float
         int hud_layout_size = 0;      // bytes in a HUD layout record (chud globals) ...
         int hud_canvas = 0;           // ... where it keeps its int canvas width, height ...
         int hud_safe_frame = 0;       // ... and the share of the screen a HUD is clamped to, float H, V (Halo 3, ODST)
-        __int64 title_safe_return = 0; // where the view setup's call for the title-safe box returns (Halo 3, ODST)
+        const AlphaRing::Offset* title_safe_return = nullptr; // where the view setup's call for the title-safe box returns (Halo 3, ODST)
         bool whole_quarter_hud = false; // quarters use the full-screen HUD layout (ODST: its quarter ones lack most elements)
     };
 

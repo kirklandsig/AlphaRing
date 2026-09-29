@@ -20,8 +20,23 @@
 #include <cstring>
 #include <initializer_list>
 #include <malloc.h>
+#include <mutex>
+#include <vector>
 
 namespace Halo2::Entry::Anniversary {
+    EntryFeature("Halo 2 Anniversary graphics with 3-4 players",
+                 OFFSET_HALO2_PV_RESPAWN, OFFSET_HALO2_PV_ANNIVERSARY, OFFSET_HALO2_PV_CLASSIC_SHOWN, OFFSET_HALO2_PF_CINEMATIC,
+                 OFFSET_HALO2_PV_PLAYERS, OFFSET_HALO2_PV_SABER_DEVICE, OFFSET_HALO2_PF_SPLIT_GRID, OFFSET_HALO2_PF_SPLIT_CELL,
+                 OFFSET_HALO2_TWO_PLAYERS_TEST_HAND_OVER, OFFSET_HALO2_TWO_PLAYERS_TEST_OBJECT_SYNC,
+                 OFFSET_HALO2_TWO_PLAYERS_TEST_SCREEN_EFFECT, OFFSET_HALO2_TWO_PLAYERS_TEST_FIRST_PERSON_1,
+                 OFFSET_HALO2_TWO_PLAYERS_TEST_FIRST_PERSON_2, OFFSET_HALO2_TWO_PLAYERS_TEST_FIRST_PERSON_3,
+                 OFFSET_HALO2_PV_SABER_CAMERAS, OFFSET_HALO2_PF_SABER_CAMERA_SET_FOV, OFFSET_HALO2_PV_MODEL_LEVELS,
+                 OFFSET_HALO2_PF_FIRST_PERSON_BUILD, OFFSET_HALO2_PV_FIRST_PERSON_MODELS, OFFSET_HALO2_PF_SABER_OBJECT_SHOW,
+                 OFFSET_HALO2_PF_SABER_OBJECT_HIDE, OFFSET_HALO2_PV_SABER_CONTEXT, OFFSET_HALO2_PV_SABER_SCENE);
+
+    // Everything the mode hooks and reaches is in this build (MCC::Splitscreen::ClassicGraphicsScope asks).
+    bool Available() { return entry_feature->Available(); }
+
     int Players(__int64 module) {
         return std::clamp((int)*(short*)(*(char**)(module + OFFSET_HALO2_PV_RESPAWN) + 8), 0, 4);
     }
@@ -29,6 +44,15 @@ namespace Halo2::Entry::Anniversary {
     bool AnniversaryShown(__int64 module) {
         return *(int*)(module + OFFSET_HALO2_PV_ANNIVERSARY) != 0 && !*(bool*)(module + OFFSET_HALO2_PV_CLASSIC_SHOWN);
     }
+
+    // Which graphics are on screen, as the split-screen hooks last saw them (mcc/splitscreen/LeftRight asks from outside
+    // the module's hooks, where it may be unloading): noted while this mode is hooked, Classic otherwise.
+    extern ::Entry entry_frame;
+    std::atomic<bool> s_anniversary_on_screen = false;
+    void NoteGraphics(__int64 module) {
+        if (entry_frame.m_target != 0) s_anniversary_on_screen = AnniversaryShown(module);
+    }
+    bool ClassicShown() { return !s_anniversary_on_screen; }
 
     bool Quad(__int64 module) {
         return MCC::Splitscreen::AnniversaryQuadActive() && Players(module) >= 3 && AnniversaryShown(module)
@@ -68,15 +92,20 @@ namespace Halo2::Entry::Anniversary {
 
     // ---- split screen: the game's glue turns it on for exactly two local players; at its sites quad mode answers two
 
-    constexpr __int64 kTwoPlayerTests[] = {OFFSET_HALO2_TWO_LOCAL_PLAYERS_TESTS};
+    const AlphaRing::Offset* const kTwoPlayerTests[] = {
+        &OFFSET_HALO2_TWO_PLAYERS_TEST_HAND_OVER, &OFFSET_HALO2_TWO_PLAYERS_TEST_OBJECT_SYNC,
+        &OFFSET_HALO2_TWO_PLAYERS_TEST_SCREEN_EFFECT, &OFFSET_HALO2_TWO_PLAYERS_TEST_FIRST_PERSON_1,
+        &OFFSET_HALO2_TWO_PLAYERS_TEST_FIRST_PERSON_2, &OFFSET_HALO2_TWO_PLAYERS_TEST_FIRST_PERSON_3};
+
+    bool TwoPlayerTest(__int64 at) {
+        return std::any_of(std::begin(kTwoPlayerTests), std::end(kTwoPlayerTests), [&](auto test) { return *test == at; });
+    }
 
     PreservedEntry(entry_local_players, Halo2EntrySet(), OFFSET_HALO2_PF_LOCAL_PLAYER_COUNT, local_players, void*, void*,
                    void*, void*, __int64 caller) {
         __int64 module = entry_local_players.m_target - entry_local_players.m_offset;
         int players = *(short*)(*(char**)(module + OFFSET_HALO2_PV_RESPAWN) + 8); // as the game's leaf reads it
-        if (players > 2 && MCC::Splitscreen::AnniversaryQuadActive() &&
-            std::find(std::begin(kTwoPlayerTests), std::end(kTwoPlayerTests), caller - module) != std::end(kTwoPlayerTests) &&
-            Quad(module))
+        if (players > 2 && MCC::Splitscreen::AnniversaryQuadActive() && TwoPlayerTest(caller - module) && Quad(module))
             return 2;
         return players;
     }
@@ -165,6 +194,8 @@ namespace Halo2::Entry::Anniversary {
         }
         Cell cell = PlayerCell(module, player, players, false);
         *(float*)(view + 0x158) = (float)(cell.bottom - cell.top) / (float)(cell.right - cell.left) / *(float*)(Settings(module) + 0x1C);
+        *(float*)(view + 0x144) = (float)(cell.right - cell.left);
+        *(float*)(view + 0x148) = (float)(cell.bottom - cell.top);
         ((void (*)(char*, float))(module + OFFSET_HALO2_PF_SABER_CAMERA_SET_FOV))(view, *(float*)(view + 0x154));
         *(int*)(view + 0x220) = slot; // the renderer's per-view tables have two slots
         if (player != slot + 2 * t_pair) flags |= 4; // 3 players: listed as a second view, which is skipped
@@ -272,6 +303,88 @@ namespace Halo2::Entry::Anniversary {
         return *(ID3D11DeviceContext**)(*(char**)(module + OFFSET_HALO2_PV_SABER_CONTEXT) + 0xD58);
     }
 
+    // ---- quarter-size views. The renderer draws a view the size of the target it's drawn into - the "_split"
+    // textures of its render targets, full width and half height, both views in turn. For as long as quad mode lasts
+    // they're made half as wide, their cell's size: half the pixels to draw.
+
+    std::mutex s_split_mutex; // both lists: targets are added and deleted off the render thread too
+    std::vector<char*> s_split_textures; // every render target's "_split" textures
+
+    Halo2Entry(entry_add_target, OFFSET_HALO2_PF_SABER_ADD_RENDER_TARGET, char*, add_target, char* set, void* name,
+               __int64 a3, __int64 a4, __int64 a5, __int64 a6, __int64 a7, __int64 a8, __int64 a9) {
+        int before = *(int*)(set + 0xC);
+        char* target = ((add_target_t)entry_add_target.m_pOriginal)(set, name, a3, a4, a5, a6, a7, a8, a9);
+        int after = *(int*)(set + 0xC);
+        std::lock_guard<std::mutex> lock(s_split_mutex);
+        for (int i = before; i < after; ++i) {
+            char* entry = set + 0x10 + i * 0x30;
+            char* texture = *(char**)entry;
+            if (texture != nullptr && (*(unsigned*)(entry + 8) & 0x60000000) &&
+                std::find(s_split_textures.begin(), s_split_textures.end(), texture) == s_split_textures.end())
+                s_split_textures.push_back(texture);
+        }
+        return target;
+    }
+
+    struct Narrowed {
+        char* texture;
+        short width; // as the renderer made it
+    };
+    std::vector<Narrowed> s_narrowed;
+
+    // The renderer deletes a texture whatever its reference count (a target set's teardown, a new resolution): it
+    // leaves both lists first. Nothing the lists' users call on a texture takes the texture manager's lock, which the
+    // deleting thread may hold.
+    Halo2Entry(entry_delete_texture, OFFSET_HALO2_PF_SABER_DELETE_TEXTURE, void, delete_texture, char* manager,
+               int index) {
+        if (char* texture = (*(char***)(manager + 0x220))[index]) {
+            std::lock_guard<std::mutex> lock(s_split_mutex);
+            s_split_textures.erase(std::remove(s_split_textures.begin(), s_split_textures.end(), texture),
+                                   s_split_textures.end());
+            s_narrowed.erase(std::remove_if(s_narrowed.begin(), s_narrowed.end(),
+                                            [&](auto& n) { return n.texture == texture; }),
+                             s_narrowed.end());
+        }
+        ((delete_texture_t)entry_delete_texture.m_pOriginal)(manager, index);
+    }
+
+    // Made again at `width`: its GPU resources released (vtable +0xC8), and its description, which the renderer keeps
+    // fixed once made (bit 27 of +0x98), set again (+0xA0 makes the resources).
+    void Remake(char* texture, int width) {
+        using release_t = void (*)(char*);
+        using make_t = bool (*)(char*, int width, int height, int mips, int format, int depth, int samples, void*);
+        void** vtable = *(void***)texture;
+        ((release_t)vtable[0xC8 / 8])(texture);
+        unsigned& flags = *(unsigned*)(texture + 0x98);
+        unsigned fixed = flags & 0x08000000u;
+        flags &= ~0x08000000u;
+        ((make_t)vtable[0xA0 / 8])(texture, width, *(short*)(texture + 0x22), *(unsigned char*)(texture + 0x2A),
+                                   *(short*)(texture + 0x26), *(short*)(texture + 0x24), *(short*)(texture + 0x28), nullptr);
+        flags |= fixed;
+    }
+
+    void QuarterViews(bool on) {
+        std::lock_guard<std::mutex> lock(s_split_mutex);
+        if (!on) {
+            for (auto& narrowed : s_narrowed) Remake(narrowed.texture, narrowed.width);
+            s_narrowed.clear();
+            return;
+        }
+        int narrowed = 0;
+        for (char* texture : s_split_textures) {
+            short width = *(short*)(texture + 0x20);
+            auto it = std::find_if(s_narrowed.begin(), s_narrowed.end(), [&](auto& n) { return n.texture == texture; });
+            if (it != s_narrowed.end() && width == it->width / 2) continue;
+            if (width < 2) continue;
+            if (it == s_narrowed.end()) it = s_narrowed.insert(s_narrowed.end(), {texture, width});
+            else it->width = width; // the renderer made it again (a new resolution)
+            Remake(texture, width / 2);
+            ++narrowed;
+        }
+        if (narrowed > 0)
+            LOG_INFO("Halo 2 Anniversary 3-4 players: {} render targets made cell-sized", narrowed);
+    }
+
     Halo2Entry(entry_frame, OFFSET_HALO2_PF_SABER_RENDER_FRAME, void, frame) {
         __int64 module = entry_frame.m_target - entry_frame.m_offset;
         unsigned flags = *(unsigned*)(*(char**)(module + OFFSET_HALO2_PV_SABER_SCENE) + 0x140);
@@ -279,6 +392,7 @@ namespace Halo2::Entry::Anniversary {
         s_frame_pair = (flags & kSecondPairList) ? 1 : 0;
         s_frame_players = Players(module);
         memset(s_drawn, 0, sizeof s_drawn);
+        QuarterViews(s_frame_quad);
         ((frame_t)entry_frame.m_pOriginal)();
         if (s_target != nullptr) {
             s_target->Release();
@@ -429,22 +543,43 @@ namespace Halo2::Entry::Anniversary {
             if (held != nullptr) held->Release();
     }
 
-    Halo2Entry(entry_composite, OFFSET_HALO2_PF_SABER_COMPOSITE, void, composite, void* texture, bool split, int index) {
-        if (!s_frame_quad || !split || index < 0 || index > 1)
-            return ((composite_t)entry_composite.m_pOriginal)(texture, split, index);
-        if (index == 1 && NoSecondView()) return;
-        __int64 module = entry_composite.m_target - entry_composite.m_offset;
-        int player = index + 2 * s_frame_pair;
-        Cell cell = PlayerCell(module, player, s_frame_players, true);
+    extern ::Entry entry_composite;
+    using composite_t = void (*)(void* texture, bool split, int index);
+
+    // The game's composite with its quad collapsed: the view's image, which it leaves bound, for our shaders to draw.
+    ID3D11ShaderResourceView* CollapsedImage(ID3D11DeviceContext* context, void* texture, bool split, int index) {
         s_collapse = true;
         ((composite_t)entry_composite.m_pOriginal)(texture, split, index);
         s_collapse = false;
-
-        auto context = Context(module);
-        ID3D11RenderTargetView* screen = nullptr;
-        context->OMGetRenderTargets(1, &screen, nullptr);
         ID3D11ShaderResourceView* image = nullptr;
         context->PSGetShaderResources(0, 1, &image);
+        return image;
+    }
+
+    Halo2Entry(entry_composite, OFFSET_HALO2_PF_SABER_COMPOSITE, void, composite, void* texture, bool split, int index) {
+        auto original = (composite_t)entry_composite.m_pOriginal;
+        __int64 module = entry_composite.m_target - entry_composite.m_offset;
+        // Two players: the game's quad leaves the screen black here too (under Proton at least - megabitt01 found it,
+        // megabitt01/AlphaRing#23), so each view is drawn into its half by our shaders as well.
+        if (split && index >= 0 && index <= 1 && !s_frame_quad && Players(module) == 2) {
+            auto context = Context(module);
+            ID3D11ShaderResourceView* image = CollapsedImage(context, texture, split, index);
+            ID3D11Device* device = nullptr;
+            context->GetDevice(&device);
+            if (image != nullptr && device != nullptr && s_drawer.Ready(device))
+                DrawCell(context, image, PlayerCell(module, index, 2, true));
+            if (device != nullptr) device->Release();
+            if (image != nullptr) image->Release();
+            return;
+        }
+        if (!s_frame_quad || !split || index < 0 || index > 1) return original(texture, split, index);
+        if (index == 1 && NoSecondView()) return;
+        int player = index + 2 * s_frame_pair;
+        Cell cell = PlayerCell(module, player, s_frame_players, true);
+        auto context = Context(module);
+        ID3D11ShaderResourceView* image = CollapsedImage(context, texture, split, index);
+        ID3D11RenderTargetView* screen = nullptr;
+        context->OMGetRenderTargets(1, &screen, nullptr);
         if (s_target == nullptr && screen != nullptr) s_target_ready = PrepareTarget(context, screen);
         if (s_target_ready && image != nullptr) {
             if (Spawned(module, player)) DrawCell(context, image, cell);
@@ -465,7 +600,8 @@ namespace Halo2::Entry::Anniversary {
     }
     extern ::Entry entry_composite_quad;
     ::Entry entry_composite_quad(Halo2EntrySet(), OFFSET_HALO2_SABER_COMPOSITE_DRAW,
-                                 MidFunctionThunk(&CompositeQuad, &entry_composite_quad.m_pOriginal, nullptr, 0));
+                                 MidFunctionThunk(&CompositeQuad, &entry_composite_quad.m_pOriginal, nullptr, 0),
+                                 entry_feature);
 
     Halo2Entry(entry_after_views, OFFSET_HALO2_PF_SABER_AFTER_CAMERAS, void, after_views) {
         if (s_frame_quad && s_target_ready) {
@@ -488,9 +624,15 @@ namespace Halo2::Entry::Anniversary {
             s_kept = nullptr;
         }
         s_drawer.Release();
+        {
+            std::lock_guard<std::mutex> lock(s_split_mutex);
+            s_split_textures.clear();
+            s_narrowed.clear();
+        }
         for (auto& spawned : s_spawned) spawned = false;
         s_pair = s_sync_pair = 0;
         s_frame_quad = false;
+        s_anniversary_on_screen = false;
     }
     const bool s_reset = (Halo2EntrySet()->on_remove(&Reset), true);
 }

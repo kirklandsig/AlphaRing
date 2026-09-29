@@ -11,8 +11,20 @@
 #include "../CGameManager.h"
 #include "mcc/CGameGlobal.h"
 #include "LeftRight.h"
+#include "mcc/mcc.h"
 
 #include <atomic>
+
+namespace Halo1::Entry::Anniversary { bool Available(); }
+namespace Halo2::Entry::Anniversary { bool Available(); }
+namespace Halo1::Entry::HotJoin {
+    bool Available();
+    bool Active();
+}
+namespace Halo2::Entry::HotJoin {
+    bool Available();
+    bool Active();
+}
 
 namespace MCC::Splitscreen {
     DefDetourFunction(__int64, __fastcall, get_index_by_xuid, void* a1, __int64 xuid) {
@@ -31,7 +43,7 @@ namespace MCC::Splitscreen {
 
         // fix: changing team freeze the game
         result = AlphaRing::Hook::Detour({
-            {0x38A09C/*0x2D01DC*/, 0x374164/*0x2BD620*/, get_index_by_xuid, (void**)&ppOriginal_get_index_by_xuid},
+            {OFFSET_MCC_PF_GET_INDEX_BY_XUID, OFFSET_MCC_WS_PF_GET_INDEX_BY_XUID, get_index_by_xuid, (void**)&ppOriginal_get_index_by_xuid},
         });
 
         assertm(result, "MCC:Splitscreen: failed to hook");
@@ -39,30 +51,95 @@ namespace MCC::Splitscreen {
         return true;
     }
 
-    // The choice is read on the render and worker threads, so it is kept here rather than read from the
-    // config store each time: the saved choice (-1 until read), and the current mission's.
-    constexpr const char* kAnniversaryQuad = "anniversary_quad";
-    std::atomic<int> g_anniversary_quad_chosen{-1};
-    std::atomic<bool> g_anniversary_quad_active{false};
+    // A saved on/off choice. It's read on the render and worker threads, so it's kept here rather than read from the
+    // config store each time: -1 (off) until the store has loaded, then read once.
+    struct SavedChoice {
+        const char* key;
+        std::atomic<int> value{-1};
 
-    bool AnniversaryQuadChosen() {
-        int chosen = g_anniversary_quad_chosen;
-        if (chosen < 0) {
-            float value = 0.0f;
-            chosen = AlphaRing::SplitscreenConfigStore::Get(-1, kAnniversaryQuad, value) && value != 0.0f;
-            g_anniversary_quad_chosen = chosen;
+        bool Get() {
+            int chosen = value;
+            if (chosen < 0 && AlphaRing::SplitscreenConfigStore::Loaded()) {
+                float saved = 0.0f;
+                value = chosen = AlphaRing::SplitscreenConfigStore::Get(-1, key, saved) && saved != 0.0f;
+            }
+            return chosen > 0;
         }
-        return chosen != 0;
-    }
 
-    void ChooseAnniversaryQuad(bool on) {
-        g_anniversary_quad_chosen = on;
-        AlphaRing::SplitscreenConfigStore::Set(-1, kAnniversaryQuad, on ? 1.0f : 0.0f);
-    }
+        void Set(bool on) {
+            value = on;
+            AlphaRing::SplitscreenConfigStore::Set(-1, key, on ? 1.0f : 0.0f);
+        }
+    };
 
+    SavedChoice g_anniversary_quad{"anniversary_quad"};
+    std::atomic<bool> g_anniversary_quad_active{false}; // the current mission's
+
+    bool AnniversaryQuadChosen() { return g_anniversary_quad.Get(); }
+    void ChooseAnniversaryQuad(bool on) { g_anniversary_quad.Set(on); }
     bool AnniversaryQuadActive() { return g_anniversary_quad_active; }
 
+    SavedChoice g_hot_join{"hot_join"};
+
+    static void ChooseHotJoin(bool on) {
+        g_hot_join.Set(on);
+        if (on) AlphaRing::Global::MCC::Splitscreen()->b_override = true; // the slots are AlphaRing's
+    }
+
+    bool HotJoinOn() { return AlphaRing::Global::MCC::Splitscreen()->b_override && g_hot_join.Get(); }
+
+    // How a game takes a player joining in the middle of a mission. Halo 3, ODST, Reach and Halo 4 make the player MCC
+    // signs in. Halo CE and Halo 2 make their players as a mission loads, so their modules keep all four and hold back
+    // the ones who haven't joined (module/entry/halo1/hotjoin.cpp, halo2/hotjoin.cpp): whether this build has all the
+    // module's addresses, and whether the running mission started with it.
+    struct Reserving {
+        bool (*available)();
+        bool (*active)();
+    };
+
+    static const Reserving* ReservingFor(int game) {
+        static const Reserving halo1{Halo1::Entry::HotJoin::Available, Halo1::Entry::HotJoin::Active};
+        static const Reserving halo2{Halo2::Entry::HotJoin::Available, Halo2::Entry::HotJoin::Active};
+        return game == CGameGlobal::Halo1 ? &halo1 : game == CGameGlobal::Halo2 ? &halo2 : nullptr;
+    }
+
+    static bool SignsIn(int game) {
+        return game == CGameGlobal::Halo3 || game == CGameGlobal::Halo3ODST || game == CGameGlobal::HaloReach ||
+               game == CGameGlobal::Halo4;
+    }
+
+    // A running map takes joins (not one that is still loading).
+    bool HotJoinActive() {
+        if (!MCC::Ready() || !HotJoinOn() || !MCC::IsInGame() || !CGameManager::running()) return false;
+        auto p_global = GameGlobal();
+        if (p_global == nullptr) return false;
+        auto reserving = ReservingFor(p_global->current_game);
+        return reserving ? reserving->active() : SignsIn(p_global->current_game);
+    }
+
+    // Players leave in the middle of a Halo CE mission only: its module takes the leaver's Spartan away, and the games
+    // that sign players in end the mission when MCC signs one out.
+    bool HotJoinLeaves() { return HotJoinActive() && GameGlobal()->current_game == CGameGlobal::Halo1; }
+
+    int HotJoinSlots(int player_count) {
+        auto p_global = GameGlobal();
+        auto reserving = p_global ? ReservingFor(p_global->current_game) : nullptr;
+        return reserving && reserving->available() && HotJoinOn() ? 4 : player_count;
+    }
+
+    // Halo CE and Halo 2 take the choice as a mission starts, and MCC ends one whose reserved players go away: in one
+    // of their games it's changed at MCC's menus.
+    static bool HotJoinLocked() {
+        auto p_global = GameGlobal();
+        return MCC::IsInGame() && p_global && ReservingFor(p_global->current_game);
+    }
+
     bool AnniversaryQuadGame(int game) { return game == CGameGlobal::Halo1 || game == CGameGlobal::Halo2; }
+
+    // The game's quad mode has all its offsets in this MCC build (always in the one they were written for).
+    static bool AnniversaryQuadAvailable(int game) {
+        return game == CGameGlobal::Halo1 ? Halo1::Entry::Anniversary::Available() : Halo2::Entry::Anniversary::Available();
+    }
 
     ClassicGraphicsScope::ClassicGraphicsScope(unsigned char* game_options, int game) {
         auto p_setting = AlphaRing::Global::MCC::Splitscreen();
@@ -71,13 +148,15 @@ namespace MCC::Splitscreen {
                           LeftRight::Supports(game, p_setting->player_count);
         LeftRight::StartClassicMission(game, left_right);
         g_anniversary_quad_active = false;
-        if (!p_setting->b_override || (p_setting->player_count <= 2 && !left_right) || game_options == nullptr)
-            return;
-        bool quad = AnniversaryQuadGame(game) && !left_right && AnniversaryQuadChosen();
+        if (!p_setting->b_override || game_options == nullptr) return;
+        // The 3-4 player mode is set up for every mission (it runs with 3-4 players while Anniversary is on screen):
+        // Back switches Halo CE and Halo 2 to Anniversary graphics in the middle of one, their own renderers draw only
+        // two views, and a hot join can bring a third player. The choice is whether missions start in Anniversary.
+        bool available = AnniversaryQuadGame(game) && AnniversaryQuadAvailable(game);
+        g_anniversary_quad_active = available;
+        if (p_setting->player_count <= 2 && !left_right) return;
+        bool quad = available && !left_right && AnniversaryQuadChosen();
         bool anniversary = game_options[0] & 1;
-        // Halo 2 switches graphics in place when a player presses Back, so its 3-4 player mode also follows a switch
-        // from a Classic start; Halo CE builds its views for the graphics it starts in.
-        g_anniversary_quad_active = quad && (anniversary || game == CGameGlobal::Halo2);
         if (!anniversary) return;
         if (quad) {
             LOG_INFO("Splitscreen: {} players in Anniversary graphics (experimental)", p_setting->player_count);
@@ -126,6 +205,8 @@ namespace MCC::Splitscreen {
 
     void ImGuiContext() {
         static bool show_splitscreen;
+
+        JoinContext();
 
         if (ImGui::BeginMainMenuBar()) {
             ImGui::MenuItem("Splitscreen", nullptr, &show_splitscreen);
@@ -275,16 +356,26 @@ namespace MCC::Splitscreen {
                     ImGui::SetTooltip("Left / Right instead of Top / Bottom: 2 players get a full-height half each; with 3, "
                                       "player 1 has the left half and players 2 and 3 share the right. Everyone's "
                                       "setting, also in each player's menu (MY HUD > SPLIT). Halo CE and Halo 2 change at "
-                                      "the next mission start, in Classic graphics.");
+                                      "the next mission start, in Classic graphics (Back to Anniversary shows their "
+                                      "stacked or quarter views).");
+                bool hot_join = g_hot_join.Get();
+                if (ImGui::MenuItem("Hot join (experimental)", nullptr, &hot_join, !HotJoinLocked()))
+                    ChooseHotJoin(hot_join);
+                if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                    ImGui::SetTooltip("Players join in the middle of a mission: a controller nobody is playing with "
+                                      "presses A to join (they come in beside a teammate). In Halo CE the last player "
+                                      "can also leave, with B in the Players window; in the other games players leave "
+                                      "at MCC's menus. Halo CE and Halo 2 take it as a mission starts, so in their "
+                                      "games it's changed at MCC's menus.");
                 bool anniversary = AnniversaryQuadChosen();
                 if (ImGui::MenuItem("Anniversary graphics with 3-4 players (CE, H2; experimental)", nullptr, &anniversary))
                     ChooseAnniversaryQuad(anniversary);
                 if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip("Keeps Anniversary graphics in Halo CE and Halo 2 with 3 or 4 players instead of "
-                                      "switching to Classic. The games' renderers only draw two views at a time, so they alternate: "
-                                      "players 1 and 2 on one frame, 3 and 4 on the next (each view updates at half the "
-                                      "frame rate). Changes at the next mission start; side by side stays Classic. "
-                                      "Everyone's setting, also in each player's menu (MY HUD > ANNIV 3-4P).");
+                    ImGui::SetTooltip("Starts Halo CE and Halo 2 missions with 3 or 4 players in Anniversary graphics instead "
+                                      "of Classic; Back switches between them either way. The games' renderers only draw two "
+                                      "views at a time, so they alternate: players 1 and 2 on one frame, 3 and 4 on the next "
+                                      "(each view updates at half the frame rate). Changes at the next mission start; side by "
+                                      "side starts in Classic. Everyone's setting, also in each player's menu (MY HUD > ANNIV 3-4P).");
                 ImGui::EndMenu();
             }
 #pragma region player count

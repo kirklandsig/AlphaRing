@@ -11,13 +11,20 @@ namespace Halo3ODST::Entry::Splitscreen {
         OFFSET_HALO3ODST_PV_SPLITSCREEN_TABLE, OFFSET_HALO3ODST_PV_SCREEN_SIZE,
         OFFSET_HALO3ODST_PF_SPLITSCREEN_PLAYER_COUNT, OFFSET_HALO3ODST_PF_FILL_RECT,
         OFFSET_HALO3ODST_PF_RT_POOL_RELEASE, OFFSET_HALO3ODST_PF_RT_POOL_INIT,
-        nullptr, false, 0x110, 0x94, 0xAC, OFFSET_HALO3ODST_VIEW_SETUP_TITLE_SAFE_RETURN,
+        nullptr, false, 0x110, 0x94, 0xAC, &OFFSET_HALO3ODST_VIEW_SETUP_TITLE_SAFE_RETURN,
         true, // ODST never shipped four-player split screen: its quarter HUD layouts carry only the ammo panel
     };
     LeftRight::State s_state;
 
-    // from the render hook (render.cpp)
-    void Frame(__int64 module) { LeftRight::Frame(kGame, module, s_state); }
+    EntryFeature("ODST Left/Right split screen", OFFSET_HALO3ODST_PV_SPLITSCREEN_TABLE, OFFSET_HALO3ODST_PV_SCREEN_SIZE,
+                 OFFSET_HALO3ODST_PF_SPLITSCREEN_PLAYER_COUNT, OFFSET_HALO3ODST_PF_FILL_RECT,
+                 OFFSET_HALO3ODST_PF_RT_POOL_RELEASE, OFFSET_HALO3ODST_PF_RT_POOL_INIT,
+                 OFFSET_HALO3ODST_VIEW_SETUP_TITLE_SAFE_RETURN);
+
+    Halo3ODSTEntry(entry_render, OFFSET_HALO3ODST_PF_RENDER, void, render) {
+        LeftRight::Frame(kGame, entry_render.m_target - entry_render.m_offset, s_state);
+        ((render_t)entry_render.m_pOriginal)();
+    }
 
     Halo3ODSTEntry(entry_bars, OFFSET_HALO3ODST_PF_DRAW_SPLITSCREEN_BARS, void, draw_bars) {
         if (!LeftRight::PaintDividers(kGame, entry_bars.m_target - entry_bars.m_offset))

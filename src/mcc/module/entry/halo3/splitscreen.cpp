@@ -10,9 +10,13 @@ namespace Halo3::Entry::Splitscreen {
     constexpr LeftRight::Gen3 kGame {
         OFFSET_HALO3_PV_SPLITSCREEN_TABLE, OFFSET_HALO3_PV_SCREEN_SIZE, OFFSET_HALO3_PF_SPLITSCREEN_PLAYER_COUNT,
         OFFSET_HALO3_PF_FILL_RECT, OFFSET_HALO3_PF_RT_POOL_RELEASE, OFFSET_HALO3_PF_RT_POOL_INIT,
-        nullptr, true, 0x64, 0x10, 0x28, OFFSET_HALO3_VIEW_SETUP_TITLE_SAFE_RETURN,
+        nullptr, true, 0x64, 0x10, 0x28, &OFFSET_HALO3_VIEW_SETUP_TITLE_SAFE_RETURN,
     };
     LeftRight::State s_state;
+
+    EntryFeature("Halo 3 Left/Right split screen", OFFSET_HALO3_PV_SPLITSCREEN_TABLE, OFFSET_HALO3_PV_SCREEN_SIZE,
+                 OFFSET_HALO3_PF_SPLITSCREEN_PLAYER_COUNT, OFFSET_HALO3_PF_FILL_RECT, OFFSET_HALO3_PF_RT_POOL_RELEASE,
+                 OFFSET_HALO3_PF_RT_POOL_INIT, OFFSET_HALO3_VIEW_SETUP_TITLE_SAFE_RETURN);
 
     Halo3Entry(entry_render, OFFSET_HALO3_PF_RENDER, void, render) {
         LeftRight::Frame(kGame, entry_render.m_target - entry_render.m_offset, s_state);

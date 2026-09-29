@@ -14,7 +14,7 @@ inline EntrySet* Halo4SplitscreenEntrySet() {return &g_Halo4SplitscreenEntrySet;
 #define Halo4SplitscreenEntry(name, offset, returnType, pDetour, ...) \
     returnType pDetour(__VA_ARGS__); \
     typedef returnType (*pDetour##_t)(__VA_ARGS__); \
-    ::Entry name(Halo4SplitscreenEntrySet(), offset, pDetour); \
+    ::Entry name(Halo4SplitscreenEntrySet(), offset, pDetour, entry_feature); \
     returnType pDetour(__VA_ARGS__)
 
 namespace Halo4::Entry {
@@ -29,5 +29,5 @@ namespace Halo4::Entry {
 #define Halo4Entry(name, offset, returnType, pDetour, ...) \
     returnType pDetour(__VA_ARGS__); \
     typedef returnType (*pDetour##_t)(...); \
-    ::Entry name(Halo4EntrySet(), offset, pDetour); \
+    ::Entry name(Halo4EntrySet(), offset, pDetour, entry_feature); \
     returnType pDetour(__VA_ARGS__)

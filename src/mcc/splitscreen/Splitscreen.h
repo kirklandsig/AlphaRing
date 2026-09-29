@@ -3,6 +3,8 @@
 namespace MCC::Splitscreen {
     bool Initialize();
     void ImGuiContext();
+    // The Players window (Join.cpp): controllers join and leave with A and B.
+    void JoinContext();
 }
 
 namespace MCC::Splitscreen {
@@ -31,4 +33,16 @@ namespace MCC::Splitscreen {
     bool AnniversaryQuadChosen();
     void ChooseAnniversaryQuad(bool on);
     bool AnniversaryQuadActive();
+}
+
+namespace MCC::Splitscreen {
+    // Hot join (experimental): players join in the middle of a mission, and in Halo CE leave (Join.cpp). The saved
+    // choice with AlphaRing's split screen on (Halo CE's and Halo 2's modules take it as a mission starts); whether
+    // the running mission takes joins, and leaves; each frame, a controller no player uses joining with A.
+    bool HotJoinOn();
+    bool HotJoinActive();
+    bool HotJoinLeaves();
+    void HotJoinPoll();
+    // Local players MCC is told of: all four slots in a hot-join Halo CE or Halo 2 mission, else the player count.
+    int HotJoinSlots(int player_count);
 }

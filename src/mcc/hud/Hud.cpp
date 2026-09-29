@@ -42,19 +42,21 @@ namespace MCC::Hud {
     // and which side of it each of our elements sits on (-1 left, 1 right, 0 centered).
     struct Game {
         int id;
-        __int64 drawing_user;
+        const AlphaRing::Offset* drawing_user;
         bool user_is_short;
         const signed char* elements; // [16], by MCC element id
         Units units;
-        __int64 size, unit_scale;
+        const AlphaRing::Offset *size, *unit_scale; // or none
         float area;
         signed char sides[kElementCount]; // motion sensor, shield, weapon, grenades, crosshair, equipment, messages
         bool (*box_is_area)(__int64 module) = nullptr; // whether the HUD box really is `area` right now
+        const AlphaRing::Offset* widget_motion_sensor = nullptr; // a widget asking for the motion sensor the view moved
     };
 
     // Halo 2 lays its HUD out in the whole view unless the profiles' "HUD anchor: Centered" is on
     // and our fix for it (the "HUD at screen edges" patch) has been switched off.
     static bool Halo2HudInView(__int64 module) {
+        if (!AlphaRing::Found({OFFSET_HALO2_PV_HUD_ASPECT_LOCK, OFFSET_HALO2_PF_HUD_ASPECT_LOCK})) return true;
         return !*(const bool*)(module + OFFSET_HALO2_PV_HUD_ASPECT_LOCK) ||
                *(const unsigned char*)(module + OFFSET_HALO2_PF_HUD_ASPECT_LOCK) == 0xEB;
     }
@@ -67,17 +69,25 @@ namespace MCC::Hud {
         -1, MotionSensor, Grenades, Grenades, Grenades, Grenades, Shield, Weapon, -1, Crosshair, -1, Equipment, -1, -1, -1, -1};
 
     static constexpr Game kGames[] = {
-        {CGameGlobal::Halo1, OFFSET_HALO1_PV_HUD_DRAWING_PLAYER, true, kHalo1Elements, Units::None, 0, 0,
+        {CGameGlobal::Halo1, &OFFSET_HALO1_PV_HUD_DRAWING_PLAYER, true, kHalo1Elements, Units::None, nullptr, nullptr,
          4.0f / 3.0f, {-1, 1, -1, -1, 0, 0, -1}},
-        {CGameGlobal::Halo2, OFFSET_HALO2_PV_HUD_DRAWING_PLAYER, false, kHalo2Elements, Units::Pixels,
-         OFFSET_HALO2_PV_HUD_VIEW_BOUNDS, OFFSET_HALO2_PV_HUD_UNIT_SCALE, 0.0f, {-1, 0, 1, -1, 0, 0, -1}, Halo2HudInView},
-        {CGameGlobal::Halo3, OFFSET_HALO3_PV_HUD_DRAWING_PLAYER, false, kGen3Elements, Units::Canvas,
-         OFFSET_HALO3_PV_HUD_CANVAS, 0, 0.0f, {-1, 0, 1, -1, 0, -1, 0}},
-        {CGameGlobal::Halo3ODST, OFFSET_HALO3ODST_PV_HUD_DRAWING_PLAYER, false, kGen3Elements, Units::Canvas,
-         OFFSET_HALO3ODST_PV_HUD_CANVAS, 0, 0.0f, {-1, -1, 1, 1, 0, 1, 0}},
-        {CGameGlobal::HaloReach, OFFSET_HALOREACH_PV_HUD_DRAWING_PLAYER, false, kGen3Elements, Units::Canvas,
-         OFFSET_HALOREACH_PV_HUD_CANVAS, 0, 0.0f, {-1, 0, 1, 1, 0, -1, 0}},
+        {CGameGlobal::Halo2, &OFFSET_HALO2_PV_HUD_DRAWING_PLAYER, false, kHalo2Elements, Units::Pixels,
+         &OFFSET_HALO2_PV_HUD_VIEW_BOUNDS, &OFFSET_HALO2_PV_HUD_UNIT_SCALE, 0.0f, {-1, 0, 1, -1, 0, 0, -1}, Halo2HudInView},
+        {CGameGlobal::Halo3, &OFFSET_HALO3_PV_HUD_DRAWING_PLAYER, false, kGen3Elements, Units::Canvas,
+         &OFFSET_HALO3_PV_HUD_CANVAS, nullptr, 0.0f, {-1, 0, 1, -1, 0, -1, 0}},
+        {CGameGlobal::Halo3ODST, &OFFSET_HALO3ODST_PV_HUD_DRAWING_PLAYER, false, kGen3Elements, Units::Canvas,
+         &OFFSET_HALO3ODST_PV_HUD_CANVAS, nullptr, 0.0f, {-1, -1, 1, 1, 0, 1, 0}},
+        {CGameGlobal::HaloReach, &OFFSET_HALOREACH_PV_HUD_DRAWING_PLAYER, false, kGen3Elements, Units::Canvas,
+         &OFFSET_HALOREACH_PV_HUD_CANVAS, nullptr, 0.0f, {-1, 0, 1, -1, 0, -1, 0}, nullptr,
+         &OFFSET_HALOREACH_V_HUD_WIDGET_TRANSFORM_RETURN},
     };
+
+    // The game's HUD offsets are all in this MCC build (src/offsets/Offsets.h).
+    static bool Found(const Game& game) {
+        for (auto offset : {game.drawing_user, game.size, game.unit_scale})
+            if (offset != nullptr && !offset->found()) return false;
+        return true;
+    }
 
     static const Game* CurrentGame(__int64& module) {
         auto p_global = GameGlobal();
@@ -85,7 +95,7 @@ namespace MCC::Hud {
         for (auto& game : kGames) {
             if (game.id != p_global->current_game) continue;
             module = MCC::Command::ModuleBase(game.id);
-            return module ? &game : nullptr;
+            return module && Found(game) ? &game : nullptr;
         }
         return nullptr;
     }
@@ -118,25 +128,28 @@ namespace MCC::Hud {
         return *x != 0.0f || *y != 0.0f || *scale != 1.0f;
     }
 
-    bool Transform(int game_element, float* dx, float* dy, float* scale) {
+    bool Transform(int game_element, float* dx, float* dy, float* scale, const void* caller) {
         __int64 module;
         auto game = CurrentGame(module);
         if (game == nullptr) return false;
+        if (auto widget = game->widget_motion_sensor; widget && widget->found() &&
+            caller == (const void*)(module + *widget) && ElementOf(*game, game_element) == MotionSensor)
+            return false;
 
         // the size of the drawing player's view: the HUD's virtual canvas, or pixels (Halo 2);
         // Halo CE takes only sizes from here (its offsets: OffsetCE)
         float width = 0.0f, height = 1.0f;
         if (game->units == Units::Canvas) {
-            auto canvas = (const float*)(module + game->size); // width, height
+            auto canvas = (const float*)(module + *game->size); // width, height
             width = canvas[0];
             height = canvas[1];
         } else if (game->units == Units::Pixels) {
-            auto rect = (const short*)(module + game->size); // top, left, bottom, right
+            auto rect = (const short*)(module + *game->size); // top, left, bottom, right
             width = rect[3] - rect[1];
             height = rect[2] - rect[0];
         }
 
-        auto user_at = module + game->drawing_user;
+        auto user_at = module + *game->drawing_user;
         int user = game->user_is_short ? *(short*)user_at : *(int*)user_at;
         float aspect = height > 0.0f && (!game->box_is_area || game->box_is_area(module)) ? width / height : 0.0f;
         float x, y, s;
@@ -145,7 +158,7 @@ namespace MCC::Hud {
         if (s == 0.0f || game->units == Units::None || height <= 0.0f) return true;
         if (game->units == Units::Pixels) {
             // Halo 2 moves an element by offset x unit scale x its final scale pixels
-            float unit = *(const float*)(module + game->unit_scale) * *scale;
+            float unit = *(const float*)(module + *game->unit_scale) * *scale;
             if (unit <= 0.0f) return true;
             width /= unit;
             height /= unit;

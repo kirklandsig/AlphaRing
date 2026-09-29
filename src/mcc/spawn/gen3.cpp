@@ -32,8 +32,8 @@
 namespace MCC::Spawn::Gen3 {
     struct Game {
         int id;
-        __int64 tags_header, tag_base, tag_names, scenario;
-        __int64 placement_new, object_new, post_create, ai_place, tag_loaded;
+        const AlphaRing::Offset &tags_header, &tag_base, &tag_names, &scenario;
+        const AlphaRing::Offset &placement_new, &object_new, &post_create, &ai_place, &tag_loaded;
 
         // scenario layout (Assembly Halo3MCC / ODSTMCC scnr plugins)
         int squads, squad_size, squad_objective; // objective index, task index follows it
@@ -509,7 +509,14 @@ namespace MCC::Spawn::Gen3 {
         return SpawnResult(SpawnObject(g, id, player, category) != -1, name);
     }
 
-    static const Backend s_halo3 = {List<kHalo3>, Spawn<kHalo3>};
-    static const Backend s_halo3odst = {List<kHalo3ODST>, Spawn<kHalo3ODST>};
+    static AlphaRing::Feature Offsets(const char* name, const Game& g) {
+        return {name, {g.tags_header, g.tag_base, g.tag_names, g.scenario, g.placement_new, g.object_new, g.post_create,
+                       g.ai_place, g.tag_loaded}};
+    }
+
+    static const AlphaRing::Feature s_halo3_offsets = Offsets("Halo 3 spawning", kHalo3);
+    static const AlphaRing::Feature s_halo3odst_offsets = Offsets("ODST spawning", kHalo3ODST);
+    static const Backend s_halo3 = {List<kHalo3>, Spawn<kHalo3>, &s_halo3_offsets};
+    static const Backend s_halo3odst = {List<kHalo3ODST>, Spawn<kHalo3ODST>, &s_halo3odst_offsets};
     static const bool s_registered = (RegisterBackend(kHalo3.id, &s_halo3), RegisterBackend(kHalo3ODST.id, &s_halo3odst), true);
 }

@@ -19,6 +19,10 @@
 #include <cmath>
 
 namespace Halo4::Entry::HudFit {
+    EntryFeature("Halo 4 split-screen HUD fit", OFFSET_HALO4_PV_SPLITSCREEN_TABLE, OFFSET_HALO4_PV_SCREEN_SIZE,
+                 OFFSET_HALO4_PF_HUD_LAYOUT, OFFSET_HALO4_PF_SPLITSCREEN_PLAYER_COUNT, OFFSET_HALO4_PF_UI_USER_INDEX,
+                 OFFSET_HALO4_VT_UI_GROUP, OFFSET_HALO4_VT_HUD_RETICLE_GROUP);
+
     struct Fit {
         bool on = false;
         float aspect = 1.0f;                  // the view's aspect over its layout's (wide when above 1)
@@ -52,8 +56,9 @@ namespace Halo4::Entry::HudFit {
     }
 
     void Refresh(__int64 module) {
-        int players = ((int (*)())(module + OFFSET_HALO4_PF_SPLITSCREEN_PLAYER_COUNT))();
         s_any_fit = false;
+        if (!entry_feature->Available()) return; // from splitscreen.cpp's render hook: only with the hooks below
+        int players = ((int (*)())(module + OFFSET_HALO4_PF_SPLITSCREEN_PLAYER_COUNT))();
         for (int user = 0; user < 4; ++user) {
             s_fits[user] = Compute(module, players, user);
             s_any_fit |= s_fits[user].on;
@@ -109,12 +114,14 @@ namespace Halo4::Entry::HudFit {
         return ((float (*)())entry_extra_height.m_pOriginal)();
     }
 
-    ::Entry entry_wide(Halo4SplitscreenEntrySet(), OFFSET_HALO4_PF_UI_WIDE, PreservingThunk((const void*)&Wide));
-    ::Entry entry_aspect(Halo4SplitscreenEntrySet(), OFFSET_HALO4_PF_UI_ASPECT, PreservingThunk((const void*)&Aspect));
+    ::Entry entry_wide(Halo4SplitscreenEntrySet(), OFFSET_HALO4_PF_UI_WIDE, PreservingThunk((const void*)&Wide),
+                       entry_feature);
+    ::Entry entry_aspect(Halo4SplitscreenEntrySet(), OFFSET_HALO4_PF_UI_ASPECT, PreservingThunk((const void*)&Aspect),
+                         entry_feature);
     ::Entry entry_extra_width(Halo4SplitscreenEntrySet(), OFFSET_HALO4_PF_UI_EXTRA_WIDTH,
-                              PreservingThunk((const void*)&ExtraWidth));
+                              PreservingThunk((const void*)&ExtraWidth), entry_feature);
     ::Entry entry_extra_height(Halo4SplitscreenEntrySet(), OFFSET_HALO4_PF_UI_EXTRA_HEIGHT,
-                               PreservingThunk((const void*)&ExtraHeight));
+                               PreservingThunk((const void*)&ExtraHeight), entry_feature);
 
     // The UI places some widgets outside the HUD update and draw, in a context naming its user (+0x28).
     int ContextUser(__int64 module, const char* context) {

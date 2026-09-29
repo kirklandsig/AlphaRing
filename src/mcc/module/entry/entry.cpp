@@ -4,12 +4,15 @@
 
 #include <MinHook.h>
 
-Entry::Entry(EntrySet* set, __int64 offset, void *pDetour) {
+Entry::Entry(EntrySet* set, const AlphaRing::Offset& offset, void *pDetour, AlphaRing::Feature* feature) {
     m_pOriginal = nullptr;
     m_pDetour = pDetour;
-    m_offset = offset;
+    m_source = &offset;
+    m_feature = feature;
+    m_offset = 0;
     m_target = 0;
 
+    if (feature != nullptr) feature->Add(offset);
     set->append(this);
 }
 
@@ -20,6 +23,14 @@ bool Entry::update(__int64 hModule) {
 
     remove();
 
+    // an MCC build without its offset or one of its feature's (src/offsets/Offsets.h)
+    if (auto missing = m_feature ? m_feature->Missing() : (m_source->found() ? nullptr : m_source)) {
+        LOG_WARNING("[Offsets] not hooking {}{}{}: {} isn't in this build", m_source->name, m_feature ? " - " : "",
+                    m_feature ? m_feature->Name() : "", missing->name);
+        return false;
+    }
+
+    m_offset = m_source->value;
     m_target = m_offset + hModule;
 
     status = MH_CreateHook((void*)m_target, (void*)m_pDetour, (void**)&m_pOriginal);
@@ -51,6 +62,7 @@ bool EntrySet::update(__int64 hModule) {
     if (hModule == 0) return false;
 
     for (int i = 0; i < entryCount; ++i) result &= entryArray[i]->update(hModule);
+    for (int i = 0; i < addCount; ++i) addArray[i](hModule);
 
     return result;
 }
@@ -63,4 +75,9 @@ void EntrySet::remove() {
 void EntrySet::on_remove(void (*callback)()) {
     assert(callbackCount < MAX_CALLBACK);
     callbackArray[callbackCount++] = callback;
+}
+
+void EntrySet::on_add(void (*callback)(__int64)) {
+    assert(addCount < MAX_CALLBACK);
+    addArray[addCount++] = callback;
 }

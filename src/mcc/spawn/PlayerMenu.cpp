@@ -33,7 +33,8 @@ namespace MCC::Spawn {
 
         // SPLIT is everyone's: the split-screen layout (mcc/splitscreen/LeftRight), and so is ANNIV 3-4P, the graphics
         // of Halo CE and Halo 2 with 3-4 players (Classic, or Anniversary: mcc/splitscreen/Splitscreen.h). SPECIES is the
-        // player's profile's: Spartan or Elite, where the game has both (multiplayer).
+        // player's profile's: Spartan or Elite, where the game has both (multiplayer). Halo 2, 3 and Reach read the
+        // profile as a game loads, so a change shows from the next game (box-checked; a respawn keeps the old one).
         enum HudRow { HudArea, HudSize, HudColor, HudSplit, HudAnniversary, HudSpecies, HudReset, kHudRows };
         constexpr const char* kHudRowNames[kHudRows] = {"AREA", "SIZE", "COLOUR", "SPLIT", "ANNIV 3-4P", "SPECIES", "RESET"};
 
@@ -273,7 +274,7 @@ namespace MCC::Spawn {
             HudRow selected = m.selected >= 0 && m.selected < rows ? shown[m.selected] : kHudRows;
             auto status = selected == HudAnniversary ? std::string("Graphics change at mission start")
                         : split_waits                ? std::string("Split changes at mission start")
-                        : selected == HudSpecies     ? std::string("Species changes when you next spawn")
+                        : selected == HudSpecies     ? std::string("Species changes next game")
                         : hud_page                   ? std::string("D-pad left / right changes a setting; saved automatically")
                                                      : Catalog::Status(player);
             Text(dl, font, minor, {x, status_y}, IM_COL32(170, 180, 190, 255), Fit(font, minor, status, w - 2 * pad).c_str());

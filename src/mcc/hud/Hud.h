@@ -45,8 +45,8 @@ namespace MCC::Hud {
     void Save();
 
     // Host callbacks (CGameManagerHud.cpp): true when `element` of the player whose HUD is being
-    // drawn has an override, composed onto MCC's own values.
-    bool Transform(int game_element, float* dx, float* dy, float* scale);
+    // drawn has an override, composed onto MCC's own values. `caller`: the game's return address.
+    bool Transform(int game_element, float* dx, float* dy, float* scale, const void* caller = nullptr);
     bool Anchor(int game_element, int* anchor);
     unsigned Color(int user, unsigned argb);
 

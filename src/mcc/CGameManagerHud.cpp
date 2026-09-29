@@ -3,6 +3,7 @@
 #include "mcc/hud/Hud.h"
 
 #include <cstddef>
+#include <intrin.h>
 
 // Halo 3, ODST and Reach call these host methods from their HUD drawing (MCC's own versions back
 // a feature-flagged HUD editor and the colour-blind filter). MCC's answer is kept and the drawing
@@ -15,7 +16,7 @@ static_assert(offsetof(CGameManager::FunctionTable, retrive_gamepad_mapping) == 
 bool CGameManager::get_hud_element_transform(CGameManager* self, int element, float* dx, float* dy, float* scale) {
     bool result = ppOriginal.get_hud_element_transform(self, element, dx, dy, scale);
     if (!result) { *dx = 0.0f; *dy = 0.0f; *scale = 1.0f; }
-    return MCC::Hud::Transform(element, dx, dy, scale) || result;
+    return MCC::Hud::Transform(element, dx, dy, scale, _ReturnAddress()) || result;
 }
 
 // Only asked after get_hud_element_transform answered true.
