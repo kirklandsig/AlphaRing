@@ -24,6 +24,7 @@
 | `v1.8.0-experimental` | Testing | Discord fixes: split-screen crosshair/aim/HUD centred per view (H3, ODST, H4, Reach), ODST 3-4P full HUD, SPECIES per player, CE spawn Ally/weapon/placement fixes, P2-4 profile edits kept, CE side-by-side zoom/divider/3P, H2 divider, H4 side-by-side HUD fit, settings save data-loss fix |
 | `v1.9.0-experimental` | Testing | Anniversary graphics with 3-4 players in Halo CE and Halo 2 (opt-in, alternating pairs), Halo 4 HUD with bars removed fits each view, Left/Right table rebuild on load, Reach crosshair answered (MCC setting) |
 | `v1.9.1-experimental` | Testing | Reach split screen: black/invisible Spartans after many deaths fixed (Reach's own garbage collector starts sooner with 2+ local players) |
+| `v2.0.0-experimental` | Testing | Hot join in every game (experimental), pattern-mode offsets that survive MCC updates, Players window, H2 players 3-4 beside a teammate at a mission start, H2A 3-4P at 60 fps + 2P black fix, Back switches CE/H2 graphics mid-mission, Reach skinning pool (bodies stay), H2 modded Save & Quit, Reach side-by-side HUD/radar |
 
 ### Branches
 
@@ -339,7 +340,7 @@ User's approved v2.0 plan, item 2: survive MCC updates by resolving offsets from
 - **Verified:** offset_test.exe: every pattern of all 351 resolves exactly on 1.3528. perturb.py (code shifted + data moved + patterns broken/duplicated, all 8 modules, two seeds): every offset at its new address or reported missing where its only pattern was broken, none wrong; with half of all functions' bytes scrambled on top (`--churn 0.5`) 336/351 still found, 15 missing, none wrong. Release build compiles; header values unchanged (script-checked).
 - **Box-test next:** a normal session on 1.3528 first (identical behaviour expected, no `[Offsets]` lines in the log), then a build with `DebugFlags::g_forceOffsetLookup = true`, which looks every offset up from its patterns on the known build (log: each "at X (was X)") so every feature runs off looked-up offsets.
 
-### 2026-09-28 - v2.0 (in progress, uncommitted): open reports, pattern-mode offsets, regression check, CI, installer, join screen
+### 2026-09-28/29 - v2.0: open reports, pattern-mode offsets, regression check, CI, installer, join screen, hot join - RELEASED as v2.0.0-experimental (commit 63ca81a)
 
 User: "These all sound awesome. Go for it." / "I think this would be a worthy v2.0". Plan in memory `v20-plan.md`.
 
@@ -640,6 +641,7 @@ Diagnostics used (not in code any more): temporary `RSSetViewports` probe logged
 
 ## Next Steps
 
+0000. **(2026-09-29) v2.0.0-experimental released** (commit 63ca81a, https://github.com/kirklandsig/AlphaRing/releases/tag/v2.0.0-experimental; announced on #general 19:36). Release asset = the box-tested build (md5 2d9c8b73..., scratchpad `WTSAPI32_hj15.dll`), installed on the box with the user's config. Open: the two unexplained H2 Anniversary-renderer crashes on fresh 4P loads (see the v2.0 entry); Belle (Discord, Windows 11) reports Halo CE "fatal error" when a player first picks up a new weapon (sniper, rocket launcher, shotgun), fine after a restart - unexamined. Next: megabitt01's "join forces" plan (PRs to his `master-chief`, see the v2.0 entry).
 000. **(2026-09-27) v1.9.1-experimental released** (commit 34f710b, https://github.com/kirklandsig/AlphaRing/releases/tag/v1.9.1-experimental; announced on #general) - Reach split-screen black/invisible Spartans fixed; see the 2026-09-27 part 2 entry. Still open: salty's Reach 21:9 side-by-side HUD asymmetry, Reach 2P top/bottom bottom-view HUD squeeze, SR388's H2 3-4P Save & exit infinite load (older AlphaRing + co-op fix mod; unknown on ours).
 000. **(2026-09-27) v1.9.0-experimental released** (commit f6ed415, https://github.com/kirklandsig/AlphaRing/releases/tag/v1.9.0-experimental; announced on the AlphaRing Discord #general; published autonomously under the user's standing v1.9 mandate) - see the 2026-09-27 entry. Open: XiaoDanny's Reach black/invisible Spartans fixed in v1.9.1 (see the 2026-09-27 part 2 entry).
 Also seen: in Reach 2P top/bottom the BOTTOM view's HUD is squeezed toward centre-right (radar ~x1280, sprint icon mid, weapon panel ~x1180) from level load, top view normal - separate bug, possibly same family as salty's 21:9 report. Posted to Discord. Box harness: `vpad.py 3` leaves slot 1 for a real pad (user's controller = player 1). Also open: salty's Reach side-by-side HUD asymmetric at 21:9 (3440x1440, 2P L/R, crosshair Centered) - margins differ left vs right in each half; SR388: H2 4P Save & Quit hang (asked if the co-op mod is on) and an "exiting level crash" (details asked); H2A 4P performance (~30 fps on the box); CE Back toggle mid-mission in 3-4P Anniversary untested; H2 intermittent load crash (2 seen, during probe builds).
