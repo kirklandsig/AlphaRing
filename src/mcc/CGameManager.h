@@ -42,8 +42,11 @@
         static CInputDevice* get_controller(int index);
         // Increments every time a map starts loading.
         static unsigned load_generation();
-        // Local players the game is told about right now (see CGameManagerSplitscreen.cpp).
+        // Local players in the game right now (see CGameManagerSplitscreen.cpp; a hot-join Halo CE or Halo 2 mission
+        // is told of all four and holds back the others, Splitscreen::HotJoinSlots).
         static int active_player_count();
+        // The current map runs: from its Running state until a map loads or the session exits.
+        static bool running();
 
     private:
         static void track_state(eState state);

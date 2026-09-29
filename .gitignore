@@ -6,3 +6,4 @@ build/
 # Vestigial submodule clones; the build links prebuilt libraries from lib/
 /dep/
 /.claude/
+__pycache__/

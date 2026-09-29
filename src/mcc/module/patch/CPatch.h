@@ -3,23 +3,36 @@
 #include <string>
 #include <vector>
 
+#include "Offset.h"
+
 class CPatchSet;
 
 class CPatch {
 public:
     // size - 1 to exclude '\0'
     template<size_t size>
-    CPatch(const char* name, const char* desc, __int64 offset, const char (&src)[size], bool enabled = false)
-            : m_name(name), m_desc(desc), m_offset(offset), m_data(src, src+size-1), m_backup(src, src+size-1), m_enabled(enabled) {}
+    CPatch(const char* name, const char* desc, const AlphaRing::Offset& offset, const char (&src)[size], bool enabled = false)
+            : CPatch(name, desc, offset, 0, src, enabled) {}
 
+    // `offset` bytes past an offset (a field of a table)
+    template<size_t size>
+    CPatch(const char* name, const char* desc, const AlphaRing::Offset& base, __int64 offset, const char (&src)[size],
+           bool enabled = false)
+            : m_base(&base), m_offset(offset), m_name(name), m_desc(desc), m_data(src, src+size-1), m_backup(src, src+size-1),
+              m_enabled(enabled) {}
+
+    // patch.xml's, at a fixed offset: only for the build the offsets were written for
     CPatch(const char* name, const char* desc, __int64 offset, const std::vector<__int8>& src, bool enabled = false)
-            : m_name(name), m_desc(desc), m_offset(offset), m_data(src), m_backup(src), m_enabled(enabled) {}
+            : m_offset(offset), m_name(name), m_desc(desc), m_data(src), m_backup(src), m_enabled(enabled) {}
 
     bool apply();
     bool setState(bool state);
     // Remember the loaded module's own bytes under the patch (CPatchSet::update/add).
     void capture();
     void setParent(CPatchSet* parent) {m_parent = parent;}
+
+    // Where it goes is known in the loaded module's build (see src/offsets/Offsets.h).
+    bool usable() const;
 
     inline const char* name() const {return m_name.c_str();}
     inline const char* desc() const {return m_desc.c_str();}
@@ -29,7 +42,10 @@ public:
     static bool apply(void *dst, const void *src, size_t size);
 
 private:
+    __int64 address() const { return m_base ? m_base->value + m_offset : m_offset; }
+
     CPatchSet* m_parent;
+    const AlphaRing::Offset* m_base = nullptr;
     __int64 m_offset;
     std::string m_name;
     std::string m_desc;

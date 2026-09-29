@@ -124,6 +124,10 @@ namespace MCC::Spawn::Halo1 {
         return SpawnResult(true, chosen ? WithWeapon(name, TagName(weapon)) : name);
     }
 
-    static const Backend s_backend = {List, Spawn};
+    static const AlphaRing::Feature s_offsets("Halo CE spawning", {
+        OFFSET_HALO1_PF_TAG_ITERATOR_NEXT, OFFSET_HALO1_PF_TAG_GET_NAME, OFFSET_HALO1_PF_TAG_GET, OFFSET_HALO1_PV_PLAYERS,
+        OFFSET_HALO1_PF_OBJECT_TRY_AND_GET, OFFSET_HALO1_PF_OBJECT_GET_ORIGIN, OFFSET_HALO1_PF_OBJECT_PLACEMENT_DATA_NEW,
+        OFFSET_HALO1_PF_OBJECT_NEW, OFFSET_HALO1_PF_ACTOR_CUSTOMIZE_UNIT, OFFSET_HALO1_PF_AI_ATTACH_FREE});
+    static const Backend s_backend = {List, Spawn, &s_offsets};
     static const bool s_registered = (RegisterBackend(kGame, &s_backend), true);
 }

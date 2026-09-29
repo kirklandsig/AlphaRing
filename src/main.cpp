@@ -12,10 +12,11 @@ static bool Initialize() {
 
     assertm(result, "failed to initialize log");
 
-    // An MCC build these offsets weren't made for (an update, the Store version) gets no hooks
-    // at all: it runs unmodified instead of crashing. (assertm is compiled out of Release.)
+    // An MCC build the offsets weren't written for (an update) has them looked up from patterns
+    // (src/offsets); one where the essential ones can't be found gets no hooks at all: it runs
+    // unmodified instead of crashing. (assertm is compiled out of Release.)
     if (!AlphaRing::Hook::Initialize()) {
-        LOG_ERROR("AlphaRing disabled: this MCC build isn't supported, so the game runs unmodified");
+        LOG_ERROR("AlphaRing disabled: this MCC build isn't supported (see the offset lines above), so the game runs unmodified");
         return false;
     }
 

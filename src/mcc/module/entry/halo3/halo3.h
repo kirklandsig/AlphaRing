@@ -11,5 +11,5 @@ inline EntrySet* Halo3EntrySet() {return &g_pHalo3EntrySet;};
 #define Halo3Entry(name, offset, returnType, pDetour, ...) \
     returnType pDetour(__VA_ARGS__);  \
     typedef returnType (*pDetour##_t)(__VA_ARGS__); \
-    ::Entry name(Halo3EntrySet(), offset, pDetour); \
+    ::Entry name(Halo3EntrySet(), offset, pDetour, entry_feature); \
     returnType pDetour(__VA_ARGS__)

@@ -9,16 +9,28 @@
 #include "mcc/splitscreen/LeftRight.h"
 #include "mcc/splitscreen/Splitscreen.h"
 
+namespace Halo1::Entry::Anniversary {
+    bool Quad(__int64 module);
+    void NoteGraphics(__int64 module);
+}
+
 namespace Halo1::Entry::Splitscreen {
     using MCC::Splitscreen::LeftRight::Rect;
 
-    bool OnScreen(int views) { return MCC::Splitscreen::LeftRight::OnScreen(CGameGlobal::Halo1, views); }
+    EntryFeature("Halo CE Left/Right split screen", OFFSET_HALO1_PF_SPLIT_VIEWS, OFFSET_HALO1_PV_WINDOW_BOUNDS,
+                 OFFSET_HALO1_PV_SCREEN_BOUNDS, OFFSET_HALO1_PF_FILL_RECT);
+
+    // Side by side is Classic's layout (Back switches to Anniversary's in the middle of a mission).
+    bool OnScreen(__int64 module, int views) {
+        Anniversary::NoteGraphics(module);
+        return MCC::Splitscreen::LeftRight::OnScreen(CGameGlobal::Halo1, views);
+    }
 
     int Views(__int64 module) { return ((int (*)())(module + OFFSET_HALO1_PF_SPLIT_VIEWS))(); }
 
     Halo1Entry(entry_grid, OFFSET_HALO1_PF_SPLIT_GRID, void, split_grid, int views, int* columns, int* rows) {
         ((split_grid_t)entry_grid.m_pOriginal)(views, columns, rows);
-        if (views == 2 && OnScreen(2)) {
+        if (views == 2 && OnScreen(entry_grid.m_target - entry_grid.m_offset, 2)) {
             *columns = 2;
             *rows = 1;
         }
@@ -26,10 +38,10 @@ namespace Halo1::Entry::Splitscreen {
 
     Halo1Entry(entry_window, OFFSET_HALO1_PF_SPLIT_WINDOW, void, split_window, int view, int views, short* rect,
                short* copy) {
-        if (views == 3 && view >= 0 && view < 3 && OnScreen(3)) {
+        if (views == 3 && view >= 0 && view < 3 && OnScreen(entry_window.m_target - entry_window.m_offset, 3)) {
             views = view == 0 ? 2 : 4;
             if (view == 2) view = 3;
-        } else if (views == 3 && MCC::Splitscreen::AnniversaryQuadActive()) {
+        } else if (views == 3 && Anniversary::Quad(entry_window.m_target - entry_window.m_offset)) {
             views = 4; // Anniversary graphics draw every view in a quarter (anniversary.cpp)
         }
         ((split_window_t)entry_window.m_pOriginal)(view, views, rect, copy);
@@ -39,7 +51,7 @@ namespace Halo1::Entry::Splitscreen {
     Halo1Entry(entry_dividers, OFFSET_HALO1_PF_SPLIT_DIVIDERS, void, split_dividers) {
         __int64 module = entry_dividers.m_target - entry_dividers.m_offset;
         int views = Views(module);
-        if (!OnScreen(views)) return ((split_dividers_t)entry_dividers.m_pOriginal)();
+        if (!OnScreen(module, views)) return ((split_dividers_t)entry_dividers.m_pOriginal)();
         // the dividers' window is the screen
         MCC::Splitscreen::LeftRight::PaintBands(*(const Rect*)(module + OFFSET_HALO1_PV_WINDOW_BOUNDS), 2, views,
                                                 (void (*)(Rect*, unsigned))(module + OFFSET_HALO1_PF_FILL_RECT));
@@ -53,7 +65,7 @@ namespace Halo1::Entry::Splitscreen {
     extern ::Entry entry_scope_grid;
     void ScopeGrid(char* locals) {
         __int64 module = entry_scope_grid.m_target - entry_scope_grid.m_offset;
-        if (!OnScreen(Views(module))) return;
+        if (!OnScreen(module, Views(module))) return;
         auto view = *(const Rect*)(module + OFFSET_HALO1_PV_WINDOW_BOUNDS);
         auto screen = *(const Rect*)(module + OFFSET_HALO1_PV_SCREEN_BOUNDS);
         float width = (float)(view.right - view.left), height = (float)(view.bottom - view.top);
@@ -65,5 +77,6 @@ namespace Halo1::Entry::Splitscreen {
     }
     constexpr unsigned char kReloadRow[] = {0xF3, 0x44, 0x0F, 0x10, 0x7C, 0x24, 0x64}; // movss xmm15, [rsp+0x64]
     ::Entry entry_scope_grid(Halo1EntrySet(), OFFSET_HALO1_SCOPE_GRID_SET,
-                             MidFunctionThunk(&ScopeGrid, &entry_scope_grid.m_pOriginal, kReloadRow, sizeof(kReloadRow)));
+                             MidFunctionThunk(&ScopeGrid, &entry_scope_grid.m_pOriginal, kReloadRow, sizeof(kReloadRow)),
+                             entry_feature);
 }

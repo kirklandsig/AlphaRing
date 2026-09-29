@@ -7,6 +7,7 @@
 #include "input/Input.h"
 #include "input/MenuConfig.h"
 #include "mcc/spawn/Spawn.h"
+#include "mcc/splitscreen/Splitscreen.h"
 
 #include <atomic>
 
@@ -38,9 +39,14 @@ static constexpr ULONGLONG kDeferredJoinDelayMs = 3000;
 static std::atomic<ULONGLONG> s_running_since; // 0 until the current session first runs
 
 static std::atomic<unsigned> s_load_generation;
-static std::atomic<bool> s_loading; // from a map's Loading state until it runs or the session ends
+// A map loads from its Loading state until it runs or the session ends, and runs from its Running state until a map
+// loads or the session exits.
+enum class MapPhase { None, Loading, Running };
+static std::atomic<MapPhase> s_phase{MapPhase::None};
 
 unsigned CGameManager::load_generation() { return s_load_generation; }
+
+bool CGameManager::running() { return s_phase == MapPhase::Running; }
 
 // Halo CE can wedge between missions (the "level-end freeze"; WinterSquire #19/#46/#135),
 // and opening the overlay unsticks it: that makes every pad slot answer "connected, nothing
@@ -48,19 +54,19 @@ unsigned CGameManager::load_generation() { return s_load_generation; }
 // the slots answer the same way.
 static bool LoadingHalo1() {
     auto p_global = GameGlobal();
-    return s_loading && p_global && p_global->current_game == CGameGlobal::Halo1;
+    return s_phase == MapPhase::Loading && p_global && p_global->current_game == CGameGlobal::Halo1;
 }
 
 void CGameManager::track_state(eState state) {
     if (state == Loading) {
         ++s_load_generation;
-        s_loading = true;
+        s_phase = MapPhase::Loading;
     } else if (state == Running) {
-        s_loading = false;
+        s_phase = MapPhase::Running;
         if (!s_running_since) // also re-sent after level transitions
             s_running_since = GetTickCount64();
     } else if (state == Exit || state == Exiting) {
-        s_loading = false;
+        s_phase = MapPhase::None;
     }
 }
 
@@ -69,7 +75,7 @@ void CGameManager::track_state(eState state) {
 // it, and the next session queries its players before its own loading state.
 void CGameManager::end_session() {
     s_running_since = 0;
-    s_loading = false;
+    s_phase = MapPhase::None;
 }
 
 static int deferred_player_count(int count) {
@@ -110,7 +116,8 @@ bool CGameManager::get_xbox_user_id(CGameManager *self, __int64 *pId, wchar_t *p
     if (!p_setting->b_override || !index)
         return ppOriginal.get_xbox_user_id(self, pId, pName, size, index);
 
-    if (index >= active_player_count())
+    // MCC counts the local players it asks for here (all four slots in a Halo CE or Halo 2 hot-join mission)
+    if (index >= MCC::Splitscreen::HotJoinSlots(active_player_count()))
         return false;
 
     if (pId)

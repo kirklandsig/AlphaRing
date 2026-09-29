@@ -17,6 +17,7 @@
 #include "mcc/mcc.h"
 #include "mcc/CGameGlobal.h"
 #include "mcc/spawn/Spawn.h"
+#include "mcc/splitscreen/Splitscreen.h"
 
 #include <initializer_list>
 
@@ -151,6 +152,7 @@ namespace AlphaRing::Render::ImGui {
     static void RenderOverlay();
 
     void Render() {
+        MCC::Splitscreen::HotJoinPoll();
         // Without the overlay, ImGui runs only to draw the players' spawn menus, and not at all
         // otherwise, so it can't capture input meant for the game's own menus.
         bool show = AlphaRing::Global::Global()->show_imgui;

@@ -12,6 +12,8 @@ namespace Halo1::Entry::Hud {
     // override is a float on the stack, so the original is called through this exact type.
     using calculate_point_t = __int64(__fastcall*)(short, void*, void*, void*, bool, float, short*, int);
 
+    EntryFeature("Halo CE per-player HUD", OFFSET_HALO1_PV_HUD_VIEWPORT_BOUNDS);
+
     Halo1Entry(entry, OFFSET_HALO1_PF_HUD_CALCULATE_POINT, __int64, detour, short player, void* placement, void* header,
                void* unused, bool use_scale, float scale, short* out, int element) {
         auto result = ((calculate_point_t)entry.m_pOriginal)(player, placement, header, unused, use_scale, scale, out, element);

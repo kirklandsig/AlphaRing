@@ -13,10 +13,12 @@
 #include <Windows.h>
 
 #include "common.h"
+#include "offset_haloreach.h"
 
 namespace {
     std::map<std::string, float> g_states;
     bool g_loaded = false;
+    std::atomic<bool> g_ready = false; // g_states filled (Load finished)
     std::atomic<AlphaRing::SplitscreenConfigStore::TwoPlayerLayout> g_twoPlayerLayout{
             AlphaRing::SplitscreenConfigStore::TwoPlayerLayout::TopBottom};
     std::atomic<unsigned> g_layoutGeneration{0};
@@ -270,7 +272,10 @@ namespace AlphaRing::SplitscreenConfigStore {
 
         LOG_INFO("SplitscreenConfigStore::Load: loaded {} saved value(s), {} table write(s)",
                  g_states.size(), g_writes.size());
+        g_ready.store(true, std::memory_order_release);
     }
+
+    bool Loaded() { return g_ready.load(std::memory_order_acquire); }
 
     bool Get(int index, const char* field, float& out_value) {
         auto it = g_states.find(MakeKey(index, field));
@@ -325,12 +330,12 @@ namespace AlphaRing::SplitscreenConfigStore {
 
         if (layout == TwoPlayerLayout::LeftRight) {
             Apply(hModule);
-        } else if (hModule != 0) {
+        } else if (hModule != 0 && OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE.found()) {
             // Make the selection visible immediately instead of waiting for
             // Reach's next level-load reset. The caller re-applies any enabled
             // black-bar patch afterwards, since these stock bytes cover them.
             auto writeEntry = [hModule](int index, const LayoutEntry& entry) {
-                auto p_entry = (unsigned char*)(hModule + TABLE_OFFSET
+                auto p_entry = (unsigned char*)(hModule + OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE
                                                 + (__int64)index * ENTRY_SIZE);
                 WriteBytes(p_entry, &entry, sizeof(LayoutEntry));
             };
@@ -358,10 +363,10 @@ namespace AlphaRing::SplitscreenConfigStore {
 
     void Apply(__int64 hModule) {
         std::lock_guard<std::mutex> lock(g_writesMutex);
-        if (hModule == 0 || g_writes.empty()) return;
+        if (hModule == 0 || g_writes.empty() || !OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE.found()) return;
 
         for (const auto& w : g_writes) {
-            auto p_field = (unsigned char*)(hModule + TABLE_OFFSET
+            auto p_field = (unsigned char*)(hModule + OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE
                                             + (__int64)w.index * ENTRY_SIZE
                                             + w.byte_offset);
 

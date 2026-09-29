@@ -8,6 +8,120 @@
 
 ---
 
+## What's New in v2.0 (experimental)
+
+> **Testing status:** like v1.9, this build has only been tested on **one Batocera Linux machine running the
+> latest Batocera** (MCC 1.3528 on Steam through Proton, virtual Xbox 360 controllers, 1920x1080). It needs a lot
+> more testing on other machines and setups - expect bugs, and please report what you find in
+> [Issues](https://github.com/kirklandsig/AlphaRing/issues).
+
+### Ready for MCC updates
+Until now, every MCC update broke AlphaRing until someone found hundreds of addresses again by hand. AlphaRing now
+carries a byte pattern for almost every address it uses (364 of 375), and finds them again in a new MCC build by
+itself.
+
+- **On today's MCC (1.3528):** nothing changes and nothing is searched.
+- **On a new build:** the game DLLs are searched once as they load. Anything that can't be found is logged and
+  just that feature switches off, instead of AlphaRing refusing to start or hooking the wrong code.
+- **Tested:** every pattern finds exactly today's address, and a simulated update (code moved around, some
+  patterns broken on purpose) never found a wrong address. On the box, the full split-screen check also passed
+  with every address looked up from its pattern.
+- **Not covered:** the Windows Store version still needs its addresses by hand.
+
+### Players window: join with A
+Opening the overlay at MCC's menus (F4, or Start + Back on the first controller) now shows a **Players** window.
+
+- Any controller presses **A** to join the next free slot, and **B** to leave (later players move up).
+- **Start** saves and closes it.
+- Each player gets a card in their colour, showing their controller, or when it's disconnected.
+- The player count follows who joined, so there's no need to set controllers and a count in the Splitscreen menu.
+- It's also under **Players** in the menu bar, and it can be set not to open by itself.
+- During a game it shows who's playing. Joining in the middle of a mission is *Hot join*, below.
+
+### Hot join: drop in mid-mission (experimental)
+Turn on **Splitscreen > Options > Hot join (experimental)**. Then, in the middle of a campaign mission, a
+controller nobody is playing with presses **A** to join: the screen splits and the new player comes in beside a
+teammate.
+
+- **Every game:** Halo CE, Halo 2, Halo 3, ODST, Reach and Halo 4.
+- **Where you come in:** Halo 3, ODST, Reach and Halo 4 take the new player the way they take a controller signing
+  in. Halo 2 brings them in through its co-op respawn, beside a teammate who's out of combat. Halo CE has no such
+  respawn, so AlphaRing moves the new player onto a spot a teammate stood on a moment before.
+- **Leaving:** in Halo CE the last player to join can leave in the middle of a mission with **B** in the Players
+  window; their Spartan disappears and the screen goes back. The other games end the mission when a player signs
+  out, so there players leave at MCC's menus.
+- **The player count is saved**, so Save & Quit and Resume keep everyone who joined.
+- Halo CE and Halo 2 make their players as a mission loads, so in those two the option takes effect from the next
+  mission start (the extra players are held back until someone joins) and is changed at MCC's menus. In the other
+  games it works right away.
+- **Tested on the box:** in every game a player joined in the middle of a mission, then turned, moved and fired,
+  with their HUD drawn. Halo CE's player also left and joined again, Halo 3 went from one player to two after a
+  fresh mission start, and Halo 2 and Halo 3 each ran a few minutes with everyone moving and firing. With the option
+  off, A did nothing.
+
+### Fixes
+- **Halo 2: Save & Quit never finished** (reported by SR388). It happened with a modded campaign (such as the Halo
+  2 3/4 Player Co-Op Fixes) and 2 or more players, and stayed on the loading screen. Halo 2 thought the game came
+  from its own lobby and tried to go back there by loading its menu map, which doesn't exist under MCC. It now
+  always quits to MCC. The fix is the Dev Tools patch *Save & Quit to MCC*, on by default.
+- **Reach side by side: HUDs crowded toward the middle** (reported by salty at 21:9). Reach built each half's HUD
+  box against the whole screen's centre line, so each HUD sat against the middle of the screen. Each half's HUD is
+  now centred in its own view.
+- **Reach: the radar moved twice as far as its offset.** A per-player radar offset, or a *HUD area* preset like
+  "4:3 box", moved the radar dish twice as far as everything else. With "4:3 box" it ended up right of centre. The
+  area presets also pushed Reach's grenade count off-screen.
+- **Halo 2 Anniversary with 3-4 players: 60 fps instead of 30.** Each view used to be drawn at the size of half
+  the screen and then squeezed into its quarter. Now it's drawn at its quarter's size: on the test box the same
+  spot went from 30 fps (GPU-bound) to a steady 60.
+- **Back into Anniversary graphics works in Halo CE and Halo 2 with any number of players.** With 3-4 players
+  it gave a black screen unless *Anniversary graphics with 3-4 players* was on before the mission (and in Halo CE
+  only if the mission had started in Anniversary), and with side by side chosen it never worked. Now Back always
+  switches to Anniversary with every view drawn, and back again. Side by side is Classic's layout: Anniversary
+  shows its stacked views with 2 players and quarters with 3-4, and Back to Classic brings side by side back. The
+  option now only decides whether 3-4 player missions start in Anniversary.
+- **Halo 2: players 3 and 4 in the wrong place at a mission start** (reported by megabitt01). The built-in missions
+  have starting places for two players, so players 3-4 waited on those places until players 1-2 walked off them,
+  or came in at them even where the mission had put players 1-2 somewhere else (Delta Halo starts them in a drop
+  pod far from its starting places). They now come in through the co-op respawn, beside a teammate. Tested on a
+  fresh start of Delta Halo with four players: players 3-4 appeared next to players 1-2 straight away.
+- **Halo 2 Anniversary with 2 players: no more black screen.** Switching a two-player game to Anniversary graphics
+  left both views black under the HUD. Each view is now drawn into its half the way 3-4 player mode does it
+  (megabitt01 found this black screen too, in his #23).
+- **Reach split screen: bodies stay.** v1.9.1 made Reach clear bodies and dropped weapons early in split screen,
+  because past a point the later views drew Spartans and first-person weapons black or not at all. The cause is now
+  found: Reach keeps the bone data of every Spartan it draws in a frame in one small pool (about 55 Spartans'
+  worth), shared by all the views. AlphaRing gives it a buffer about 18 times bigger, so bodies stay as long as they
+  do in single player again. A big pile of bodies costs frame time with 4 players (about 45 fps on the test box).
+- **SPECIES changes from the next game, not the next spawn.** Halo 2, Halo 3 and Reach read a player's profile as
+  the game loads, so a change made during a game shows from the next one; the menu now says so. Reach's Team Slayer
+  variants (such as TU Team Slayer DMR) make everyone a Spartan, and v1.8's picture was taken in one; it's
+  replaced with Reach Slayer. Checked on the box in Halo 2 Classic, Halo 3 and Reach.
+
+### Behind the scenes
+- **Split-screen check on the test box:** every game's campaign at 2 and 4 players, with screenshots. It flags
+  black views, views without a HUD, and log errors, and it runs before each release.
+- **Automatic builds:** GitHub builds the DLL on every push (`.github/workflows/build.yml`), so a release's DLL
+  can be matched to its source.
+
+### Known limitations
+- Everything under v1.9's known limitations still applies.
+- With built-in content, Halo CE missions have starting places for two players, so the last players to spawn wait
+  a few seconds, until the others walk off them. The co-op fix mods add the places.
+- **Hot join:** leaving in the middle of a mission only works in Halo CE (above). In Halo CE a new player is moved
+  to where a teammate stood in the last few seconds; if the whole team has stood still that long, they stay where
+  Halo CE spawned them, at the mission's starting places. Hot join is made for campaigns and hasn't been tried in
+  multiplayer.
+- **Resuming with fewer players than the checkpoint was saved with:** Halo 3 goes straight back to the menu (it
+  does that with AlphaRing's split screen off too), and Reach shows a black screen until enough players are in (hot
+  join can bring them in). Starting the mission again from MISSIONS works with any number of players.
+- **Halo CE Anniversary with 3-4 players still draws two views per frame** (players 1-2, then 3-4, so each view
+  updates 30 times a second at 60 fps). Drawing all four every frame was the goal for v2.0 and isn't done: the
+  Anniversary renderer keeps its lighting, visibility and first-person models for exactly two views, four views in
+  one frame crash it, and MCC holds the game at 60 frames a second, so alternate frames can't simply be skipped.
+  The details are in docs/REVERSE_ENGINEERING.md.
+
+---
+
 ## What's New in v1.9.1 (experimental)
 
 > **Testing status:** like v1.9.0, this build has only been tested on **one Batocera Linux machine running the
@@ -144,13 +258,13 @@ health or grenades (reported by ArtoriusOPOr). Quarters and side-by-side halves 
 
 ### Pick your species - Halo 2, Halo 3 and Reach
 Each player's menu (**D-pad Down → MY HUD**) has a **SPECIES** row: Spartan or Elite, for that player alone, from
-their next spawn in multiplayer (requested by nanomohchine). It shows for each player with an AlphaRing profile of
+the next game in multiplayer (requested by nanomohchine). It shows for each player with an AlphaRing profile of
 their own: players 2-4 unless "use player 1's profile" is on, and player 1 with "Override profile" on - otherwise
 player 1's species is MCC's own setting.
 
 | | |
 |--|--|
-| ![The SPECIES row](doc/images/species-menu.jpg) | ![Reach: player 2 an Elite, player 1 a Spartan](doc/images/reach-species.jpg) |
+| ![The SPECIES row](doc/images/species-menu.jpg) | ![Reach Slayer: player 2 an Elite, player 1 a Spartan](doc/images/reach-species.jpg) |
 
 ### Halo CE spawn menu fixes
 - **Allies are allies again:** on levels whose script doesn't ally the human team with the players (The Maw), an
@@ -470,6 +584,10 @@ For Running on Steam Deck/Linux, add the following command in the Steam Game Lau
 ```
 WINEDLLOVERRIDES="WTSAPI32=n,b" %command%
 ```
+If you'd rather not edit that by hand, `tools/install/install_linux.py` (Python 3, run with Steam closed) installs the
+DLL and sets that launch option for you (`--dry-run` to preview, `--uninstall` to undo). For a full launcher with a
+window, see MegaBit's [AlphaRing Launcher](https://github.com/megabitt01/alpharing-launcher-v2) (it installs his
+AlphaRing builds).
 
 #### Batocera Linux
 

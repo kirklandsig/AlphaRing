@@ -23,7 +23,10 @@ namespace MCC::Spawn {
 
     static const Backend* s_backends[kGames]; // constant-initialized, so safe to fill from static initializers
 
-    static const Backend* BackendOf(int game) { return (unsigned)game < kGames ? s_backends[game] : nullptr; }
+    static const Backend* BackendOf(int game) {
+        auto backend = (unsigned)game < kGames ? s_backends[game] : nullptr;
+        return backend && backend->offsets->Available() ? backend : nullptr;
+    }
 
     void RegisterBackend(int game, const Backend* backend) {
         if ((unsigned)game < kGames) s_backends[game] = backend;

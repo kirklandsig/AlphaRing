@@ -11,6 +11,9 @@
 #include <cstring>
 #include <iterator>
 
+namespace Halo1::Entry::Anniversary { bool ClassicShown(); }
+namespace Halo2::Entry::Anniversary { bool ClassicShown(); }
+
 namespace MCC::Splitscreen::LeftRight {
     namespace Store = AlphaRing::SplitscreenConfigStore;
 
@@ -63,8 +66,16 @@ namespace MCC::Splitscreen::LeftRight {
         }
     }
 
+    // Halo CE and Halo 2 are side by side while Classic graphics are on screen: Back switches to Anniversary, whose
+    // views are stacked (two players) or in quarters (three or four) in the middle of a mission.
+    bool ClassicShown(int game) {
+        return game == CGameGlobal::Halo1 ? Halo1::Entry::Anniversary::ClassicShown()
+                                          : Halo2::Entry::Anniversary::ClassicShown();
+    }
+
     bool OnScreen(int game, int player_count) {
-        return Supports(game, player_count) && (ClassicGame(game) ? s_classic_side_by_side == game : Chosen());
+        return Supports(game, player_count) &&
+               (ClassicGame(game) ? s_classic_side_by_side == game && ClassicShown(game) : Chosen());
     }
 
     void StartClassicMission(int game, bool side_by_side) { s_classic_side_by_side = side_by_side ? game : -1; }
@@ -95,7 +106,8 @@ namespace MCC::Splitscreen::LeftRight {
 
     bool TitleSafe(const Gen3& game, __int64 module, __int64 return_address, short box[4]) {
         int players = t_view_players, slot = t_view_slot;
-        if (return_address - module != game.title_safe_return || players < 2 || players > 4 || slot >= players)
+        if (game.title_safe_return == nullptr || return_address - module != *game.title_safe_return || players < 2 ||
+            players > 4 || slot >= players)
             return false;
         auto& entry = *Entry(game, module, {players, slot});
         auto screen = Screen(game, module);

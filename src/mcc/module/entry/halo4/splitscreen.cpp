@@ -7,6 +7,10 @@
 namespace Halo4::Entry::Splitscreen {
     namespace LeftRight = MCC::Splitscreen::LeftRight;
 
+    EntryFeature("Halo 4 Left/Right split screen", OFFSET_HALO4_PV_SPLITSCREEN_TABLE, OFFSET_HALO4_PV_SCREEN_SIZE,
+                 OFFSET_HALO4_PF_SPLITSCREEN_PLAYER_COUNT, OFFSET_HALO4_PF_FILL_RECT, OFFSET_HALO4_PF_RT_POOL_RELEASE,
+                 OFFSET_HALO4_PF_RT_POOL_INIT, OFFSET_HALO4_PF_RENDER_SETUP_1, OFFSET_HALO4_PF_RENDER_SETUP_2);
+
     // The bar painter sets the render state up itself before drawing (as Reach's does, blackbars.cpp).
     void BeforePainting(__int64 module) {
         ((void (*)(int, int))(module + OFFSET_HALO4_PF_RENDER_SETUP_1))(0, 1);

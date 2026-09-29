@@ -7,6 +7,8 @@
 #include <string>
 #include <vector>
 
+#include "Offset.h"
+
 // In-game spawn menu: vehicles, weapons, equipment and AI characters in front of a player.
 // Each supported game implements a Backend; its functions run on the game thread.
 namespace MCC::Spawn {
@@ -31,6 +33,8 @@ namespace MCC::Spawn {
         // Spawn `id` in front of local player `player` (0-3), a character armed with `weapon`;
         // returns a short status message.
         std::string (*spawn)(Category category, int id, int player, Team team, int weapon);
+        // The game offsets it uses: on an MCC build without one of them the game has no backend.
+        const AlphaRing::Feature* offsets;
     };
 
     void RegisterBackend(int game, const Backend* backend);

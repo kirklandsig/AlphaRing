@@ -6,18 +6,27 @@
 #include "mcc/CGameGlobal.h"
 #include "mcc/splitscreen/LeftRight.h"
 
+namespace Halo2::Entry::Anniversary { void NoteGraphics(__int64 module); }
+
 namespace Halo2::Entry::Splitscreen {
     namespace LeftRight = MCC::Splitscreen::LeftRight;
 
-    int Mode(int views, int mode) { return LeftRight::OnScreen(CGameGlobal::Halo2, views) ? 2 : mode; }
+    EntryFeature("Halo 2 Left/Right split screen", OFFSET_HALO2_PV_SPLIT_MODE, OFFSET_HALO2_PV_SPLIT_VIEWS);
+
+    // Side by side is Classic's layout (Back switches to Anniversary's in the middle of a mission).
+    int Mode(__int64 module, int views, int mode) {
+        Anniversary::NoteGraphics(module);
+        return LeftRight::OnScreen(CGameGlobal::Halo2, views) ? 2 : mode;
+    }
 
     Halo2Entry(entry_grid, OFFSET_HALO2_PF_SPLIT_GRID, void, split_grid, int views, int mode, short* grid) {
-        ((split_grid_t)entry_grid.m_pOriginal)(views, Mode(views, mode), grid);
+        ((split_grid_t)entry_grid.m_pOriginal)(views, Mode(entry_grid.m_target - entry_grid.m_offset, views, mode), grid);
     }
 
     Halo2Entry(entry_cell, OFFSET_HALO2_PF_SPLIT_CELL, void, split_cell, int view, int views, int mode,
                const short* grid, short* cell, short* span) {
-        ((split_cell_t)entry_cell.m_pOriginal)(view, views, Mode(views, mode), grid, cell, span);
+        ((split_cell_t)entry_cell.m_pOriginal)(view, views, Mode(entry_cell.m_target - entry_cell.m_offset, views, mode),
+                                               grid, cell, span);
     }
 
     // The dividers take the frame's mode from a global the frame's render entry sets: side by side, a band
@@ -26,7 +35,7 @@ namespace Halo2::Entry::Splitscreen {
         __int64 module = entry_dividers.m_target - entry_dividers.m_offset;
         auto& mode = *(int*)(module + OFFSET_HALO2_PV_SPLIT_MODE);
         int stock = mode;
-        mode = Mode(*(const int*)(module + OFFSET_HALO2_PV_SPLIT_VIEWS), stock);
+        mode = Mode(module, *(const int*)(module + OFFSET_HALO2_PV_SPLIT_VIEWS), stock);
         ((split_dividers_t)entry_dividers.m_pOriginal)();
         mode = stock;
     }

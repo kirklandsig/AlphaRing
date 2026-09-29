@@ -127,5 +127,5 @@ inline void* MidFunctionThunk(void (*detour)(char* locals), void* const* resume,
 // PreservedDetour's (the register arguments, then the caller's return address).
 #define PreservedEntry(name, set, offset, pDetour, ...) \
     __int64 pDetour(__VA_ARGS__); \
-    ::Entry name(set, offset, PreservingThunk((const void*)&pDetour)); \
+    ::Entry name(set, offset, PreservingThunk((const void*)&pDetour), entry_feature); \
     __int64 pDetour(__VA_ARGS__)

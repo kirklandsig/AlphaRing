@@ -20,9 +20,35 @@
 #include <vector>
 
 namespace Halo1::Entry::Anniversary {
+    EntryFeature("Halo CE Anniversary graphics with 3-4 players",
+                 OFFSET_HALO1_PV_PLAYER_COUNT, OFFSET_HALO1_PV_SABER_DEVICE, OFFSET_HALO1_PV_SABER_CAMERAS,
+                 OFFSET_HALO1_PF_SABER_DELETE_CAMERA, OFFSET_HALO1_PV_SABER_SPLIT, OFFSET_HALO1_PF_SABER_ADD_CAMERA,
+                 OFFSET_HALO1_PF_SABER_CAMERA_SET_FOV, OFFSET_HALO1_PV_SABER_RENDERER, OFFSET_HALO1_PV_SABER_SPLIT_STATE,
+                 OFFSET_HALO1_PF_SABER_SPLIT_LAYOUT, OFFSET_HALO1_PF_FIRST_PERSON_PREPARE,
+                 OFFSET_HALO1_PV_FIRST_PERSON_FOR_RENDERER, OFFSET_HALO1_PF_FIRST_PERSON_UPDATE,
+                 OFFSET_HALO1_PV_FIRST_PERSON_WEAPONS, OFFSET_HALO1_PV_FIRST_PERSON_WEAPON_NODES,
+                 OFFSET_HALO1_PV_FIRST_PERSON_ARMS, OFFSET_HALO1_PV_FIRST_PERSON_ARMS_NODES, OFFSET_HALO1_PV_LOCAL_PLAYERS,
+                 OFFSET_HALO1_PV_RENDER_WINDOWS, OFFSET_HALO1_PV_RENDER_CAMERAS, OFFSET_HALO1_PF_SPLIT_WINDOW,
+                 OFFSET_HALO1_PV_WINDOW_FIELDS_OF_VIEW, OFFSET_HALO1_PF_RENDER_WINDOW_CAMERA,
+                 OFFSET_HALO1_PF_SABER_HAND_OVER_VIEW, OFFSET_HALO1_PF_DIRECTOR_CAMERA_MODE,
+                 OFFSET_HALO1_PV_HIDDEN_OBJECT_CAMERA, OFFSET_HALO1_PV_RENDER_OBJECTS, OFFSET_HALO1_PV_DIRECTORS,
+                 OFFSET_HALO1_PF_FIRST_PERSON_DIRECTOR, OFFSET_HALO1_PF_LOCAL_PLAYER_UNIT_FLAG, OFFSET_HALO1_PV_SABER_SCENE,
+                 OFFSET_HALO1_PV_SABER_ZOOMED_FOV, OFFSET_HALO1_PV_SABER_CONTEXT, OFFSET_HALO1_PV_SABER_VIEW_IMAGES,
+                 OFFSET_HALO1_PV_SABER_VIEW_IMAGE_INDEX, OFFSET_HALO1_PV_SABER_SCREEN_IMAGE, OFFSET_HALO1_PF_HUD_VIEW_DRAW,
+                 OFFSET_HALO1_PV_HUD_VIEW_DRAW_STATE, OFFSET_HALO1_PF_HUD_VIEW_DRAW_2, OFFSET_HALO1_PF_HUD_VIEW_DRAW_3,
+                 OFFSET_HALO1_PV_HUD_VIEW_DRAW_3_SKIP_1, OFFSET_HALO1_PV_HUD_VIEW_DRAW_3_SKIP_2,
+                 OFFSET_HALO1_PV_ANNIVERSARY_SHOWN);
+
+    // Everything the mode hooks and reaches is in this build (MCC::Splitscreen::ClassicGraphicsScope asks).
+    bool Available() { return entry_feature->Available(); }
+
     int LocalPlayers(__int64 module) { return *(short*)(module + OFFSET_HALO1_PV_PLAYER_COUNT); }
     int Views(__int64 module) { return std::clamp(LocalPlayers(module), 0, 4); }
-    bool Quad(__int64 module) { return MCC::Splitscreen::AnniversaryQuadActive() && Views(module) > 2; }
+    // The mode is set up for a 3-4 player mission (its cameras made as split screen starts) and runs while Anniversary
+    // graphics are on screen: Back switches them in the middle of a mission.
+    bool QuadReady(__int64 module) { return MCC::Splitscreen::AnniversaryQuadActive() && Views(module) > 2; }
+    bool AnniversaryShown(__int64 module) { return *(int*)(module + OFFSET_HALO1_PV_ANNIVERSARY_SHOWN) != 0; }
+    bool Quad(__int64 module) { return QuadReady(module) && AnniversaryShown(module); }
 
     char* Settings(__int64 module) { return *(char**)(*(char**)(module + OFFSET_HALO1_PV_SABER_DEVICE) + 0x118); }
     int ScreenWidth(__int64 module) { return *(int*)(Settings(module) + 0x20); }
@@ -76,7 +102,8 @@ namespace Halo1::Entry::Anniversary {
         }
         return child;
     }
-    ::Entry entry_create_child(Halo1EntrySet(), OFFSET_HALO1_PF_SABER_TEXTURE_CREATE_CHILD, (void*)&CreateChild);
+    ::Entry entry_create_child(Halo1EntrySet(), OFFSET_HALO1_PF_SABER_TEXTURE_CREATE_CHILD, (void*)&CreateChild,
+                               entry_feature);
 
     void SwapChildren() {
         std::lock_guard<std::mutex> lock(s_children_mutex);
@@ -99,19 +126,24 @@ namespace Halo1::Entry::Anniversary {
         }
     }
 
+    // As split screen starts, or when a third player joins in the middle of a mission (hot join).
+    void MakeExtraCameras(__int64 module) {
+        int& count = CameraCount(module);
+        if (!QuadReady(module) || s_extra_cameras[0] != nullptr || count != 2) return;
+        for (int i = 0; i < 2; ++i) ((int (*)())(module + OFFSET_HALO1_PF_SABER_ADD_CAMERA))();
+        if (count == 4) {
+            s_extra_cameras[0] = Cameras(module)[2];
+            s_extra_cameras[1] = Cameras(module)[3];
+            LOG_INFO("Halo CE Anniversary 3-4 players: cameras for views 3 and 4 made");
+        }
+        count = 2;
+    }
+
     Halo1Entry(entry_set_split, OFFSET_HALO1_PF_SABER_SET_SPLIT, void, set_split, char* state) {
         __int64 module = entry_set_split.m_target - entry_set_split.m_offset;
         if (!*(bool*)(module + OFFSET_HALO1_PV_SABER_SPLIT) && state[0x41]) DropExtraCameras(module); // turning off
         ((set_split_t)entry_set_split.m_pOriginal)(state);
-        int& count = CameraCount(module);
-        if (state[0x41] && Quad(module) && s_extra_cameras[0] == nullptr && count == 2) {
-            for (int i = 0; i < 2; ++i) ((int (*)())(module + OFFSET_HALO1_PF_SABER_ADD_CAMERA))();
-            if (count == 4) {
-                s_extra_cameras[0] = Cameras(module)[2];
-                s_extra_cameras[1] = Cameras(module)[3];
-            }
-            count = 2;
-        }
+        if (state[0x41]) MakeExtraCameras(module);
     }
 
     bool s_quarters = false; // the cameras have quarter viewports
@@ -163,7 +195,10 @@ namespace Halo1::Entry::Anniversary {
     std::atomic<int> s_waiting_pair = 0;   // the pair of the list built aside, waiting to be committed
 
     Halo1Entry(entry_sync, OFFSET_HALO1_PF_SABER_SYNC, void, sync) {
-        bool quad = Quad(entry_sync.m_target - entry_sync.m_offset);
+        __int64 module = entry_sync.m_target - entry_sync.m_offset;
+        char* split = *(char**)(module + OFFSET_HALO1_PV_SABER_SPLIT_STATE);
+        if (split != nullptr && split[0x41]) MakeExtraCameras(module); // a third player joined (hot join)
+        bool quad = Quad(module);
         s_sync_quad = quad;
         s_pair = quad ? s_pair ^ 1 : 0;
         ((sync_t)entry_sync.m_pOriginal)();
@@ -185,7 +220,7 @@ namespace Halo1::Entry::Anniversary {
 
     // Players 3 and 4's frame: their first-person weapons go to the renderer as views 0 and 1's.
     void FirstPersonPair(__int64 module, int views) {
-        constexpr std::pair<__int64, __int64> kModels[] = {
+        const std::pair<__int64, __int64> kModels[] = {
             {OFFSET_HALO1_PV_FIRST_PERSON_WEAPONS, OFFSET_HALO1_PV_FIRST_PERSON_WEAPON_NODES},
             {OFFSET_HALO1_PV_FIRST_PERSON_ARMS, OFFSET_HALO1_PV_FIRST_PERSON_ARMS_NODES},
         };
@@ -472,7 +507,15 @@ namespace Halo1::Entry::Anniversary {
         *(__int64*)(locals - 0x08) = top + height;
     }
     ::Entry entry_overlay_rect(Halo1EntrySet(), OFFSET_HALO1_SABER_VIEW_OVERLAY_RECT,
-                               MidFunctionThunk(&OverlayRect, &entry_overlay_rect.m_pOriginal, nullptr, 0));
+                               MidFunctionThunk(&OverlayRect, &entry_overlay_rect.m_pOriginal, nullptr, 0), entry_feature);
+
+    // Which graphics are on screen, as the split-screen hooks last saw them (mcc/splitscreen/LeftRight asks from outside
+    // the module's hooks, where it may be unloading): noted while this mode is hooked, Classic otherwise.
+    std::atomic<bool> s_anniversary_on_screen = false;
+    void NoteGraphics(__int64 module) {
+        if (entry_set_split.m_target != 0) s_anniversary_on_screen = AnniversaryShown(module);
+    }
+    bool ClassicShown() { return !s_anniversary_on_screen; }
 
     // ---- the module unloading (MCC reloads it for the next game): nothing of ours may point into it
 
@@ -483,6 +526,7 @@ namespace Halo1::Entry::Anniversary {
         }
         s_image = nullptr;
         s_extra_cameras[0] = s_extra_cameras[1] = nullptr; // the renderer's heap goes with the module
+        s_anniversary_on_screen = false;
         s_quarters = false;
         s_quad = false;
         s_sync_quad = false;
