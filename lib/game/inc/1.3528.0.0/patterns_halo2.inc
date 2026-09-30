@@ -168,6 +168,15 @@ const OffsetPatterns kHalo2Patterns[] = {
     {&OFFSET_HALO2_PF_SABER_AFTER_CAMERAS, 0x2e3f70, Code, {
         At("40 53 48 83 EC 20 48 8B 05 ?? ?? ?? ?? 48 8B 1D ?? ?? ?? ?? 83 B8 48 01 00 00 00", 0x0),
         Rel("3B 1E 7C ?? E8 ?? ?? ?? ?? 48 8B 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 90 48 8B 45 80 48 85 C0", 0x5, 0x9, 0x0)}},
+    {&OFFSET_HALO2_PF_SABER_HDR_PASS, 0x210bf0, Code, {
+        At("48 8B C4 48 89 58 08 48 89 70 10 55 57 41 54 41 56", 0x0),
+        Rel("48 8B 74 24 70 0F 28 74 24 40 48 83 C4 50 41 5E E9 ?? ?? ?? ??", 0x11, 0x15, 0x0)}},
+    {&OFFSET_HALO2_PV_SABER_HDR_VIEWS, 0x1ab8600, Data, {
+        Rel("4C 8D 25 ?? ?? ?? ?? 4C 89 7C 24 64 4D 6B F6 4C 48 8D 3C 00", 0x3, 0x7, 0x0),
+        Rel("48 8D 15 ?? ?? ?? ?? 0F 10 4D E0 48 8B 5C 24 60 48 6B CF 4C", 0x3, 0x7, 0x0)}},
+    {&OFFSET_HALO2_PV_SABER_HDR_READ_BACKS, 0x1ab8758, Data, {
+        Rel("4C 8D 3D ?? ?? ?? ?? 45 8B F4 0F 1F 40 00 66 66 0F 1F 84 00 00 00 00 00", 0x3, 0x7, 0x0),
+        Rel("48 8D 3D ?? ?? ?? ?? 4C 8B 40 F0 48 8D 58 F0 48 8B 10 F3 0F 11 74 24 28", 0x3, 0x7, -0x40)}},
     {&OFFSET_HALO2_PF_SABER_ADD_RENDER_TARGET, 0xf7750, Code, {
         At("40 53 55 56 57 41 54 41 55 41 56 41 57 48 81 EC 08 01 00 00", 0x0),
         Rel("E8 ?? ?? ?? ?? 41 8B 4E 0C 41 89 8E 48 2B 00 00 41 8B 4E 0C", 0x1, 0x5, 0x0)}},

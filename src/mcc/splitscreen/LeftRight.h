@@ -53,6 +53,9 @@ namespace MCC::Splitscreen::LeftRight {
 
     constexpr int kMaxHudLayoutSize = 0x110;
 
+    // Local players on screen (the game's player_count).
+    int Players(const Gen3& game, __int64 module);
+
     // Per-game runtime state, one per game module.
     struct State {
         __int64 module = 0;

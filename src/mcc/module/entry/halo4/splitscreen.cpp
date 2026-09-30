@@ -2,7 +2,10 @@
 #include "halo4.h"
 
 #include "mcc/module/entry/PreservingThunk.h"
+#include "mcc/module/patch/CPatch.h"
 #include "mcc/splitscreen/LeftRight.h"
+
+#include <cstring>
 
 namespace Halo4::Entry::Splitscreen {
     namespace LeftRight = MCC::Splitscreen::LeftRight;
@@ -37,14 +40,39 @@ namespace Halo4::Entry::Splitscreen {
         int layout = ((hud_layout_t)entry_hud_layout.m_pOriginal)(user);
         if (layout != kHalfHudLayout || !LeftRight::Chosen()) return layout;
         __int64 module = entry_hud_layout.m_target - entry_hud_layout.m_offset;
-        int players = ((int (*)())(module + OFFSET_HALO4_PF_SPLITSCREEN_PLAYER_COUNT))();
-        return LeftRight::Active(players) ? kQuarterHudLayout : layout;
+        return LeftRight::Active(LeftRight::Players(kGame, module)) ? kQuarterHudLayout : layout;
+    }
+
+    // Halo 4 scales the first-person camera's field of view by the screen's aspect over the view's (0x34EC44, times
+    // the screen's, then this divide by the view's). That keeps the gun's framing in its own split-screen views,
+    // all wider than tall, but a full-height Left/Right half doubled it: both arms and the whole gun came into frame,
+    // drawn big. While Left/Right is on screen the divisor is the screen's aspect too (divss xmm5, xmm0 -> xmm1), so
+    // the gun is framed like the world, as Halo 3 and Reach draw it. Switched before a frame is drawn, on the thread
+    // drawing it.
+    unsigned char* s_viewmodel_divide = nullptr; // the divide's register byte, while it's switched
+
+    void RestoreViewmodelAspect() {
+        unsigned char view = 0xE8; // xmm0
+        if (s_viewmodel_divide != nullptr) CPatch::apply(s_viewmodel_divide, &view, 1);
+        s_viewmodel_divide = nullptr;
+    }
+    const bool s_restore = (Halo4SplitscreenEntrySet()->on_remove(&RestoreViewmodelAspect), true);
+
+    void ViewmodelAspect(__int64 module, bool left_right) {
+        if (left_right == (s_viewmodel_divide != nullptr)) return;
+        if (!left_right) return RestoreViewmodelAspect();
+        auto divide = (unsigned char*)(module + OFFSET_HALO4_VIEWMODEL_ASPECT_DIVIDE);
+        unsigned char screen = 0xE9; // xmm1
+        if (OFFSET_HALO4_VIEWMODEL_ASPECT_DIVIDE.found() && memcmp(divide, "\xF3\x0F\x5E\xE8", 4) == 0 &&
+            CPatch::apply(divide + 3, &screen, 1))
+            s_viewmodel_divide = divide + 3;
     }
 
     Halo4SplitscreenEntry(entry_render, OFFSET_HALO4_PF_RENDER, void, render) {
         __int64 module = entry_render.m_target - entry_render.m_offset;
         LeftRight::Frame(kGame, module, s_state);
         HudFit::Refresh(module);
+        ViewmodelAspect(module, LeftRight::Active(LeftRight::Players(kGame, module)));
         ((render_t)entry_render.m_pOriginal)();
     }
 

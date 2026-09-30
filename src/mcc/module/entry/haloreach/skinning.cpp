@@ -31,14 +31,13 @@ namespace HaloReach::Entry::Skinning {
         Write w{at, {}, size};
         memcpy(w.original, at, size);
         if (!CPatch::apply(at, bytes, size)) return false;
-        FlushInstructionCache(GetCurrentProcess(), at, size);
         s_writes.push_back(w);
         return true;
     }
 
     void Restore() {
         for (auto it = s_writes.rbegin(); it != s_writes.rend(); ++it)
-            if (CPatch::apply(it->at, it->original, it->size)) FlushInstructionCache(GetCurrentProcess(), it->at, it->size);
+            CPatch::apply(it->at, it->original, it->size);
         s_writes.clear();
         if (s_pool) VirtualFree(s_pool, 0, MEM_RELEASE);
         s_pool = nullptr;

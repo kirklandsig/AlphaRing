@@ -41,3 +41,4 @@ DefOffset(OFFSET_HALO4_PF_UI_SCREEN_RENDER, 0x3D6184) // (screen*, context*) - d
 DefOffset(OFFSET_HALO4_VT_HUD_RETICLE_GROUP, 0xD6C2D0) // the vtable of the widget group holding the crosshair
 DefOffset(OFFSET_HALO4_VT_UI_GROUP, 0xD7DE70) // the vtable of a UI screen's top-level widget groups
 DefOffset(OFFSET_HALO4_PF_HUD_LAYOUT, 0x3BD78C) // int (int user) - the HUD layout by the view's table variant: 0x80076 full, 0x80077 half, 0x80078 quarter
+DefOffset(OFFSET_HALO4_VIEWMODEL_ASPECT_DIVIDE, 0x34ED96) // divss xmm5, xmm0 - the first-person camera's field of view, times the screen's aspect, over the view's (in 0x34EC44)

@@ -32,7 +32,8 @@ namespace Halo2::Entry::Anniversary {
                  OFFSET_HALO2_TWO_PLAYERS_TEST_FIRST_PERSON_2, OFFSET_HALO2_TWO_PLAYERS_TEST_FIRST_PERSON_3,
                  OFFSET_HALO2_PV_SABER_CAMERAS, OFFSET_HALO2_PF_SABER_CAMERA_SET_FOV, OFFSET_HALO2_PV_MODEL_LEVELS,
                  OFFSET_HALO2_PF_FIRST_PERSON_BUILD, OFFSET_HALO2_PV_FIRST_PERSON_MODELS, OFFSET_HALO2_PF_SABER_OBJECT_SHOW,
-                 OFFSET_HALO2_PF_SABER_OBJECT_HIDE, OFFSET_HALO2_PV_SABER_CONTEXT, OFFSET_HALO2_PV_SABER_SCENE);
+                 OFFSET_HALO2_PF_SABER_OBJECT_HIDE, OFFSET_HALO2_PV_SABER_CONTEXT, OFFSET_HALO2_PV_SABER_SCENE,
+                 OFFSET_HALO2_PV_SABER_HDR_VIEWS, OFFSET_HALO2_PV_SABER_HDR_READ_BACKS);
 
     // Everything the mode hooks and reaches is in this build (MCC::Splitscreen::ClassicGraphicsScope asks).
     bool Available() { return entry_feature->Available(); }
@@ -295,6 +296,10 @@ namespace Halo2::Entry::Anniversary {
     ID3D11Texture2D* s_kept = nullptr;       // the cells, as last drawn
     ID3D11Resource* s_target = nullptr;      // the frame's target the views are drawn to
     bool s_target_ready = false;             // and ours made to match it (PrepareTarget)
+    // players 3 and 4's exposure (hdr_pass): views 0 and 1's adaptation on their frames, and whether it's kept yet
+    constexpr int kHdrView = 0x4C, kHdrAdaptation = 0x3C, kHdrAdaptationSize = 0x10;
+    char s_second_pair_adaptation[2][kHdrAdaptationSize];
+    bool s_second_pair_adapting[2] = {};
 
     // 3 players: nobody's second view on the second pair's frames
     bool NoSecondView() { return s_frame_pair == 1 && s_frame_players < 4; }
@@ -392,6 +397,7 @@ namespace Halo2::Entry::Anniversary {
         s_frame_pair = (flags & kSecondPairList) ? 1 : 0;
         s_frame_players = Players(module);
         memset(s_drawn, 0, sizeof s_drawn);
+        if (!s_frame_quad) s_second_pair_adapting[0] = s_second_pair_adapting[1] = false;
         QuarterViews(s_frame_quad);
         ((frame_t)entry_frame.m_pOriginal)();
         if (s_target != nullptr) {
@@ -399,6 +405,37 @@ namespace Halo2::Entry::Anniversary {
             s_target = nullptr;
         }
         s_target_ready = false;
+    }
+
+    // ---- each view's exposure. H2A adapts a view's exposure to its luminance of the frame before (read back a
+    // frame late, into one of two textures in turn): with the pairs alternating, that was the other pair's picture,
+    // and player 3's view followed where player 1 looked - washed out while player 1 faced something dark, pulsing as
+    // both moved. The renderer keeps this for four views; players 3 and 4's frames get their own adaptation and the
+    // read-back textures of views 2 and 3, which two views never use, for their HDR pass.
+
+    Halo2Entry(entry_hdr_pass, OFFSET_HALO2_PF_SABER_HDR_PASS, void, hdr_pass, __int64 a1, __int64 a2, __int64 a3,
+               __int64 a4, __int64 a5, __int64 a6, __int64 hdr_view, __int64 a8) {
+        auto original = (hdr_pass_t)entry_hdr_pass.m_pOriginal;
+        int view = (int)hdr_view;
+        if (!s_frame_quad || s_frame_pair != 1 || view < 0 || view > 1)
+            return original(a1, a2, a3, a4, a5, a6, hdr_view, a8);
+        __int64 module = entry_hdr_pass.m_target - entry_hdr_pass.m_offset;
+        char* adaptation = (char*)(module + OFFSET_HALO2_PV_SABER_HDR_VIEWS) + view * kHdrView + kHdrAdaptation;
+        void** read_backs = (void**)(module + OFFSET_HALO2_PV_SABER_HDR_READ_BACKS) + view * 2;
+        void** spare = read_backs + 4; // view + 2's
+        char* mine = s_second_pair_adaptation[view];
+        if (!s_second_pair_adapting[view]) { // starting from the first pair's, its frame count started again
+            memcpy(mine, adaptation, kHdrAdaptationSize);
+            *(int*)(mine + 0xC) = 0;
+            s_second_pair_adapting[view] = true;
+        }
+        auto exchange = [&] {
+            std::swap_ranges(adaptation, adaptation + kHdrAdaptationSize, mine);
+            std::swap_ranges(read_backs, read_backs + 2, spare);
+        };
+        exchange();
+        original(a1, a2, a3, a4, a5, a6, hdr_view, a8);
+        exchange();
     }
 
     // Copies a cell from the frame's target to ours (keep) or back.
@@ -632,6 +669,7 @@ namespace Halo2::Entry::Anniversary {
         for (auto& spawned : s_spawned) spawned = false;
         s_pair = s_sync_pair = 0;
         s_frame_quad = false;
+        s_second_pair_adapting[0] = s_second_pair_adapting[1] = false;
         s_anniversary_on_screen = false;
     }
     const bool s_reset = (Halo2EntrySet()->on_remove(&Reset), true);

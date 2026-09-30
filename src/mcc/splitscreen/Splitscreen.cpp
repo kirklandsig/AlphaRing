@@ -15,7 +15,7 @@
 
 #include <atomic>
 
-namespace Halo1::Entry::Anniversary { bool Available(); }
+namespace Halo1::Entry::Anniversary { bool Available(); bool QuadShown(); }
 namespace Halo2::Entry::Anniversary { bool Available(); }
 namespace Halo1::Entry::HotJoin {
     bool Available();
@@ -78,6 +78,9 @@ namespace MCC::Splitscreen {
     bool AnniversaryQuadChosen() { return g_anniversary_quad.Get(); }
     void ChooseAnniversaryQuad(bool on) { g_anniversary_quad.Set(on); }
     bool AnniversaryQuadActive() { return g_anniversary_quad_active; }
+    bool AnniversaryQuartersShown(int game) {
+        return game == CGameGlobal::Halo1 && Halo1::Entry::Anniversary::QuadShown();
+    }
 
     SavedChoice g_hot_join{"hot_join"};
 
