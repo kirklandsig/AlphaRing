@@ -25,6 +25,7 @@
 | `v1.9.0-experimental` | Testing | Anniversary graphics with 3-4 players in Halo CE and Halo 2 (opt-in, alternating pairs), Halo 4 HUD with bars removed fits each view, Left/Right table rebuild on load, Reach crosshair answered (MCC setting) |
 | `v1.9.1-experimental` | Testing | Reach split screen: black/invisible Spartans after many deaths fixed (Reach's own garbage collector starts sooner with 2+ local players) |
 | `v2.0.0-experimental` | Testing | Hot join in every game (experimental), pattern-mode offsets that survive MCC updates, Players window, H2 players 3-4 beside a teammate at a mission start, H2A 3-4P at 60 fps + 2P black fix, Back switches CE/H2 graphics mid-mission, Reach skinning pool (bodies stay), H2 modded Save & Quit, Reach side-by-side HUD/radar |
+| `v2.0.1-experimental` | Testing | Fixes for the reported v2.0 issues (#2 CE hot-join split, #3 CE joiner spawns, #4 CE Anniversary 3-4P views/guns, #5 H2A 3-4P brightness, #7 H4 side-by-side gun), CE 3P spawn menus in quarters |
 
 ### Branches
 
@@ -328,7 +329,7 @@ Look sensitivity bytes (0x1B5/0x1B6) were bools and players 2-4 got zeroed conta
 
 ## Session History
 
-### 2026-09-30 - v2.0.1: the open reports fixed (#4, #5, #7), GitHub issues - uncommitted, awaiting the user
+### 2026-09-30 - v2.0.1: the open reports fixed (#4, #5, #7), GitHub issues - RELEASED as v2.0.1-experimental (commit ccd9127)
 
 GitHub: Issues turned on for kirklandsig/AlphaRing (the user asked); #2-#7 filed from the user's reports with
 symptoms and screenshots (`doc/images/issues/`, commit e8f9ae7), and the v2.0.0 release page has a "Reported issues"
@@ -369,7 +370,7 @@ findings. Release candidate: `scratchpad/WTSAPI32_fixE.dll` (md5 fa093a66...), b
 `h2_expo_test.sh` (P3's brightness while P1 turns), `ce_regress_v201.sh <dll> <tag>` (CE 3P: guns, ammo display,
 leave/rejoin, Back, soak), TEMP `temp_ce_camrace2.py` (stale camera copies), `temp_h2_expo.py` (the effect readers).
 
-### 2026-09-29/30 (night) - v2.0.1 candidate: fixes from the user's live testing - uncommitted, awaiting the user
+### 2026-09-29/30 (night) - v2.0.1 candidate: fixes from the user's live testing - released in v2.0.1-experimental
 
 The user tested v2.0 on the box (hot join on, Anniversary 3-4P on, side by side) and handed the box over for the night.
 Found and fixed (box-verified with the harness; release candidate `scratchpad/WTSAPI32_v201_rc3.dll`, md5 4e91b08c...,
@@ -740,12 +741,15 @@ Diagnostics used (not in code any more): temporary `RSSetViewports` probe logged
 
 ## Next Steps
 
-000000. **(2026-09-30) v2.0.1 candidate, uncommitted** (see the 2026-09-30 and night entries): issues #2, #3, #4, #5,
-#7 fixed, 3P Anniversary spawn menus; README v2.0.1 + v2.0 screenshots. On the user's go: commit, tag
-v2.0.1-experimental, release with `scratchpad/WTSAPI32_fixE.dll` (notes: `scratchpad/release_v201.md`), comment the fixes
-(`scratchpad/issues/fix_4.md`, `fix_5.md`, `fix_7.md`; #2/#3 from the night entry) and close #2 #3 #4 #5 #7, put
-`scratchpad/issues/v20_body_shipped.md` on the v2.0.0 release page (its #7 line said "zoomed out"), announce. Open: #6
-H2A 1P black (no repro).
+000000. **(2026-09-30) v2.0.1-experimental released** on the user's go (commit ccd9127, screenshots b469ae9,
+https://github.com/kirklandsig/AlphaRing/releases/tag/v2.0.1-experimental, asset = `scratchpad/WTSAPI32_fixE.dll`,
+md5 fa093a66...). Issues #2 #3 #4 #5 #7: status lines updated, cause/fix comments posted, closed as completed (#7
+retitled: "drawn big and stretched", not "zoomed out"; #4/#5 got an update note under their first theories). The
+v2.0.0 release page now has the v2.0 screenshots (Players window, Splitscreen > Options, hot join, HUD window, spawn
+menus) and the issue list marked fixed. Not announced: the user posts on Discord themselves (a casual "fixed these
+quick" message, drafted in chat). The box runs the v2.0.1 DLL with the user's config. Open: #6 H2A 1P black (no repro),
+the H2A effect readers (minor), H4 4-player switch-off path untested. Next: merging with MegaBit's builds (plan in
+`docs/UPSTREAM_SYNC.md`, local and out of git - it holds his Discord answer and our drafts).
 00000. **(2026-09-29) Upstream sync with megabitt01: plan in `docs/UPSTREAM_SYNC.md`.** Next: the user sends the draft
 message (or approves posting it); on MegaBit's answers, do "Before PR 1" (vcpkg build of `master-chief`, box
 baseline, run #24), then the PRs in order, each on the user's go.
