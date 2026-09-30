@@ -16,6 +16,8 @@ DefOffset(OFFSET_HALO1_PV_PLAYER_COUNT, 0x1B7B910)
 DefOffset(OFFSET_HALO1_PV_PLAYERS, 0x1C40480) // players data array*, element 0xC20, unit index at +0x64
 DefOffset(OFFSET_HALO1_PF_PLAYERS_UPDATE, 0xAD0720) // void (state*) - each tick: the players' respawns (calls the below)
 DefOffset(OFFSET_HALO1_PF_PLAYER_SPAWN, 0xAD4184) // void (int player) - a start location or the co-op respawn; callers check the unit
+DefOffset(OFFSET_HALO1_PF_CHOOSE_START_LOCATION, 0xAD39AC) // int16 (int player) - the best free starting location, -1: none
+DefOffset(OFFSET_HALO1_PF_START_LOCATION, 0xAD3940) // entry* (int16 index) - a starting location, 0x34: point, facing +0xC
 DefOffset(OFFSET_HALO1_PF_OBJECT_DELETE, 0xC579D4) // void (int object) - object_destroy's; skips a player's unit
 DefOffset(OFFSET_HALO1_PF_PLAYER_SET_UNIT, 0xAD2404) // void (int player, int unit) - -1 takes the player out of theirs
 DefOffset(OFFSET_HALO1_PF_TAG_ITERATOR_NEXT, 0xA9B43C) // int (tag_iterator*)
@@ -95,10 +97,11 @@ DefOffset(OFFSET_HALO1_PF_FIRST_PERSON_PREPARE, 0xB27510) // void () - for the H
 DefOffset(OFFSET_HALO1_PF_FIRST_PERSON_UPDATE, 0xB275B8) // void () - its first-person weapon, for the renderer while
 DefOffset(OFFSET_HALO1_PV_FIRST_PERSON_FOR_RENDERER, 0x2EA32F8) // int
 DefOffset(OFFSET_HALO1_PV_ANNIVERSARY_SHOWN, 0x1B7AA84) // int, nonzero while Anniversary graphics are on screen (Back switches it; 0x745B0 is bool () "Classic")
-DefOffset(OFFSET_HALO1_PV_FIRST_PERSON_WEAPONS, 0x1B7AA88) // int[4] per view: the object whose nodes are
-DefOffset(OFFSET_HALO1_PV_FIRST_PERSON_WEAPON_NODES, 0x1C384A0) // 0xD00 per view
-DefOffset(OFFSET_HALO1_PV_FIRST_PERSON_ARMS, 0x1B7AA98) // int[4]
-DefOffset(OFFSET_HALO1_PV_FIRST_PERSON_ARMS_NODES, 0x1C350A0) // 0xD00 per view
+DefOffset(OFFSET_HALO1_PV_FIRST_PERSON_WEAPONS, 0x1B7AA88) // int[4] per view: the object whose nodes are at 0x1C384A0, 0xD00 per view
+DefOffset(OFFSET_HALO1_PV_FIRST_PERSON_ARMS, 0x1B7AA98) // int[4], nodes at 0x1C350A0
+DefOffset(OFFSET_HALO1_PF_FIRST_PERSON_SYNC, 0x7AC60) // void (int object, int slot) - a view's first-person weapon or arms (the nodes of the view it's in above) to the renderer's model for (slot, object), made on first use
+DefOffset(OFFSET_HALO1_FIRST_PERSON_SYNC_SLOT_LIMIT, 0x7AE64) // in it: cmp r15d, 1 / ja - a slot past 1 gets no nodes
+DefOffset(OFFSET_HALO1_PV_FIRST_PERSON_MODELS, 0x2B050E8) // the renderer's first-person models: entry*, int count at +8; entry 0x20: int slot, int object, bytes +0x1C/+0x1E hidden in view 0/1 (wanted), +0x1D/+0x1F (applied)
 DefOffset(OFFSET_HALO1_PF_OBJECT_HIDDEN_VIEWS, 0xAB2890) // int (int object) - views (bits 0, 1) the object is hidden in
 DefOffset(OFFSET_HALO1_PF_DIRECTOR_CAMERA_MODE, 0xB14EA4) // short (int local) - 0 in first person
 DefOffset(OFFSET_HALO1_PV_HIDDEN_OBJECT_CAMERA, 0x1B87A20) // bool on, int16 mode at +2 (2 hides), int object at +0x34

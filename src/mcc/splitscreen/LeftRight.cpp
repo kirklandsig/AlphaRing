@@ -35,8 +35,6 @@ namespace MCC::Splitscreen::LeftRight {
             return (Store::LayoutEntry*)(module + game.table) + s.players * Store::SLOT_COUNT + s.slot;
         }
 
-        int Players(const Gen3& game, __int64 module) { return ((int (*)())(module + game.player_count))(); }
-
         const int* Screen(const Gen3& game, __int64 module) { return (const int*)(module + game.screen); }
 
         // A descriptor size in pixels, as the pool computes it: flag bit 0 makes the value a divisor of the
@@ -47,6 +45,8 @@ namespace MCC::Splitscreen::LeftRight {
             return game.double_rounding ? (int)std::floor((double)divided + 0.5) : (int)std::floor(divided + 0.5f);
         }
     }
+
+    int Players(const Gen3& game, __int64 module) { return ((int (*)())(module + game.player_count))(); }
 
     bool Chosen() {
         return Store::GetTwoPlayerLayout() == Store::TwoPlayerLayout::LeftRight;

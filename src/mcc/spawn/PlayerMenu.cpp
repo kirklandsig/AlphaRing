@@ -392,7 +392,10 @@ namespace MCC::Spawn {
         int count = LocalPlayerCount();
         ImVec2 display = ImGui::GetIO().DisplaySize;
         auto p_global = GameGlobal();
-        bool left_right = p_global && MCC::Splitscreen::LeftRight::OnScreen(p_global->current_game, count);
+        int shown = p_global ? p_global->current_game : -1;
+        bool left_right = MCC::Splitscreen::LeftRight::OnScreen(shown, count);
+        // three players in Halo CE Anniversary's quarters: laid out as four
+        int layout = count == 3 && MCC::Splitscreen::AnniversaryQuartersShown(shown) ? 4 : count;
 
         for (int player = 0; player < kMaxPlayers; ++player) {
             Snapshot snapshot;
@@ -460,7 +463,7 @@ namespace MCC::Spawn {
             if (spawn && Catalog::Get(game, (Category)snapshot.category, snapshot.selected, item))
                 Catalog::Spawn((Category)snapshot.category, item, player, (Team)snapshot.team, snapshot.weapon);
 
-            Draw(player, snapshot, game, ViewRect(player, count, display, left_right));
+            Draw(player, snapshot, game, ViewRect(player, layout, display, left_right));
         }
     }
 }

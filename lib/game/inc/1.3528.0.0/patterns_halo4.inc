@@ -92,4 +92,6 @@ const OffsetPatterns kHalo4Patterns[] = {
     {&OFFSET_HALO4_PF_HUD_LAYOUT, 0x3bd78c, Code, {
         At("40 53 48 83 EC 20 48 63 D9 E8 ?? ?? ?? ?? 41 B8 76 00 08 00", 0x0),
         Rel("E8 ?? ?? ?? ?? 44 8B 57 08 44 8B C8 8B 17 44 8B C3 48 8B 0D", 0x1, 0x5, 0x0)}},
+    {&OFFSET_HALO4_VIEWMODEL_ASPECT_DIVIDE, 0x34ed96, Code, {
+        At("F3 0F 5E E8 83 FF FF 74 ?? 8B 0D ?? ?? ?? ?? 65 48 8B 04 25 58 00 00 00", 0x0)}},
 };

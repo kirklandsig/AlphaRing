@@ -9,6 +9,7 @@
 #include "halo1.h"
 
 #include "mcc/module/entry/PreservingThunk.h"
+#include "mcc/module/patch/CPatch.h"
 #include "mcc/splitscreen/Splitscreen.h"
 
 #include <algorithm>
@@ -26,8 +27,7 @@ namespace Halo1::Entry::Anniversary {
                  OFFSET_HALO1_PF_SABER_CAMERA_SET_FOV, OFFSET_HALO1_PV_SABER_RENDERER, OFFSET_HALO1_PV_SABER_SPLIT_STATE,
                  OFFSET_HALO1_PF_SABER_SPLIT_LAYOUT, OFFSET_HALO1_PF_FIRST_PERSON_PREPARE,
                  OFFSET_HALO1_PV_FIRST_PERSON_FOR_RENDERER, OFFSET_HALO1_PF_FIRST_PERSON_UPDATE,
-                 OFFSET_HALO1_PV_FIRST_PERSON_WEAPONS, OFFSET_HALO1_PV_FIRST_PERSON_WEAPON_NODES,
-                 OFFSET_HALO1_PV_FIRST_PERSON_ARMS, OFFSET_HALO1_PV_FIRST_PERSON_ARMS_NODES, OFFSET_HALO1_PV_LOCAL_PLAYERS,
+                 OFFSET_HALO1_PV_FIRST_PERSON_WEAPONS, OFFSET_HALO1_PV_FIRST_PERSON_ARMS, OFFSET_HALO1_PV_LOCAL_PLAYERS,
                  OFFSET_HALO1_PV_RENDER_WINDOWS, OFFSET_HALO1_PV_RENDER_CAMERAS, OFFSET_HALO1_PF_SPLIT_WINDOW,
                  OFFSET_HALO1_PV_WINDOW_FIELDS_OF_VIEW, OFFSET_HALO1_PF_RENDER_WINDOW_CAMERA,
                  OFFSET_HALO1_PF_SABER_HAND_OVER_VIEW, OFFSET_HALO1_PF_DIRECTOR_CAMERA_MODE,
@@ -37,7 +37,8 @@ namespace Halo1::Entry::Anniversary {
                  OFFSET_HALO1_PV_SABER_VIEW_IMAGE_INDEX, OFFSET_HALO1_PV_SABER_SCREEN_IMAGE, OFFSET_HALO1_PF_HUD_VIEW_DRAW,
                  OFFSET_HALO1_PV_HUD_VIEW_DRAW_STATE, OFFSET_HALO1_PF_HUD_VIEW_DRAW_2, OFFSET_HALO1_PF_HUD_VIEW_DRAW_3,
                  OFFSET_HALO1_PV_HUD_VIEW_DRAW_3_SKIP_1, OFFSET_HALO1_PV_HUD_VIEW_DRAW_3_SKIP_2,
-                 OFFSET_HALO1_PV_ANNIVERSARY_SHOWN);
+                 OFFSET_HALO1_PV_ANNIVERSARY_SHOWN, OFFSET_HALO1_PF_FIRST_PERSON_SYNC,
+                 OFFSET_HALO1_FIRST_PERSON_SYNC_SLOT_LIMIT, OFFSET_HALO1_PV_FIRST_PERSON_MODELS);
 
     // Everything the mode hooks and reaches is in this build (MCC::Splitscreen::ClassicGraphicsScope asks).
     bool Available() { return entry_feature->Available(); }
@@ -193,6 +194,9 @@ namespace Halo1::Entry::Anniversary {
     std::atomic<bool> s_sync_quad = false; // the sync is in quad mode
     std::atomic<int> s_listed_pair = 0;    // the pair of the list the renderer draws
     std::atomic<int> s_waiting_pair = 0;   // the pair of the list built aside, waiting to be committed
+    thread_local bool t_second_pair = false; // the sync is handing players 3 and 4's frame over (first_person_sync)
+    unsigned char* s_slot_limit = nullptr;   // first_person_sync's slot check, while it's widened
+    void WidenSlotLimit(__int64 module);
 
     Halo1Entry(entry_sync, OFFSET_HALO1_PF_SABER_SYNC, void, sync) {
         __int64 module = entry_sync.m_target - entry_sync.m_offset;
@@ -201,10 +205,17 @@ namespace Halo1::Entry::Anniversary {
         bool quad = Quad(module);
         s_sync_quad = quad;
         s_pair = quad ? s_pair ^ 1 : 0;
+        if (quad && s_slot_limit == nullptr) WidenSlotLimit(module);
+        t_second_pair = s_pair == 1;
         ((sync_t)entry_sync.m_pOriginal)();
+        t_second_pair = false;
     }
 
-    // ---- each frame the game hands its views 0 and 1 to the renderer's cameras: 2 and 3 likewise
+    // ---- each frame the game hands its views 0 and 1 to the renderer's cameras (hand_over_view), then queues the
+    // worker's list build, which copies each view's camera (list_camera). Views 2 and 3 go over right after view 1,
+    // before the build is queued: handed over after the game's hand-over returned, players 3 and 4's list took their
+    // cameras as they were the frame before more than half the time (2351 of 4200 copies in a trace), and their
+    // views jumped between two frames.
 
     thread_local bool t_hand_over = false; // handing over
     thread_local bool t_view_block = false; // and each view's HUD view and first-person weapon were worked out
@@ -218,18 +229,16 @@ namespace Halo1::Entry::Anniversary {
         *(int*)(module + OFFSET_HALO1_PV_FIRST_PERSON_FOR_RENDERER) = 0;
     }
 
-    // Players 3 and 4's frame: their first-person weapons go to the renderer as views 0 and 1's.
+    // Players 3 and 4's frame: the sync hands the renderer views 0 and 1's first-person weapon and arms, so theirs
+    // are put in views 0 and 1's places, and a view nobody has is -1 in both (first_person_sync, below, takes the
+    // nodes from views 2 and 3's own, which the game finds by the object in the view's place).
     void FirstPersonPair(__int64 module, int views) {
-        const std::pair<__int64, __int64> kModels[] = {
-            {OFFSET_HALO1_PV_FIRST_PERSON_WEAPONS, OFFSET_HALO1_PV_FIRST_PERSON_WEAPON_NODES},
-            {OFFSET_HALO1_PV_FIRST_PERSON_ARMS, OFFSET_HALO1_PV_FIRST_PERSON_ARMS_NODES},
-        };
-        for (int slot = 0; slot < 2; ++slot) {
-            int view = slot + 2;
-            for (auto [objects, nodes] : kModels) {
-                int* object = (int*)(module + objects);
-                object[slot] = view < views ? object[view] : -1;
-                if (view < views) memcpy((char*)(module + nodes) + slot * 0xD00, (char*)(module + nodes) + view * 0xD00, 0xD00);
+        const __int64 kObjects[] = {OFFSET_HALO1_PV_FIRST_PERSON_WEAPONS, OFFSET_HALO1_PV_FIRST_PERSON_ARMS};
+        for (__int64 objects : kObjects) {
+            int* object = (int*)(module + objects);
+            for (int slot = 0; slot < 2; ++slot) {
+                if (slot + 2 >= views) object[slot + 2] = -1;
+                object[slot] = object[slot + 2];
             }
         }
     }
@@ -239,8 +248,13 @@ namespace Halo1::Entry::Anniversary {
         t_view_block = false;
         ((hand_over_t)entry_hand_over.m_pOriginal)();
         t_hand_over = false;
-        __int64 module = entry_hand_over.m_target - entry_hand_over.m_offset;
-        if (!s_sync_quad) return;
+    }
+
+    Halo1Entry(entry_hand_over_view, OFFSET_HALO1_PF_SABER_HAND_OVER_VIEW, void, hand_over_view, int index) {
+        auto original = (hand_over_view_t)entry_hand_over_view.m_pOriginal;
+        original(index);
+        if (index != 1 || !t_hand_over || !s_sync_quad) return;
+        __int64 module = entry_hand_over_view.m_target - entry_hand_over_view.m_offset;
         int players = *(short*)(*(char**)(module + OFFSET_HALO1_PV_LOCAL_PLAYERS) + 0xB4);
         int views = (std::min)(players, s_extra_cameras[1] != nullptr ? 4 : s_extra_cameras[0] != nullptr ? 3 : 2);
         // the hand-over (0xB29268 -> 0x7B480) writes the renderer's camera `view` if it is below the count: our
@@ -260,11 +274,58 @@ namespace Halo1::Entry::Anniversary {
                 *(float*)(module + OFFSET_HALO1_PV_WINDOW_FIELDS_OF_VIEW + (view + 1) * 4) = *(float*)(camera + 0x38);
                 ((void (*)(char*, char*))(module + OFFSET_HALO1_PF_RENDER_WINDOW_CAMERA))(window, camera);
                 if (t_view_block) FirstPersonView(module, view);
-                ((void (*)(int))(module + OFFSET_HALO1_PF_SABER_HAND_OVER_VIEW))(view);
+                original(view);
             }
             count = 2;
         }
         if (s_pair == 1) FirstPersonPair(module, views);
+    }
+
+    // ---- players 3 and 4's first-person models. The renderer keeps one per view slot and weapon, posed each frame
+    // by first_person_sync (active camo too), and the game addresses the rest of a first-person gun - its display
+    // (the assault rifle's round count), its fire and reload effects - by local player, 0 to 3. Players 3 and 4's
+    // frames hand theirs over as slots 2 and 3, shown in views 0 and 1: the pairs never share a model, and the game
+    // finds players 3 and 4's where it looks for them. The game gives a slot past 1 no nodes (a check in
+    // first_person_sync); its per-view arrays have four, and the check is widened to them as quad mode starts.
+
+    void WidenSlotLimit(__int64 module) {
+        auto check = (unsigned char*)(module + OFFSET_HALO1_FIRST_PERSON_SYNC_SLOT_LIMIT);
+        unsigned char limit = 3;
+        if (memcmp(check, "\x41\x83\xFF\x01\x77", 5) == 0 && CPatch::apply(check + 3, &limit, 1)) s_slot_limit = check + 3;
+    }
+
+    void RestoreSlotLimit() {
+        unsigned char limit = 1;
+        if (s_slot_limit != nullptr) CPatch::apply(s_slot_limit, &limit, 1);
+        s_slot_limit = nullptr;
+    }
+
+    char* FirstPersonModel(__int64 module, int slot, int object) {
+        char* entries = *(char**)(module + OFFSET_HALO1_PV_FIRST_PERSON_MODELS);
+        int count = *(int*)(module + OFFSET_HALO1_PV_FIRST_PERSON_MODELS + 8);
+        for (int i = 0; entries != nullptr && i < count; ++i) {
+            char* entry = entries + i * 0x20;
+            if (*(int*)entry == slot && *(int*)(entry + 4) == object) return entry;
+        }
+        return nullptr;
+    }
+
+    Halo1Entry(entry_first_person_sync, OFFSET_HALO1_PF_FIRST_PERSON_SYNC, void, first_person_sync, int object, int slot) {
+        auto original = (first_person_sync_t)entry_first_person_sync.m_pOriginal;
+        if (!t_second_pair || s_slot_limit == nullptr || slot < 0 || slot > 1) return original(object, slot);
+        __int64 module = entry_first_person_sync.m_target - entry_first_person_sync.m_offset;
+        // the game copies the nodes of the view whose weapon or arms the object is, and from null for neither
+        if (object != ((int*)(module + OFFSET_HALO1_PV_FIRST_PERSON_WEAPONS))[slot + 2] &&
+            object != ((int*)(module + OFFSET_HALO1_PV_FIRST_PERSON_ARMS))[slot + 2])
+            return;
+        original(object, slot + 2);
+        if (slot != 0) return;
+        // the game shows every slot's model but slot 0's in view 1: slot 2's is view 0's
+        char* model = FirstPersonModel(module, 2, object);
+        if (model != nullptr && model[0x1E] == 0) {
+            model[0x1C] = 0;
+            model[0x1E] = 1;
+        }
     }
 
     // ---- who is seen in which view. The renderer's objects have a hidden flag per view (0 and 1), which the sync
@@ -517,6 +578,9 @@ namespace Halo1::Entry::Anniversary {
     }
     bool ClassicShown() { return !s_anniversary_on_screen; }
 
+    // Quad mode is drawing, as of the last sync: three players are in quarters, as four are.
+    bool QuadShown() { return s_sync_quad; }
+
     // ---- the module unloading (MCC reloads it for the next game): nothing of ours may point into it
 
     void Reset() {
@@ -531,6 +595,7 @@ namespace Halo1::Entry::Anniversary {
         s_quad = false;
         s_sync_quad = false;
         s_pair = s_listed_pair = s_waiting_pair = 0;
+        RestoreSlotLimit();
     }
     const bool s_reset = (Halo1EntrySet()->on_remove(&Reset), true);
 }

@@ -8,6 +8,57 @@
 
 ---
 
+## What's New in v2.0.1 (experimental)
+
+> **Testing status:** as with v2.0, tested only on one Batocera Linux machine (MCC 1.3528 on Steam through Proton,
+> virtual Xbox 360 controllers, 1920x1080). Please report what you find on the
+> [AlphaRing Discord](https://discord.gg/TUyAnCrpuz).
+
+### Fixes
+- **Halo CE Anniversary with hot join on: one player saw a split screen.** A hot-join mission starts with all four
+  player slots, and Halo CE decides whether its Anniversary picture is split while the mission loads, so it stayed
+  split for one player, with a frozen second view and the HUD laid out for the whole screen. When players left, it
+  stayed split too. The split now follows the players in the mission: one player is full screen, a second splits it,
+  a third brings quarters, and leaving goes back the same way. Tested on the box on a fresh start of Halo with one
+  player, joining up to three, and leaving back down to one.
+- **Halo CE hot join: new players come in beside a teammate, straight away.** Halo CE only spawns players at a
+  mission's starting places, and the built-in missions have two, often where the others still stand, so a new player
+  could wait with a grey screen until someone walked off. A new player now spawns on a spot a teammate just walked
+  through, facing them. If nobody has walked anywhere yet, they still come in at a starting place. Tested on the box:
+  players 2 and 3 appeared 1-2 steps behind player 1 on Halo's opening path.
+- **Spawn menus with 3 players in Halo CE Anniversary were in the wrong corners.** Halo CE's Anniversary graphics
+  show three players in quarters, but the menus were laid out for player 1 on the top half. Each menu now opens in
+  its player's own quarter.
+- **Halo CE Anniversary with 3-4 players: players 3 and 4's views and guns**
+  ([#4](https://github.com/kirklandsig/AlphaRing/issues/4)). Players 3 and 4's views often used their camera from
+  the frame before, because the list of views was built while their cameras were still being handed over, so their
+  views jittered. They also shared the renderer's first-person gun models with players 1 and 2: player 3's assault
+  rifle showed player 1's round count, and their own guns missed the effects the game sends to a player's gun.
+  Players 3 and 4's cameras are now handed over before the list is built, and they have first-person models of
+  their own. Tested on the box: stale cameras went from 56% of frames to none (two while player 3 was joining);
+  player 3's and player 1's rifles each
+  count their own rounds through firing and reloading; a two-minute soak, a player leaving and rejoining, and Back
+  to Classic and back.
+- **Halo 2 Anniversary with 3-4 players: brightness** ([#5](https://github.com/kirklandsig/AlphaRing/issues/5)).
+  Each view adapts its brightness to its own previous frame, and with the pairs of players alternating, that was the
+  other pair's frame. Player 3's view got darker or washed out depending on where player 1 looked, and pulsed as they
+  both moved. Each pair now adapts to its own picture. Tested on the box: with player 3 standing still, player 3's
+  brightness no longer follows player 1 (before: 71, 54, 65, 55 as player 1 turned between the sky and the ground;
+  after: 62-63 throughout), and a 90-second soak.
+- **Halo 4 side by side: the full-height view's gun and arms**
+  ([#7](https://github.com/kirklandsig/AlphaRing/issues/7)). Halo 4 widens the first-person gun's field of view by
+  how much narrower a view is than the screen. That keeps the gun's framing in its own wide split-screen views, but a
+  full-height half doubled it, and the arms and gun were drawn big and stretched. While side by side is on screen, the gun is
+  framed like the world, as Halo 3 and Reach draw it. Tested on the box with three players side by side.
+
+### Known issues (not fixed yet)
+- **Halo 2 Anniversary with one player was black once**
+  ([#6](https://github.com/kirklandsig/AlphaRing/issues/6)) during a long session with hot join on. It hasn't happened
+  again in nine tries: hot join on and off, launched in Anniversary or switched with Back, after a Halo CE game in the
+  same session, and with players joining afterwards. If you see it, please send your `alpharing.log` on Discord.
+
+---
+
 ## What's New in v2.0 (experimental)
 
 > **Testing status:** like v1.9, this build has only been tested on **one Batocera Linux machine running the
@@ -38,6 +89,8 @@ Opening the overlay at MCC's menus (F4, or Start + Back on the first controller)
 - It's also under **Players** in the menu bar, and it can be set not to open by itself.
 - During a game it shows who's playing. Joining in the middle of a mission is *Hot join*, below.
 
+![The Players window at MCC's menus: three players in, player 4 free](doc/images/players-window.jpg)
+
 ### Hot join: drop in mid-mission (experimental)
 Turn on **Splitscreen > Options > Hot join (experimental)**. Then, in the middle of a campaign mission, a
 controller nobody is playing with presses **A** to join: the screen splits and the new player comes in beside a
@@ -58,6 +111,20 @@ teammate.
   with their HUD drawn. Halo CE's player also left and joined again, Halo 3 went from one player to two after a
   fresh mission start, and Halo 2 and Halo 3 each ran a few minutes with everyone moving and firing. With the option
   off, A did nothing.
+
+| ![Splitscreen > Options: side by side, hot join and Anniversary with 3-4 players](doc/images/splitscreen-options.jpg) | ![Two players joined in the middle of Halo CE, with the Players window open](doc/images/hot-join-players.jpg) |
+|:---:|:---:|
+| Splitscreen > Options | Two players joined mid-mission (Halo CE Anniversary) |
+
+### Where things are
+The overlay (F4, or Start + Back on the first controller) has a menu bar: **Players** (above), **Splitscreen** (player
+count, controllers, profiles and the options above), **Spawn** and **HUD**. In a campaign, each player can also press
+D-pad Down for their own menu in their part of the screen: vehicles, weapons, equipment and characters to spawn,
+and a page for their own HUD.
+
+| ![The HUD window: size, area, colour and each element per player](doc/images/overlay-hud-window.jpg) | ![Three players' own spawn menus, each in its quarter](doc/images/spawn-menus-anniversary-3p.jpg) |
+|:---:|:---:|
+| HUD window | Each player's spawn menu (D-pad Down) |
 
 ### Fixes
 - **Halo 2: Save & Quit never finished** (reported by SR388). It happened with a modded campaign (such as the Halo

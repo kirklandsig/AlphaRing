@@ -82,6 +82,9 @@ DefOffset(OFFSET_HALO2_PF_SABER_RENDER_FRAME, 0x2DEC00) // void ()
 DefOffset(OFFSET_HALO2_PF_SABER_COMPOSITE, 0x1D2A00) // void (texture*, bool split, int index) - a view's image to its half
 DefOffset(OFFSET_HALO2_SABER_COMPOSITE_DRAW, 0x1D2C33) // in it, the quad's vertices are at rsp+0xC0 (x, y, z, -, u, v; 0x18 each)
 DefOffset(OFFSET_HALO2_PF_SABER_AFTER_CAMERAS, 0x2E3F70) // void () - after the views, before the UI and HUD
+DefOffset(OFFSET_HALO2_PF_SABER_HDR_PASS, 0x210BF0) // void (-, -, -, -, -, float, int hdr view, bool, ...) - a view's exposure adaptation, bloom and tonemapping
+DefOffset(OFFSET_HALO2_PV_SABER_HDR_VIEWS, 0x1AB8600) // 0x4C per HDR view (4): settings, +0x3C measured luminance, +0x40 exposure, +0x44 adapted luminance, int +0x48 frames
+DefOffset(OFFSET_HALO2_PV_SABER_HDR_READ_BACKS, 0x1AB8758) // texture*[4][2] - per HDR view, the luminance read back on alternate frames
 // texture* (set*, name, ...9 in all) - adds a render target to a set: count at +0xC, entries at +0x10 (0x30 each:
 // texture* +0, flags +8). A split target also gets "_split0" (flags 0x20000000, full width, half height - both views
 // are drawn into it in turn) and, for per-view history, "_split1" (0x40000000). A texture's vtable +0xA0 is

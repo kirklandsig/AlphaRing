@@ -428,6 +428,96 @@ Both games switch graphics in place when a player presses Back, but their Annive
 
 **Halo CE** makes its local players as a map loads. A hot-join mission starts with four (`HotJoinSlots`) and the module holds players globals `+0xB4` (the local count, which views, HUD, input and cameras follow live) and `PV_PLAYER_COUNT` at the joined count; an unjoined player's `player_spawn` (0xAD4184) is skipped, and a leaver's unit is detached (`player_set_unit(player, -1)`, 0xAD2404) before it's deleted (0xC579D4 skips players' units). `player_spawn` always places the unit at a scenario starting location, chosen by 0xAD39AC (scenario `+0x354` count, `+0x358` block, 0x34 each, scored by 0xAA7078 times a small random factor); the built-in missions have two (a30: both in the lifeboat), and the campaign path of `players_update` (0xAD0720: no unit and flag 4 at `+4`, or the timer at `+0x6FE`) has no respawn beside a teammate. So a late joiner's new unit is moved with `object_set_position` (0xB359E8: object, point*, forward*, up*; null keeps it) and 0xBA83EC (what `object_teleport` resets after its move: HS evaluate 0xB196D0 -> 0xC57B9C) onto a spot a teammate stood on in the last 4 s (sampled every 15 ticks) that is at least 0.6 units from every player. Box: the joiner landed on player 1's trail about 22 units from the lifeboat, and again after leaving and rejoining.
 
+**Halo CE, v2.0.1.** A joiner used to spawn at a starting place first, and while players stood on both (the start
+of a mission) it had no body and a grey view. `player_spawn` asks 0xAD39AC (`int16 (player)`: the best-scoring
+location, -1 if none scores above 0) and then 0xAD3940 (`entry* (int16 index)`: 0x34 bytes, point then facing at
+`+0xC`) for the entry it spawns at. During a joiner's first `player_spawn` the first returns 0 and the second a copy of
+entry 0 with the trail spot and a facing toward the teammate, so the body is made there directly. Trail spots are
+kept a stride (0.8) apart instead of every sample, so standing still doesn't flush them, and only spots within 10 units
+of the teammate are used (a teleport, checkpoint or drive leaves old ones behind). The Anniversary picture: the
+renderer's split flag (`0x2E3B821`) is set only while the map loads (`0x66DF0`: `setg` on the local count > 1 at
+`0x6762A`) and applied by `set_split` (`0x4150F0`: adds or drops camera 1 and lays the views out; the only other writer,
+`0x67AB0`, clears it with a count of 2 around load/unload). A hot-join mission loads with four slots, so it stayed
+split; in such a mission hot join's per-tick update now sets the flag from the held count and applies it through
+`set_split`.
+
+**Halo CE Anniversary 3-4 players: players 3-4's cameras and first-person models (v2.0.1).** Each frame the game
+thread commits the list the previous sync built (prepare `0x455170` with the commit fields set), then runs the sync
+`0x89F00` (under the Saber sync lock `0x1BA3AB8`, which the classic HUD pass `0x740B0` also takes: the whole game frame
+`0xAC29C0`, the first-person hand-off, the objects' sync), while a worker builds the next list and the render thread
+draws the committed one (render job `0x452740`, a job-graph node queued by `0x87F90`, frame `0x455A10`).
+- **What the renderer copies when.** The per-slot first-person state (models' poses, per-view visibility) is taken
+  with the commit, not while the list is built or drawn: with a TEMP 0.3 ms stall injected before the sync's
+  first-person hand-off, player 1's gun was in all 1200 frames (the "phase between threads" theory was wrong for the
+  models).
+- **Cameras.** The hand-over (`0x89B70`) hands views 0-1 over (`0xB29268` at `0x89D6A`/`0x89D81`), then queues the
+  list build itself: `0x3BBA10` (`0x89DA7`) pushes the scene job `0x1BAA780` onto the worker pool (`0x1C33FA8`) and
+  sets its event. The build (the prepare without the commit fields, `list_camera` `0x2EA720`) copies each view's
+  camera. Views 2-3 handed over after the hand-over returned were too late: a TEMP detector counted 2351 of 4200
+  copies of their cameras made before their hand-over (the frame before's camera; players 3-4's views jumped between
+  two frames). Views 2-3 now go over from a hook on `0xB29268`, right after the game's view 1 and before the queue:
+  2 of 7200 early, both while player 3 was joining. (A first version made the build wait for the sync: 0.33 ms of a
+  worker per frame, and a build picked up after the next sync began would have overlapped that sync's resubmission
+  of the same job, which the job system doesn't guard against.)
+- **First-person models.** The renderer's first-person models (`0x2B050E8`: entry*, count `+8`; entry 0x20 {int slot,
+  int object (the weapon's or arms' render model tag), model index `+8`, model* `+0x10`, camo `+0x18`, bytes
+  `+0x1C`/`+0x1E` hidden in view 0/1 wanted, `+0x1D`/`+0x1F` applied}) are keyed by (slot, object). `0x7AC60(object,
+  slot)` makes the entry on first use (`0x76170`), copies the pose from the node block of the view whose weapon
+  (`0x1B7AA88` -> nodes `0x1C384A0`) or arms (`0x1B7AA98` -> `0x1C350A0`) the object is (int[4] and 0xD00 x 4), sets
+  the wanted flags (slot 0 in view 0, any other slot in view 1) and the camo from `0xAB16A4(slot)`; its
+  `cmp r15d, 1; ja` (`0x7AE64`) gives slots past 1 no nodes (a memcpy from null). The sync sets every entry's
+  wanted flags hidden, hands over views 0-1's weapon and arms, then applies the changes per view (the model's vtable
+  `+0x328`/`+0x330`). The rest of a first-person gun is addressed by local player index 0-3: its display
+  (`0xB3E4F8` per tick over the four local players -> `0xAB30C0` -> `0x917C0` calls the model's Flash `asSetAmmo`,
+  the model found by `0x91680(object, index)`; its caches, like `0x1B7B788`, have four entries),
+  its events (`0x91440(object, name)`: the local player whose `first_person_weapons` (`0x2D9CD90`, 0x1E94 each) `+8`
+  is the object, then entries of that slot), its camo. So players 3-4's displays and events found no model, and
+  players 1 and 3 shared slot 0's: player 3's assault rifle showed player 1's round count.
+- **Fix.** Pair 2's syncs hand its models over as slots 2-3 (the check widened to 3 when quad mode first runs; the hook
+  hands over only an object that is view 2/3's weapon or arms), shown in views 0-1: slot 2's wanted flags are moved to
+  view 0. The display, events and camo then find players 3-4's models by their own index. Box: player 3's and player
+  1's rifles each count their own rounds through firing and reloading, no gun lost in 1200 frames with player 3
+  unspawned, a two-minute soak, leave/rejoin, Back to Classic and back. (A first build handed over view 3's stale
+  object with -1 and crashed in that memcpy; a missing view's object is now -1 in both places.)
+
+**Halo 2 Anniversary 3-4 players: each view's exposure (v2.0.1).** The AHDR keeps, per HDR view (four), an entry at
+`0x1AB8600 + view * 0x4C` (settings the level loads for views 0-1 - `+0x18` is 150 there and 11 in 2-3, `+0x35` a
+flag; state: `+0x3C` measured luminance, `+0x40` exposure, `+0x44`
+adapted luminance, int `+0x48` frames) and two 1x1 staging textures (`0x1AB8758`, texture*[4][2], made by
+`0x20F670`). The HDR pass `0x210BF0` (tail-called from `0x1D1C60`, the view index being the listed camera's `+0x220`
+slot) calls the luminance pass `0x2100C0`: the 1x1 luminance (one chain for all views, `0x1AB8730..0x1AB8750`) is
+copied into `read_back[view][frames & 1]`, the frame count bumped, and `read_back[view][(frames - 1) & 1]` - the frame
+before's - mapped and read; the adapted luminance moves toward it and sets the exposure. With the pairs alternating, the frame before was the other pair's. Measured (player 3 standing still, player
+1 turning between the sky and the ground): player 3's cell 70.6, 53.9, 65.1, 54.6, and player 1's sky blown out (98).
+Fix: on pair 2's frames the hook swaps in pair 2's 16-byte adaptation state and views 2-3's read-backs (two views
+never use them) around the pass. After: player 3 62.4, 62.7, 62.8, 62.6; player 1's sky 87. Four other functions
+read a view's adapted luminance (`+0x44`, clamped, for effects' brightness): `0x14BD20`, `0x16FBA0`, `0x3CE210`,
+`0x4FD540`. A TEMP probe (1200 quad frames) found none of them on the render thread inside the frame: `0x14BD20`
+(~650 calls a frame) and `0x16FBA0` (~12) run outside any frame, `0x3CE210` (~500) on worker threads, almost all
+while the other pair's frame is drawn (the next list being built), `0x4FD540` not at all there. So swapping for the
+whole frame would hand them the wrong pair; players 3-4's lists keep the first pair's value for those (open, minor:
+visible only when the pairs' exposures differ a lot). Redirecting them would take the list's pair in each reader.
+(What looked like player
+2's plasma rifle "through" player 3's gun in the user's video: a nearby player's plasma weapon lights the world and
+the other players' guns - a charging plasma pistol right in front of player 3 did the same; normal lighting.)
+
+**Halo 2 Anniversary, one player, black (seen once, open).** Not reproduced in nine tries: the release DLL from a
+fresh start (hot join on and off, launched in Anniversary or switched with Back, after a Reach hot-join game), and
+2026-09-30: Back and a Remastered launch with the earlier logging build (so its black wasn't deterministic either), and
+a Remastered launch after a three-player Halo CE Anniversary game in the same MCC session, players joining afterwards.
+Present (the overlay's ImGui) and the composite run on the same thread (a probe: 1676 for both), and the cinematic check
+`0x6F4A20` is a plain global read, so neither is a race. Don't log inside the render hooks when chasing it.
+
+**Halo 4 side by side: the first-person camera's aspect factor (v2.0.1).** `0x34EC44` builds the first-person camera
+from the view's: its field of view is multiplied by `k` (the weapon's scale and zoom), times `S` = screen aspect
+(`0xE84608`/`0xE8460C`) over the view's (rect `+0x30..+0x36`): `mulss xmm5, xmm1` / `divss xmm5, xmm0` at
+`0x34ED92`/`0x34ED96`. The world camera (`0x374C84` -> `0x38F658` -> `0x38F3A4`) keeps a fixed vertical field of view. Stock
+split-screen views are wide (8:3, S = 0.667, keeping the gun's framing); a 960x1080 Left/Right half gives S = 2 - both
+arms and the whole gun in frame, drawn big. Halo 3 (`0x279BEC`) and Reach (`0x286C6C`) have no S. Fix: while Left/Right is on screen the
+divide's register byte `E8 -> E9` (by the screen's aspect: S = 1), switched in the Left/Right render hook before the
+frame (same thread as `0x34EC44`), restored otherwise and on unload. Box: 3 players side by side, live bytes `E9` on
+the fix build and `E8` on v2.0 in the same scene, the left view's gun at world scale.
+
 **Halo 2**: players globals (`PV_RESPAWN` 0xE80A20) hold the int16 local count at `+8` and handle[4] at `+0xC`, both kept by `0x69E4A0`, which maps a player to a local index (count ++/--, player `+0x28` = its index). The mission's first ticks map the players one by one (1 of 4 at the first `players_update`), so the hold follows the mapped handles, not the first count. `players_update` (0x6A3910), in a campaign (the session object `[0xE80A78]`: mode `+8` == 1, as `0x6A6310` tests it; not MCC's game options - `copy_game_options` 0x39CE0 memcpys those, 0x2BF30 bytes, to 0x1A840A0, and their `+8` isn't the mode: reading it there as the mission starts found no campaign on the box): a player without a unit and with flag 8 at `+6` spawns through `player_spawn` (0x69E580, returns bool) at the best-scored scenario starting location (scenario `+0x100` count, `+0x104` block, 0x34 each; scored by 0x7471D0, 0x747320 checks it); the others wait for the co-op respawn 0x6A1320, which picks a teammate out of combat ("Waiting to respawn (teammate in combat)"), calls `player_spawn` and moves the new unit beside that teammate. Delta Halo's two starting places are about 1.5 km from the drop pod its intro leaves players 1-2 in. Clearing flag 8 for a local player without a starting place (index at or past the count) or joining late sends them through the co-op respawn: box, joiners 0.8-1.9 units from player 1, and a fresh four-player Delta Halo start put players 3-4 1.8-2.4 units from player 1 at once. Also in `player_spawn`: `player +0x34` holds a unit to take over (`player_set_unit` 0x69E2A0), 0x68CC40 fills the placement's change colours (player `+0x7C`, `+0xB8`), and `[players globals] +0xD8` is a spare unit placed at the location.
 
 ## Other durable findings

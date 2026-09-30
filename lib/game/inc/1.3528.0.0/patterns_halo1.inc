@@ -28,6 +28,12 @@ const OffsetPatterns kHalo1Patterns[] = {
     {&OFFSET_HALO1_PF_PLAYER_SPAWN, 0xad4184, Code, {
         At("48 8B C4 48 89 58 10 48 89 70 18 48 89 78 20 55 41 54 41 55 41 56 41 57 48 8D 68 A1 48 81 EC 00 01 00 00 0F 29 70 C8 48 8B 05", 0x0),
         Rel("E8 ?? ?? ?? ?? 39 6F 64 74 ?? 8B 4C 24 2C 41 0F B7 D6 4C 8D 04 52", 0x1, 0x5, 0x0)}},
+    {&OFFSET_HALO1_PF_CHOOSE_START_LOCATION, 0xad39ac, Code, {
+        At("48 8B C4 48 89 58 08 48 89 68 10 48 89 70 18 57 48 83 EC 50 0F 29 70 E8 83 CF FF", 0x0),
+        Rel("E8 ?? ?? ?? ?? 45 33 DB 66 41 3B C5 0F 84 ?? ?? ?? ?? 48 8B 35 ?? ?? ?? ?? 41 8B CB", 0x1, 0x5, 0x0)}},
+    {&OFFSET_HALO1_PF_START_LOCATION, 0xad3940, Code, {
+        At("4C 8B 05 ?? ?? ?? ?? 33 D2 66 85 C9 78 ?? 0F BF C1 41 3B 80 54 03 00 00", 0x0),
+        Rel("E8 ?? ?? ?? ?? 48 8B F8 66 39 68 10 0F 87 ?? ?? ?? ?? 4C 8D 40 14 8B CD", 0x1, 0x5, 0x0)}},
     {&OFFSET_HALO1_PF_OBJECT_DELETE, 0xc579d4, Code, {
         At("83 F9 FF 74 1C 53 48 83 EC 20 8B D9 E8 ?? ?? ?? ?? 84 C0 75", 0x0),
         Rel("48 0F BF C9 8B 0C 88 EB ?? 8B CA 3B CA 74 ?? E8 ?? ?? ?? ?? 48 83 C4 28", 0x10, 0x14, 0x0)}},
@@ -244,14 +250,17 @@ const OffsetPatterns kHalo1Patterns[] = {
     {&OFFSET_HALO1_PV_FIRST_PERSON_WEAPONS, 0x1b7aa88, Data, {
         Rel("48 8D 3D ?? ?? ?? ?? BA 04 00 00 00 48 3B F8 8B CA 48 8B C5", 0x3, 0x7, 0x0),
         Rel("48 8D 3D ?? ?? ?? ?? 48 3B C7 48 1B C9 48 83 C8 FF 48 F7 D1", 0x3, 0x7, 0x0)}},
-    {&OFFSET_HALO1_PV_FIRST_PERSON_WEAPON_NODES, 0x1c384a0, Data, {
-        Rel("3B 8C 82 ?? ?? ?? ?? 75 ?? 48 8D 0D ?? ?? ?? ?? 48 69 C0 00 0D 00 00 48 03 C1", 0xc, 0x10, 0x0),
-        Rel("48 8D 0D ?? ?? ?? ?? 42 3B BC B9 ?? ?? ?? ?? 75 ?? 48 69 F8 00 0D 00 00 48 8D 05 ?? ?? ?? ??", 0x1b, 0x1f, 0x0)}},
     {&OFFSET_HALO1_PV_FIRST_PERSON_ARMS, 0x1b7aa98, Data, {
         Rel("48 8D 0D ?? ?? ?? ?? 48 3B C8 49 8B C6 48 1B C9 48 F7 D1 83 E1 04", 0x3, 0x7, 0x0),
         Rel("48 8D 05 ?? ?? ?? ?? BA 04 00 00 00 48 3B F8 8B CA 48 C7 C0 FF FF FF FF", 0x3, 0x7, 0x0)}},
-    {&OFFSET_HALO1_PV_FIRST_PERSON_ARMS_NODES, 0x1c350a0, Data, {
-        Rel("EB ?? 42 3B BC B9 ?? ?? ?? ?? 75 ?? 48 69 F8 00 0D 00 00 48 8D 05 ?? ?? ?? ??", 0x16, 0x1a, 0x0)}},
+    {&OFFSET_HALO1_PF_FIRST_PERSON_SYNC, 0x7ac60, Code, {
+        At("40 55 56 57 41 54 41 55 41 56 41 57 48 8D AC 24 F0 FE FF FF 48 81 EC 10 02 00 00 48 C7 45 80 FE FF FF FF", 0x0),
+        Rel("BA 01 00 00 00 E8 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? BA 01 00 00 00 E8 ?? ?? ?? ?? 8B 0D", 0x6, 0xa, 0x0)}},
+    {&OFFSET_HALO1_FIRST_PERSON_SYNC_SLOT_LIMIT, 0x7ae64, Code, {
+        At("41 83 FF 01 77 44 49 8B C7 48 8D 0D ?? ?? ?? ?? 42 3B BC B9", 0x0)}},
+    {&OFFSET_HALO1_PV_FIRST_PERSON_MODELS, 0x2b050e8, Data, {
+        Rel("48 03 35 ?? ?? ?? ?? 44 89 3E 89 7E 04 44 89 76 18 4C 8D 4E 08", 0x3, 0x7, 0x0),
+        Rel("48 8B 05 ?? ?? ?? ?? 48 8B 54 06 10 48 8D 1C 06 48 85 D2 0F 84", 0x3, 0x7, 0x0)}},
     {&OFFSET_HALO1_PF_OBJECT_HIDDEN_VIEWS, 0xab2890, Code, {
         At("48 83 EC 28 4C 8B 15 ?? ?? ?? ?? 41 BB 01 00 00 00 44 8B C9", 0x0),
         Rel("8B D8 E8 ?? ?? ?? ?? 0B C3 48 8B 5C 24 30 48 83 C4 20 5F C3", 0x3, 0x7, 0x0)}},

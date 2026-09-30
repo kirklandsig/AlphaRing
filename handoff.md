@@ -328,6 +328,105 @@ Look sensitivity bytes (0x1B5/0x1B6) were bools and players 2-4 got zeroed conta
 
 ## Session History
 
+### 2026-09-30 - v2.0.1: the open reports fixed (#4, #5, #7), GitHub issues - uncommitted, awaiting the user
+
+GitHub: Issues turned on for kirklandsig/AlphaRing (the user asked); #2-#7 filed from the user's reports with
+symptoms and screenshots (`doc/images/issues/`, commit e8f9ae7), and the v2.0.0 release page has a "Reported issues"
+list. On the release: comment each fixed issue's cause and fix (drafts `scratchpad/issues/fix_4.md`, `fix_5.md`,
+`fix_7.md`; #2/#3 from the night entry), close as completed, update the release page lines.
+Fixed (box-verified; see REVERSE_ENGINEERING.md for the mechanisms):
+- **#4 Halo CE Anniversary 3-4P** - the night entry's "phase between threads" theory was wrong (a TEMP 0.3 ms stall
+  before the FP hand-off changed nothing). Two real causes: (a) the game's hand-over queues the worker's list build
+  (`0x3BBA10`) right after views 0-1, and our hook handed views 2-3 over after it returned (2351/4200 stale) -> views
+  2-3 now go over from a hook on the per-view hand-over `0xB29268`, right after view 1 (2 of 7200 early, both at
+  P3's join; /simplify's altitude review replaced a first version where the build waited for the sync); (b) first-person models are per (slot, object) with two slots, while the ammo display,
+  weapon events and camo go by local player index -> pair 2's syncs hand over as slots 2-3 (`entry_first_person_sync`
+  on `0x7AC60`, the `cmp r15d,1` at `0x7AE64` widened to 3 while quad runs, slot 2 shown in view 0),
+  `FirstPersonPair` now copies only the objects. A first build crashed (stale view-3 object handed over with -1 ->
+  null memcpy); a missing view's object is -1 in both places now. Box: P3/P1 rifles count their own rounds, 0 of
+  1200 frames without P1's gun (P3 unspawned), 2-min soak, leave/rejoin, Back cycle.
+- **#5 Halo 2 Anniversary 3-4P brightness** - the AHDR reads each view's luminance back a frame late, i.e. the other
+  pair's -> `entry_hdr_pass` (`0x210BF0`) swaps in pair 2's adaptation state and views 2-3's read-backs on pair 2's
+  frames. Box: P3 62.4-62.8 regardless of P1 (before 70.6/53.9/65.1/54.6), P1's sky 87 (before 98), 90-s soak. The
+  plasma-light "bleed" is normal lighting; "missing effects" not tested on their own. Left open (minor): four effect
+  readers of +0x44 (`0x14BD20`, `0x16FBA0`, `0x3CE210`, `0x4FD540`) run while the next list is built (TEMP probe
+  `temp_h2_expo.py`: none on the render thread inside the frame), so a whole-frame swap was rejected; they'd need the
+  list's pair in each reader.
+- **#7 Halo 4 side by side gun/arms** - `0x34EC44` scales the viewmodel FOV by screen/view aspect (x2 in a 960x1080
+  half) -> `ViewmodelAspect` switches the divss's modrm `E8 -> E9` (`0x34ED99`) while Left/Right is on screen,
+  restored otherwise and on unload. Box: 3P side by side, E9 live on the fix, E8 on v2.0. The 4P path (patch off) is
+  untested.
+Not fixed: **#6 Halo 2 Anniversary 1P black** - nine tries without a repro (incl. the old logging build: not
+deterministic either). Ruled out: Present/ImGui on another thread (same thread), the cinematic check (a plain global).
+Reviews: Codex pass 5 approve; a Claude reviewer (WaitForSync could overlap a late build with its resubmission ->
+moot after the rework; the H2 effect readers -> probed, documented); /simplify (4 agents: CPatch::apply flushes the
+instruction cache itself, views 2-3 handed over inside the game's hand-over instead of WaitForSync, H4 switch-off =
+restore, LeftRight::Players public, swap_ranges exchange, the unused node offsets dropped); Codex pass 6 approve, no
+findings. Release candidate: `scratchpad/WTSAPI32_fixE.dll` (md5 fa093a66...), box-tested: H2A 3P brightness (P3
+62.4-62.8, P1 sky 87) + soak; CE 3P regression (`ce_regress_v201.sh`). New harness
+(scratchpad and box, never in git): `quadcfg.sh`, `ce_quad3.sh`, `h2_quad3.sh`, `h2_1p_anniv.sh`, `gunframes.py`,
+`cellluma.py`, `hdrwatch.py`/`hdr4.py`/`tbl4.py`/`camread.py`, `tbuild.sh`, `da.py`/`xrange.py`/`dispfind.py`/`ptrfind.py`,
+`h2_expo_test.sh` (P3's brightness while P1 turns), `ce_regress_v201.sh <dll> <tag>` (CE 3P: guns, ammo display,
+leave/rejoin, Back, soak), TEMP `temp_ce_camrace2.py` (stale camera copies), `temp_h2_expo.py` (the effect readers).
+
+### 2026-09-29/30 (night) - v2.0.1 candidate: fixes from the user's live testing - uncommitted, awaiting the user
+
+The user tested v2.0 on the box (hot join on, Anniversary 3-4P on, side by side) and handed the box over for the night.
+Found and fixed (box-verified with the harness; release candidate `scratchpad/WTSAPI32_v201_rc3.dll`, md5 4e91b08c...,
+a clean build without TEMP code; Codex pass 4 approved it):
+- **Halo CE Anniversary + hot join, one player split in two** (frozen second view, full-screen HUD across both; a
+  leave left the split). Halo CE sets its Saber split flag (`0x2E3B821`) only while the map loads (`0x66DF0`:
+  `setg` on local count > 1 at `0x6762A`), and hot join loads with four slots. `halo1/hotjoin.cpp` `FollowSplit`
+  (each tick, after holding the count): sets the flag from the held count and applies it with the game's own
+  `set_split` (`0x4150F0`: adds/drops camera 1, lays the views out; anniversary.cpp's detour makes/drops cameras 3-4).
+  First written in anniversary.cpp's sync; /simplify moved it so it doesn't depend on the quad feature's offsets. Box:
+  fresh Halo, 1P full screen, 1->2->3 split/quad, 3->2->1 back (Players window B), Back to Classic at 1P, a join in
+  Classic, Back to Anniversary at 2P (stacked).
+- **Halo CE joiners waited on occupied starting places** (Halo has two, both in the lifepod, where P1/P2 stood
+  within 0.05 units; the joiner had no unit, grey view, until a checkpoint revert or someone moved). `halo1/hotjoin.cpp`:
+  trail spots kept a stride (0.8) apart so standing still keeps them, only spots within 10 units of the teammate
+  (Codex: old spots could outlive a teleport/checkpoint), and a joiner's first spawn is put on a trail spot through
+  `choose_start` (`0xAD39AC` -> index 0) and `start_location` (`0xAD3940` -> a copy of entry 0 with our point and a
+  facing toward the teammate), only during that `player_spawn` call. New DefOffsets + patterns (92/92). Box: P2/P3
+  spawned 0.8/1.9 units behind P1 on Halo's opening path, facing him.
+- **Spawn menus with 3 players in CE Anniversary drawn in the wrong corners** (laid out as the Classic 3P layout;
+  CE's quad mode shows quarters; H2A keeps H2's own 3P grid, player 1 on top - Codex pass 2 caught an H2 regression
+  in the first version). `Splitscreen::AnniversaryQuartersShown` (CE's `Anniversary::QuadShown`, the module's own
+  `s_sync_quad`) + `PlayerMenu` layout. Box: each menu in its quarter; H2A 3P menus still P1 top / P2-P3 bottom.
+  Review: Codex passes 1-3 (1: trail spots outliving teleports -> kNear; 2: the H2 regression; 3: approve), /simplify
+  (4 agents: split fix moved to hotjoin.cpp, spawn spot as one struct, quarters from the module's own flag).
+Not fixed that night (#4, #5, #7 fixed on 2026-09-30, see above; the notes below are superseded):
+- **3-4P Anniversary first-person mix-ups** (P1's gun gone while P3 was in a Banshee; P2's plasma rifle through P3's
+  gun in H2; flicker, H2 brightness/pulsing). TEMP trace (CE): sync -> hand_over run every frame on the game thread
+  (hand_over is inside the sync), the camera list is built on worker threads meanwhile, and the render thread draws
+  the previous list while the next sync overwrites the per-slot first-person state (object ids per slot are shared
+  per weapon type - P1 and P2's ARs were the same object - with per-slot nodes; FirstPersonPair writes pair 2's into
+  slots 0/1). Visible or not depending on the phase between the threads (a 1-s capture with P3 on the pistol showed no
+  swap). Options: serialize the sync with the render thread in quad mode (fps cost unknown) or four slots (engine).
+- **Halo 2 Anniversary black at one player** (the user's session, after CE/H4/Reach): not reproduced in six fresh
+  tries with the release DLL (hot join on/off, launched Remastered or Back, after a Reach hot-join game). A TEMP build
+  with LOG_INFO in the H2 Anniversary render hooks (hand_over, build_list, composite, frame) was black by itself -
+  hot join on or off - while variants without that logging rendered: likely timing-dependent, a race in those hooks.
+  Don't put logging in those hooks for diagnostics.
+- **Halo 4 side by side, full-height view: first-person gun and arms magnified** (the v1.9 README picture shows it
+  too). Our code sizes the views/HUD, not H4's viewmodel projection; not investigated.
+Also: README v2.0 sections got the screenshots the user asked for (Players window, Splitscreen > Options, hot join
+in game, HUD window, spawn menus: `doc/images/players-window.jpg`, `splitscreen-options.jpg`, `hot-join-players.jpg`,
+`overlay-hud-window.jpg`, `spawn-menus-anniversary-3p.jpg`, cropped to keep the gamertag out). MegaBit answered the
+join-forces thread; his answer and a reply draft are in `docs/UPSTREAM_SYNC.md` (local, kept out of git), not sent. Harness: `ce_fresh.sh`/`h2_fresh.sh`/`reach_fresh.sh [dll]`
+(PLAYERS=n), `temp_ce_fp.py`, `temp_h2_black.py`, `temp_h2_off.py`, `temp_h2_bisect.py`, `temp_h2_leafvar.py`, `xref.py`.
+
+### 2026-09-29 (late) - Upstream sync plan with megabitt01 - planning only, nothing sent
+
+User: plan how to send our work to MegaBit as PRs, but don't send anything yet (target branch unknown); draft a
+message proposing the plan. Written up in `docs/UPSTREAM_SYNC.md` (local, kept out of git - it holds his Discord
+answer and our drafts): fork inventory (his April port = our 2026-02-01
+state; his dashboard replaced our Settings window/JSON; both carry XiaoDanny's Reach work), overlap table, the
+questions for him, a 10-PR series (fixes first, then offsets, then features), how each PR is built/tested, and the
+draft Discord message. Findings: his default branch is now `master-chief`; a straight merge conflicts in 41 files;
+he squash-merges (so no stacked PRs); the ServiceTag bug from #6 is still in `master-chief`; building his tree needs
+vcpkg (SDL2, SDL2_mixer), not installed here.
+
 ### 2026-09-28 - v2.0 item 2: offsets found again after an MCC update (pattern mode) - uncommitted, awaiting box test
 
 User's approved v2.0 plan, item 2: survive MCC updates by resolving offsets from byte patterns at runtime.
@@ -641,6 +740,15 @@ Diagnostics used (not in code any more): temporary `RSSetViewports` probe logged
 
 ## Next Steps
 
+000000. **(2026-09-30) v2.0.1 candidate, uncommitted** (see the 2026-09-30 and night entries): issues #2, #3, #4, #5,
+#7 fixed, 3P Anniversary spawn menus; README v2.0.1 + v2.0 screenshots. On the user's go: commit, tag
+v2.0.1-experimental, release with `scratchpad/WTSAPI32_fixE.dll` (notes: `scratchpad/release_v201.md`), comment the fixes
+(`scratchpad/issues/fix_4.md`, `fix_5.md`, `fix_7.md`; #2/#3 from the night entry) and close #2 #3 #4 #5 #7, put
+`scratchpad/issues/v20_body_shipped.md` on the v2.0.0 release page (its #7 line said "zoomed out"), announce. Open: #6
+H2A 1P black (no repro).
+00000. **(2026-09-29) Upstream sync with megabitt01: plan in `docs/UPSTREAM_SYNC.md`.** Next: the user sends the draft
+message (or approves posting it); on MegaBit's answers, do "Before PR 1" (vcpkg build of `master-chief`, box
+baseline, run #24), then the PRs in order, each on the user's go.
 0000. **(2026-09-29) v2.0.0-experimental released** (commit 63ca81a, https://github.com/kirklandsig/AlphaRing/releases/tag/v2.0.0-experimental; announced on #general 19:36). Release asset = the box-tested build (md5 2d9c8b73..., scratchpad `WTSAPI32_hj15.dll`), installed on the box with the user's config. Open: the two unexplained H2 Anniversary-renderer crashes on fresh 4P loads (see the v2.0 entry); Belle (Discord, Windows 11) reports Halo CE "fatal error" when a player first picks up a new weapon (sniper, rocket launcher, shotgun), fine after a restart - unexamined. Next: megabitt01's "join forces" plan (PRs to his `master-chief`, see the v2.0 entry).
 000. **(2026-09-27) v1.9.1-experimental released** (commit 34f710b, https://github.com/kirklandsig/AlphaRing/releases/tag/v1.9.1-experimental; announced on #general) - Reach split-screen black/invisible Spartans fixed; see the 2026-09-27 part 2 entry. Still open: salty's Reach 21:9 side-by-side HUD asymmetry, Reach 2P top/bottom bottom-view HUD squeeze, SR388's H2 3-4P Save & exit infinite load (older AlphaRing + co-op fix mod; unknown on ours).
 000. **(2026-09-27) v1.9.0-experimental released** (commit f6ed415, https://github.com/kirklandsig/AlphaRing/releases/tag/v1.9.0-experimental; announced on the AlphaRing Discord #general; published autonomously under the user's standing v1.9 mandate) - see the 2026-09-27 entry. Open: XiaoDanny's Reach black/invisible Spartans fixed in v1.9.1 (see the 2026-09-27 part 2 entry).
