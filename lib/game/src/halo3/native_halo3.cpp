@@ -32,11 +32,11 @@ INDEX Halo3::Native::Function::object_create(Datum datum, const Vector3 &positio
         __int8 v3[0x124];
     } newObjectData;//0x180
 
-    INVOKE<void>(0x341158, &newObjectData, datum, (INDEX)NONE, (__int64)0);
+    INVOKE<void>(0x341508/*0x341158*/, &newObjectData, datum, (INDEX)NONE, (__int64)0);
 
     newObjectData.position = position;
 
-    auto result = INVOKE<INDEX>(0x341738, &newObjectData);
+    auto result = INVOKE<INDEX>(0x341AE8/*0x341738*/, &newObjectData);
 
     if (result == NONE) return result;
 
