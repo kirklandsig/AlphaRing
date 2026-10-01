@@ -23,8 +23,8 @@ namespace AlphaRing::Render::Window {
     // later is touched.
     static void DropChar(HWND hWnd, WPARAM vk) {
         UINT scan = MapVirtualKey((UINT)vk, MAPVK_VK_TO_VSC);
-        MSG msg;
-        if (PeekMessage(&msg, hWnd, WM_CHAR, WM_CHAR, PM_NOREMOVE | PM_NOYIELD) && ((msg.lParam >> 16) & 0xFF) == scan)
+        MSG msg; // all of the press's characters: a dead key before it makes two ('^' then the key's own)
+        while (PeekMessage(&msg, hWnd, WM_CHAR, WM_CHAR, PM_NOREMOVE | PM_NOYIELD) && ((msg.lParam >> 16) & 0xFF) == scan)
             PeekMessage(&msg, hWnd, WM_CHAR, WM_CHAR, PM_REMOVE | PM_NOYIELD);
     }
 
