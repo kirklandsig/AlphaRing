@@ -77,6 +77,7 @@ namespace AlphaRing::Input {
         if (!g_pXInputGetState) return 0;
 
         DWORD probe = 0; // the slots to probe: all four on a rescan, else one empty slot every 500 ms
+        DWORD seen[4];   // each slot's success count as the probes begin
         AcquireSRWLockExclusive(&g_pad_lock);
         auto now = GetTickCount64();
         if (g_probing) {
@@ -96,6 +97,7 @@ namespace AlphaRing::Input {
             }
         }
         g_probing = g_probing || probe != 0;
+        memcpy(seen, g_seen, sizeof(seen));
         DWORD mask = g_connected_mask;
         ReleaseSRWLockExclusive(&g_pad_lock);
         if (!probe) return mask;
@@ -107,10 +109,16 @@ namespace AlphaRing::Input {
                 found |= 1u << i;
         }
         AcquireSRWLockExclusive(&g_pad_lock);
-        if (probe == 0xF) g_connected_mask = found; // a rescan has the last word
-        else g_connected_mask |= found;              // a probe only adds a pad it found
-        for (DWORD i = 0; i < 4; ++i)
-            if (found & (1u << i)) ++g_seen[i];
+        for (DWORD i = 0; i < 4; ++i) {
+            DWORD bit = 1u << i;
+            if (!(probe & bit)) continue;
+            if (found & bit) {
+                g_connected_mask |= bit;
+                ++g_seen[i];
+            } else if (g_seen[i] == seen[i]) { // not read successfully since the probes began
+                g_connected_mask &= ~bit;
+            }
+        }
         g_probing = false;
         mask = g_connected_mask;
         ReleaseSRWLockExclusive(&g_pad_lock);
@@ -135,6 +143,7 @@ namespace AlphaRing::Input {
         }
         AcquireSRWLockExclusive(&g_pad_lock);
         ++g_seen[dwUserIndex];
+        g_connected_mask |= 1u << dwUserIndex; // read just now, whatever an older failure cleared
         ReleaseSRWLockExclusive(&g_pad_lock);
         return true;
     }
