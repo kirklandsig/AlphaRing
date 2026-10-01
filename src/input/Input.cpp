@@ -59,13 +59,13 @@ namespace AlphaRing::Input {
     // Present (Input::Update) and the game's input (get_key_state) both poll
     // pads, so the cache below is kept under one lock - held only to read and
     // update it, never across a probe (an empty slot's can take milliseconds).
-    // g_found counts each slot's discoveries: a failed poll that started before
-    // a probe found the pad again doesn't drop it.
+    // g_seen counts each slot's successful reads (probes and polls): a failed
+    // poll that started before a newer success doesn't drop the slot.
     static SRWLOCK g_pad_lock = SRWLOCK_INIT;
     static DWORD g_connected_mask = 0;
     static ULONGLONG g_last_probe = 0;
     static DWORD g_next_probe_slot = 0;
-    static DWORD g_found[4] = {};
+    static DWORD g_seen[4] = {};
     static bool g_probing = false; // one probe batch at a time; callers meanwhile use the cached mask
     static volatile LONG g_rescan_requested = 1;  // full sweep on first use
 
@@ -110,7 +110,7 @@ namespace AlphaRing::Input {
         if (probe == 0xF) g_connected_mask = found; // a rescan has the last word
         else g_connected_mask |= found;              // a probe only adds a pad it found
         for (DWORD i = 0; i < 4; ++i)
-            if (found & (1u << i)) ++g_found[i];
+            if (found & (1u << i)) ++g_seen[i];
         g_probing = false;
         mask = g_connected_mask;
         ReleaseSRWLockExclusive(&g_pad_lock);
@@ -123,16 +123,19 @@ namespace AlphaRing::Input {
         if (dwUserIndex >= 4 || !(ConnectedPadMask() & (1u << dwUserIndex)))
             return false;
         AcquireSRWLockShared(&g_pad_lock);
-        DWORD found = g_found[dwUserIndex];
+        DWORD seen = g_seen[dwUserIndex];
         ReleaseSRWLockShared(&g_pad_lock);
         if (g_pXInputGetState(dwUserIndex, pState) != ERROR_SUCCESS) {
             AcquireSRWLockExclusive(&g_pad_lock);
-            if (g_found[dwUserIndex] == found) // not found again while this poll ran
+            if (g_seen[dwUserIndex] == seen) // no newer success while this poll ran
                 g_connected_mask &= ~(1u << dwUserIndex);
             ReleaseSRWLockExclusive(&g_pad_lock);
             memset(pState, 0, sizeof(XINPUT_STATE));
             return false;
         }
+        AcquireSRWLockExclusive(&g_pad_lock);
+        ++g_seen[dwUserIndex];
+        ReleaseSRWLockExclusive(&g_pad_lock);
         return true;
     }
 
