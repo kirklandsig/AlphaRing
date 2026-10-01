@@ -105,6 +105,7 @@ namespace HaloReach::Entry::Skinning {
             LOG_WARNING("Reach: skinning pool not enlarged - an earlier enlargement couldn't be undone");
             return;
         }
+        if (!AlphaRing::Found({OFFSET_HALOREACH_DAT_SKINNING_POOL, OFFSET_HALOREACH_PF_SKINNING_POOL_ALLOCATE})) return;
 
         auto module = (unsigned char*)hModule;
         auto nt = NtHeaders(module);

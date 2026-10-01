@@ -20,6 +20,10 @@ namespace AlphaRing::Hook {
         return distro == WindowsStore;
     }
 
+    static const AlphaRing::Offset& Pick(const AlphaRing::Offset& offset_steam, const AlphaRing::Offset& offset_ws) {
+        return IsWS() ? offset_ws : offset_steam;
+    }
+
     // Detects Wine/Proton by probing for a function ntdll only exports under Wine.
     // Cheap, reliable, and avoids depending on env vars Proton may or may not set.
     bool IsWine() {
@@ -94,7 +98,12 @@ namespace AlphaRing::Hook {
         void* pTarget;
 
         for (auto &hook : hooks) {
-            if ((pTarget = (LPVOID) (hModule + (IsWS() ? hook.offset_ws : hook.offset_steam))),
+            auto& offset = Pick(hook.offset_steam, hook.offset_ws);
+            if (!offset.found()) { // an MCC build without it (src/offsets): what it's for stays off
+                LOG_WARNING("[Offsets] not hooking {}: it isn't in this build", offset.name);
+                continue;
+            }
+            if ((pTarget = (LPVOID) (hModule + offset)),
                     MH_CreateHook(pTarget, hook.detour, hook.ppOriginal) != MH_OK ||
                     MH_EnableHook(pTarget) != MH_OK)
                 return false;
@@ -126,7 +135,13 @@ namespace AlphaRing::Hook {
         int patch_count = 0;
         for (auto &offset : offsets) {
             if (offset.ppFunction == nullptr) continue;
-            *offset.ppFunction = (void*)(hModule + (IsWS() ? offset.offset_ws : offset.offset_steam));
+            auto& picked = Pick(offset.offset_steam, offset.offset_ws);
+            if (!picked.found()) {
+                LOG_WARNING("[Offsets] {} isn't in this build", picked.name);
+                *offset.ppFunction = nullptr;
+                continue;
+            }
+            *offset.ppFunction = (void*)(hModule + picked);
         }
     }
 
@@ -141,19 +156,6 @@ namespace AlphaRing::Hook {
 
             if (pTarget == nullptr)
                 return false;
-
-            DWORD dwOldProtect;
-            VirtualProtect(pTarget, patch.size, PAGE_EXECUTE_READWRITE, &dwOldProtect);
-            memcpy(pTarget, patch.patch, patch.size);
-            VirtualProtect(pTarget, patch.size, dwOldProtect, &dwOldProtect);
-        }
-
-        return true;
-    }
-
-    bool Patch(const std::initializer_list<PatchMCC> &patches) {
-        for (auto &patch : patches) {
-            auto pTarget = (LPVOID)(hModule + (IsWS() ? patch.offset_ws : patch.offset_steam));
 
             DWORD dwOldProtect;
             VirtualProtect(pTarget, patch.size, PAGE_EXECUTE_READWRITE, &dwOldProtect);

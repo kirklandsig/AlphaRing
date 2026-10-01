@@ -30,8 +30,12 @@ static bool ReadBytes(void* dst, const void* src, size_t size) {
     }
 }
 
+bool CPatch::usable() const {
+    return m_base ? m_base->found() : m_parent->knownBuild();
+}
+
 void CPatch::capture() {
-    m_captured = m_parent->moduleAddress() != 0 &&
+    m_captured = m_parent->moduleAddress() != 0 && usable() &&
                  ReadBytes(m_backup.data(), (const void*)(m_parent->moduleAddress() + address()), m_backup.size());
 }
 
@@ -53,7 +57,7 @@ bool CPatch::setState(bool state) {
 }
 
 bool CPatch::apply()  {
-    if (!m_captured || m_parent->moduleAddress() == 0) return false; // module not loaded (applied on load), or the patch is outside it
+    if (!m_captured || m_parent->moduleAddress() == 0) return false; // module not loaded (applied on load), the patch is outside it or not in its build
     // m_backup holds the module's own bytes, captured once when it loaded (CPatchSet::update),
     // so enabling and disabling can each be repeated safely in any order - e.g. a saved state
     // restored before the first apply, then CPatchSet::apply() sweeping every enabled patch.

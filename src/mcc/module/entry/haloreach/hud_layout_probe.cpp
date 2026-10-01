@@ -37,6 +37,10 @@ namespace {
 }
 
 namespace HaloReach::Entry::HudLayoutProbe {
+    EntryFeature("Reach Left/Right HUD layout", OFFSET_HALOREACH_V_SELECT_HUD_LAYOUT_RETURN,
+                 OFFSET_HALOREACH_PF_GET_SPLITSCREEN_PLAYER_COUNT, OFFSET_HALOREACH_DAT_CURRENT_HUD_PLAYER,
+                 OFFSET_HALOREACH_DAT_CURRENT_HUD_RESOLUTION);
+
     // At the confirmed UpdatePlayerHudView -> FUN_1802d91bc call site, for a
     // slot that is a full-height Left/Right half in the ACTIVE layout
     // (UsesFullHeightLeftRightSlot - both 2p slots, 3p player 1 only; 3p

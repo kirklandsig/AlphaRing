@@ -94,6 +94,10 @@ namespace HaloReach::Entry::CuiCanvasScale {
     // and the other readers of the same global (DrawLetterboxAndNotificationBars,
     // DrawHintTextOverlay, FUN_1802d2018, FUN_1802d5884, FUN_180305b44,
     // FUN_1802dd4b0) are untouched.
+    EntryFeature("Reach split-screen CUI canvas fit", OFFSET_HALOREACH_PF_GET_SPLITSCREEN_PLAYER_COUNT,
+                 OFFSET_HALOREACH_PV_SCREEN_SIZE, OFFSET_HALOREACH_DAT_CUI_CANVAS_SCALE,
+                 OFFSET_HALOREACH_DAT_CUI_CANVAS_CACHE_W, OFFSET_HALOREACH_DAT_CUI_CANVAS_CACHE_H,
+                 OFFSET_HALOREACH_V_CUI_WINDOW_DRAW_RETURN);
 
     // Restores every byte of modified global state, including the cache keys,
     // so that after the draw the engine is bit-identical to what it would have

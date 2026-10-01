@@ -342,6 +342,7 @@ namespace MCC::Module {
                 if (i == MODULE_HALOREACH) {
                     auto hModule = GetSubModule((eModule)i)->info().hModule;
 
+                    // not found in an MCC build without it (src/offsets)
                     const AlphaRing::Offset& base_offset = OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE;
                     constexpr int entry_size = 20;
                     constexpr int block_count = 5;
@@ -423,7 +424,9 @@ namespace MCC::Module {
                             ImGui::TextDisabled("Edits write directly to live game memory and are saved automatically -");
                             ImGui::TextDisabled("restored next time haloreach.dll loads, no patch needed.");
 
-                            if (ImGui::BeginTable("splitscreen_config", 6,
+                            if (!OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE.found())
+                                ImGui::TextDisabled("The table isn't in this MCC build.");
+                            else if (ImGui::BeginTable("splitscreen_config", 6,
                                                    ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
                                                    ImGuiTableFlags_SizingFixedFit)) {
                                 ImGui::TableSetupColumn("Slot", ImGuiTableColumnFlags_WidthFixed, 120.0f);
@@ -483,6 +486,8 @@ namespace MCC::Module {
                     if (ImGui::Button("Dump Splitscreen Config Table to Log")) {
                         if (hModule == 0) {
                             LOG_ERROR("Dump Splitscreen Config Table: haloreach.dll not loaded");
+                        } else if (!OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE.found()) {
+                            LOG_ERROR("Dump Splitscreen Config Table: not in this MCC build");
                         } else {
                             LOG_INFO("=== c_splitscreen_config::m_config_table @ base+0x{:X} ===", base_offset.value);
 
@@ -524,6 +529,13 @@ namespace MCC::Module {
                     if (ImGui::Button("Dump Resolution/FOV Table to Log")) {
                         if (hModule == 0) {
                             LOG_ERROR("Dump Resolution/FOV Table: haloreach.dll not loaded");
+                        } else if (!AlphaRing::Found({OFFSET_HALOREACH_PF_GET_SPLITSCREEN_SLOT_TOKEN,
+                                                      OFFSET_HALOREACH_PF_RESOLVE_HUD_PROFILE,
+                                                      OFFSET_HALOREACH_PF_SELECT_HUD_LAYOUT_SUBRECORD,
+                                                      OFFSET_HALOREACH_DAT_PLAYER_VIEW_CONTAINER,
+                                                      OFFSET_HALOREACH_DAT_VIEW_CONTEXT,
+                                                      OFFSET_HALOREACH_DAT_TAG_SEGMENT_TABLE})) {
+                            LOG_ERROR("Dump Resolution/FOV Table: not available in this MCC build");
                         } else {
                             typedef unsigned int (*GetSplitscreenSlotToken_t)(int);
                             typedef int (*ResolveHudProfile_t)(unsigned int);

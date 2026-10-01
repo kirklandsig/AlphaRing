@@ -9,6 +9,9 @@
 #include "mcc/module/patch/SplitscreenConfigStore.h"
 
 namespace HaloReach::Entry::Loadout {
+    EntryFeature("Reach split-screen CUI variant", OFFSET_HALOREACH_PF_GET_SPLITSCREEN_PLAYER_COUNT,
+                 OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE);
+
     typedef unsigned __int64 (*GetSplitscreenPlayerCount_t)();
 
     // 0x2CA86C is Reach's generic per-window CUI resolution-variant selector

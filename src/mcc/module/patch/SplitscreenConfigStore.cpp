@@ -309,7 +309,7 @@ namespace AlphaRing::SplitscreenConfigStore {
 
         if (layout == TwoPlayerLayout::LeftRight) {
             Apply(hModule);
-        } else if (hModule != 0) {
+        } else if (hModule != 0 && OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE.found()) {
             // Make the selection visible immediately instead of waiting for
             // Reach's next level-load reset. The caller re-applies any enabled
             // black-bar patch afterwards, since these stock bytes cover them.
@@ -342,7 +342,7 @@ namespace AlphaRing::SplitscreenConfigStore {
 
     void Apply(__int64 hModule) {
         WritesLock lock;
-        if (hModule == 0 || g_writes.empty()) return;
+        if (hModule == 0 || g_writes.empty() || !OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE.found()) return;
 
         for (const auto& w : g_writes) {
             auto p_field = (unsigned char*)(hModule + OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE

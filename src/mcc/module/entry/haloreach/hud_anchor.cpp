@@ -10,6 +10,11 @@
 #include <cstring>
 
 namespace HaloReach::Entry::HudAnchor {
+    EntryFeature("Reach split-screen HUD frame", OFFSET_HALOREACH_DAT_HUD_VIEW_BOUNDS,
+                 OFFSET_HALOREACH_DAT_CURRENT_HUD_RESOLUTION, OFFSET_HALOREACH_PV_HUD_CANVAS,
+                 OFFSET_HALOREACH_DAT_HUD_SCREEN_SCALE_AND_OFFSET, OFFSET_HALOREACH_DAT_HUD_BASIS,
+                 OFFSET_HALOREACH_PF_GET_SPLITSCREEN_PLAYER_COUNT, OFFSET_HALOREACH_DAT_CURRENT_HUD_PLAYER);
+
     // This function derives the per-player HUD "safe area" reference frame -
     // an (xInset, yInset, halfWidth, halfHeight) tuple - from a rect fit to a
     // target aspect (4:3 if resolution==1, else 16:9) inside the slot's raw

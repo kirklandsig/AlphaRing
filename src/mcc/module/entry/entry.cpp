@@ -4,13 +4,15 @@
 
 #include <MinHook.h>
 
-Entry::Entry(EntrySet* set, const AlphaRing::Offset& offset, void *pDetour) {
+Entry::Entry(EntrySet* set, const AlphaRing::Offset& offset, void *pDetour, AlphaRing::Feature* feature) {
     m_pOriginal = nullptr;
     m_pDetour = pDetour;
     m_source = &offset;
+    m_feature = feature;
     m_offset = 0;
     m_target = 0;
 
+    if (feature != nullptr) feature->Add(offset);
     set->append(this);
 }
 
@@ -20,6 +22,13 @@ bool Entry::update(__int64 hModule) {
     if (hModule == 0) return false;
 
     remove();
+
+    // an MCC build without its offset or one of its feature's (src/offsets/Offsets.h)
+    if (auto missing = m_feature ? m_feature->Missing() : (m_source->found() ? nullptr : m_source)) {
+        LOG_WARNING("[Offsets] not hooking {}{}{}: {} isn't in this build", m_source->name, m_feature ? " - " : "",
+                    m_feature ? m_feature->Name() : "", missing->name);
+        return false;
+    }
 
     m_offset = m_source->value;
     m_target = m_offset + hModule;

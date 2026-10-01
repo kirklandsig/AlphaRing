@@ -21,7 +21,7 @@ public:
             : m_base(&base), m_offset(offset), m_name(name), m_desc(desc), m_data(src, src+size-1), m_backup(src, src+size-1),
               m_enabled(enabled) {}
 
-    // patch.xml's, at a fixed offset
+    // patch.xml's, at a fixed offset: only for the build the offsets were written for
     CPatch(const char* name, const char* desc, __int64 offset, const std::vector<__int8>& src, bool enabled = false)
             : m_offset(offset), m_name(name), m_desc(desc), m_data(src), m_backup(src), m_enabled(enabled) {}
 
@@ -33,6 +33,9 @@ public:
     // a patch added while others are applied (a patch.xml reload) takes those bytes from them.
     void inheritBackup(const CPatch& other);
     void setParent(CPatchSet* parent) {m_parent = parent;}
+
+    // Where it goes is known in the loaded module's build (see src/offsets/Offsets.h).
+    bool usable() const;
 
     inline const char* name() const {return m_name.c_str();}
     inline const char* desc() const {return m_desc.c_str();}
