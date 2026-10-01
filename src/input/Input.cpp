@@ -143,11 +143,13 @@ namespace AlphaRing::Input {
         WORD justPressed = buttons & ~prevButtons;
         prevButtons      = buttons;
 
-        // configurable debug UI keyboard key
+        // configurable debug UI keyboard key; not while typing in a debug UI
+        // text field, where Window.cpp lets the key through to type instead
         static bool debugKeyWasDown = false;
         int debugKey = g_menuConfig.debugKeyboardVKey;
         bool debugKeyIsDown = (GetAsyncKeyState(debugKey) & 0x8000) != 0;
-        if (debugKeyIsDown && !debugKeyWasDown) {
+        bool typing = AlphaRing::Global::Global()->show_imgui && ImGui::GetIO().WantTextInput;
+        if (debugKeyIsDown && !debugKeyWasDown && !typing) {
             AlphaRing::Global::Global()->show_imgui = !AlphaRing::Global::Global()->show_imgui;
 
             AlphaRing::Global::Global()->show_imgui_mouse = AlphaRing::Global::Global()->show_imgui;
