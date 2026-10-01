@@ -1,10 +1,8 @@
 #include "CPatchSet.h"
 
 void CPatchSet::clear() {
-    for (auto patch : m_patches) {
-        patch->setState(false);
-        delete patch;
-    }
+    for (auto patch : m_patches) patch->setState(false); // (re-applies the rest, so delete afterwards)
+    for (auto patch : m_patches) delete patch;
     m_patches.clear();
 }
 
@@ -20,10 +18,13 @@ void CPatchSet::apply() {
 
 void CPatchSet::update(__int64 hModule) {
     this->hModule = hModule;
+    for (auto patch : m_embed_patches) patch->capture();
+    for (auto patch : m_patches) patch->capture();
 }
 
 void CPatchSet::add(const char *name, const char *desc, __int64 offset, const std::vector<__int8> &src, bool enabled) {
     auto patch = new CPatch(name, desc, offset, src, enabled);
     patch->setParent(this);
+    patch->capture();
     m_patches.push_back(patch);
 }
