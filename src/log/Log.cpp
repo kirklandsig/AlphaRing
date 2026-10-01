@@ -12,6 +12,7 @@
 #include <io.h>
 #include <fcntl.h>
 #include <share.h>
+#include <vector>
 
 namespace AlphaRing::Log {
     std::shared_ptr<spdlog::logger> default_logger;
@@ -148,23 +149,39 @@ namespace AlphaRing::Log {
         setvbuf(stderr, nullptr, _IONBF, 0);
     }
 
+    // Best-effort throughout: main.cpp asserts on the result and asserts stay live in
+    // Release (common.h), so a console, log file or pipe we can't get only narrows
+    // where the log goes; it must never be what stops the game.
     bool Init() {
-        bool result = AllocConsole();
-        assertm(result, "failed to allocate console");
+        // No console under Wine/Proton: it opens as a separate window that takes focus
+        // from the game (gamescope), and closing it closes MCC.
+        if (!AlphaRing::Hook::IsWine() && AllocConsole()) {
+            freopen("CONIN$", "r", stdin);
 
-        freopen("CONIN$", "r", stdin);
+            console_handle = CreateFileA("CONOUT$", GENERIC_READ | GENERIC_WRITE,
+                FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr);
+        }
 
-        console_handle = CreateFileA("CONOUT$", GENERIC_READ | GENERIC_WRITE,
-            FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr);
+        std::vector<spdlog::sink_ptr> sinks;
 
-        auto console_sink = std::make_shared<spdlog::sinks::wincolor_sink<spdlog::details::console_mutex>>(
-            console_handle, spdlog::color_mode::automatic);
-        auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(LogFilePath(), true);
+        if (console_handle != nullptr && console_handle != INVALID_HANDLE_VALUE) {
+            sinks.push_back(std::make_shared<spdlog::sinks::wincolor_sink<spdlog::details::console_mutex>>(
+                console_handle, spdlog::color_mode::automatic));
+        }
 
-        default_logger = std::make_shared<spdlog::logger>(
-            "default",
-            spdlog::sinks_init_list{console_sink, file_sink}
-        );
+        // basic_file_sink throws when it can't open the file (read-only game folder,
+        // antivirus lock); logging then carries on without the file.
+        bool file_logging = false;
+        try {
+            sinks.push_back(std::make_shared<spdlog::sinks::basic_file_sink_mt>(LogFilePath(), true));
+            file_logging = true;
+        } catch (const std::exception& e) {
+            OutputDebugStringA("AlphaRing: file logging unavailable: ");
+            OutputDebugStringA(e.what());
+            OutputDebugStringA("\n");
+        }
+
+        default_logger = std::make_shared<spdlog::logger>("default", sinks.begin(), sinks.end());
 
         // Log everything and flush immediately after every message: if the game crashes
         // a moment later, nothing buffered should be lost.
@@ -175,17 +192,20 @@ namespace AlphaRing::Log {
 
         previous_exception_filter = SetUnhandledExceptionFilter(UnhandledExceptionHandler);
 
-        LOG_INFO("Log initialized, writing to {}", LogFilePath());
+        if (file_logging)
+            LOG_INFO("Log initialized, writing to {}", LogFilePath());
+        else
+            LOG_WARNING("Log initialized, but {} could not be opened", LogFilePath());
 
         // File already exists (created/truncated by file_sink above), so this only appends.
         raw_log_file = _fsopen(LogFilePath().c_str(), "a", _SH_DENYNO);
 
-        result = CreatePipe(&stdout_pipe_read, &stdout_pipe_write, nullptr, 0);
-        assertm(result, "failed to create stdout pipe");
+        // Without the pipe, raw stdout/stderr output just isn't mirrored into the log.
+        if (CreatePipe(&stdout_pipe_read, &stdout_pipe_write, nullptr, 0)) {
+            RedirectStdioToPipe();
 
-        RedirectStdioToPipe();
-
-        tee_thread = CreateThread(nullptr, 0, TeeThreadProc, nullptr, 0, nullptr);
+            tee_thread = CreateThread(nullptr, 0, TeeThreadProc, nullptr, 0, nullptr);
+        }
 
         return true;
     }
