@@ -15,3 +15,10 @@
 // In the main loop's quit handling (0x679CD0): call 0x6A6320 (did this game come from a Halo 2 lobby?), then
 // test al, al / je - true loads the main-menu map to go back to that lobby, false quits to MCC.
 #define OFFSET_HALO2_PF_QUIT_TO_LOBBY_TEST 0x679EE0
+
+// void (void*) - each tick: in a campaign, a player flagged +6 & 8 spawns at a starting location; the others waiting
+// come back through the co-op respawn (0x6A1320: player_spawn, then moved beside a teammate out of combat)
+#define OFFSET_HALO2_PF_PLAYERS_UPDATE 0x6A3910
+#define OFFSET_HALO2_PF_COOP_CAMPAIGN 0x6A6320 // bool () - a co-op campaign: session [0xE80A78] mode +8 == 1, byte +0x2C8
+#define OFFSET_HALO2_PF_COOP_RESPAWN_ALLOWED 0x6A5D40 // bool () - not with the Iron skull (11), not on Legendary
+#define OFFSET_HALO2_PV_SCENARIO 0xE6F768 // the loaded scenario*: int starting locations +0x100

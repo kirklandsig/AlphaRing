@@ -93,7 +93,7 @@ void CModule::unload_module() {
 }
 
 #include "mcc/module/entry/halo1/halo1.h"
-#include "offset_halo2.h"
+#include "mcc/module/entry/halo2/halo2.h"
 #include "mcc/module/entry/halo3/halo3.h"
 #include "mcc/module/entry/halo3odst/halo3odst.h"
 #include "mcc/module/entry/haloreach/haloreach.h"
@@ -113,7 +113,7 @@ static struct {
         {"splitscreen_patch1", "", OFFSET_HALO1_PF_4PLAYERS, "\xEB\x18", true},
         {"splitscreen_patch2", "", OFFSET_HALO1_PF_PAUSE, "\xEB", true},
         {"splitscreen_patch3", "", OFFSET_HALO1_PF_IDK, "\x90\x90\x90\x90\x90\x90", true}, // fix [issue](https://github.com/WinterSquire/AlphaRing/issues/19)
-}}, {nullptr, {
+}}, {Halo2EntrySet(), {
         {"splitscreen_patch1", "", OFFSET_HALO2_PF_PLAYER_VALID, "\x31\xC0\xB0\x01\xC3\x90", true},
         {"splitscreen_patch2", "", OFFSET_HALO2_PF_PLAYER_COUNT1, "\x04", true},
         {"splitscreen_patch3", "", OFFSET_HALO2_PF_PLAYER_COUNT2, "\x04", true},
