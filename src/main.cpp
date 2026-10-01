@@ -14,7 +14,13 @@ static bool Initialize() {
 
     result = AlphaRing::Hook::Initialize();
 
-    assertm(result, "failed to initialize hook");
+    // false means an MCC build the offsets weren't written for (e.g. after an
+    // update). Install nothing and let the game run unmodified: assertm stays
+    // live in Release builds (common.h), so asserting here would stop MCC.
+    if (!result) {
+        LOG_ERROR("AlphaRing disabled: unsupported MCC build, the game runs unmodified.");
+        return false;
+    }
 
     LOG_INFO("Initialized hook.");
 
