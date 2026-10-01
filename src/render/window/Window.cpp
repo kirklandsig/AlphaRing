@@ -17,10 +17,29 @@ LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARA
 namespace AlphaRing::Render::Window {
     WNDPROC oldWndProc = nullptr;
 
+    // A consumed key-down still reaches the game as WM_CHAR (TranslateMessage queued it before this proc runs), so the
+    // characters of a held menu key (SPACE, A-Z) are swallowed until its key-up - also after the menu's close
+    // animation, when the key's repeats no longer reach the open menu.
+    static bool s_hotkey_held[2] = {}; // the menu key, the debug key
+
+    static bool HotkeyChar(UINT uMsg, LPARAM lParam) {
+        if (uMsg != WM_CHAR && uMsg != WM_SYSCHAR) return false;
+        UINT scan = (UINT)(lParam >> 16) & 0xFF;
+        return (s_hotkey_held[0] && scan == MapVirtualKey(g_menuConfig.keyboardVKey, MAPVK_VK_TO_VSC)) ||
+               (s_hotkey_held[1] && scan == MapVirtualKey(g_menuConfig.debugKeyboardVKey, MAPVK_VK_TO_VSC));
+    }
+
     //todo: WM_IME_COMPOSITION Support
     static LRESULT dWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
         if (uMsg == WM_DEVICECHANGE)
             AlphaRing::Input::RequestPadRescan();
+        if (uMsg == WM_KEYDOWN || uMsg == WM_KEYUP) {
+            int vk = static_cast<int>(wParam);
+            if (vk == g_menuConfig.keyboardVKey) s_hotkey_held[0] = uMsg == WM_KEYDOWN;
+            if (vk == g_menuConfig.debugKeyboardVKey) s_hotkey_held[1] = uMsg == WM_KEYDOWN;
+        } else if (uMsg == WM_KILLFOCUS) {
+            s_hotkey_held[0] = s_hotkey_held[1] = false; // no key-up comes while another window has focus
+        }
 
         bool xboxOpen = g_pXboxContext && g_pXboxContext->isOpen();
 
@@ -79,6 +98,8 @@ namespace AlphaRing::Render::Window {
             if (vk == g_menuConfig.debugKeyboardVKey)
                 return 0;
         }
+        if (HotkeyChar(uMsg, lParam) && !(AlphaRing::Global::Global()->show_imgui && ImGui::GetIO().WantTextInput))
+            return 0;
 
         // Swallow only the input the debug UI is using. Returning true for every
         // message while the cursor is over it also kept WM_PAINT, WM_SIZE,
