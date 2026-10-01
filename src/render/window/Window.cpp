@@ -80,11 +80,18 @@ namespace AlphaRing::Render::Window {
                 return 0;
         }
 
-        auto& io = ImGui::GetIO();
-
-        if (io.WantCaptureMouse)
-            if (AlphaRing::Global::Global()->show_imgui)
-                return true;
+        // Swallow only the input the debug UI is using. Returning true for every
+        // message while the cursor is over it also kept WM_PAINT, WM_SIZE,
+        // WM_ACTIVATEAPP, WM_CLOSE etc. from the game, and WantCaptureMouse only
+        // refreshes on the next ImGui frame, which a game waiting on one of
+        // those never draws (seen as a hang under Proton).
+        if (AlphaRing::Global::Global()->show_imgui) {
+            auto& io = ImGui::GetIO();
+            bool mouse_msg = (uMsg >= WM_MOUSEFIRST && uMsg <= WM_MOUSELAST);
+            bool key_msg = (uMsg >= WM_KEYFIRST && uMsg <= WM_KEYLAST);
+            if ((mouse_msg && io.WantCaptureMouse) || (key_msg && io.WantCaptureKeyboard))
+                return 0;
+        }
 
         return CallWindowProc(oldWndProc, hWnd, uMsg, wParam, lParam);
     }
