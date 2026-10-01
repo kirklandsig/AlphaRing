@@ -5,6 +5,11 @@
 #include "global/Global.h"
 #include "common.h"
 #include "mcc/module/entry/haloreach/haloreach.h"
+#include "offsets/Offsets.h"
+
+// load_module passes the title to Offsets::Prepare, whose tables are in eModule order (src/offsets/Tables.h).
+static_assert(AlphaRing::Offsets::kModuleCount == MCC::Module::MODULE_MCC + 1 &&
+              AlphaRing::Offsets::kModuleMCC == MCC::Module::MODULE_MCC);
 
 CModule::CModule(EntrySet *entrySet, std::initializer_list<CPatch> patches)
 : m_entries(entrySet), m_patches(patches) {};
@@ -12,11 +17,24 @@ CModule::CModule(EntrySet *entrySet, std::initializer_list<CPatch> patches)
 void CModule::load_module(const module_info_t *p_info) {
     if (p_info == nullptr) return;
 
+    if (p_info->hModule == 0 || p_info->errorCode != 0) {
+        m_info = *p_info;
+        return;
+    }
+
+    // A build the offsets weren't written for (an MCC update) has them looked up before anything uses them.
+    bool known_build = AlphaRing::Offsets::Prepare(p_info->title, p_info->hModule);
+
     m_info = *p_info;
 
-    if (m_info.hModule == 0 || m_info.errorCode != 0) return;
+    m_patches.update(m_info.hModule, known_build);
 
-    m_patches.update(m_info.hModule);
+    if (!known_build) {
+        for (auto patch : m_patches.embed_patches())
+            if (!patch->usable()) LOG_WARNING("[Offsets] patch \"{}\" stays off: not in this build", patch->name());
+        for (auto patch : m_patches.patches())
+            if (!patch->usable()) LOG_WARNING("[Offsets] patch.xml \"{}\" stays off: its offset is for another build", patch->name());
+    }
 
     // Restore any Dev Tools patch states saved from a previous session before
     // applying - this must happen before apply() so restored "on" states

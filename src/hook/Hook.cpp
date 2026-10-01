@@ -5,6 +5,11 @@
 #include "utils.h"
 #include "MinHook.h"
 
+#include <cstring>
+
+#include "offset_mcc.h"
+#include "offsets/Offsets.h"
+
 namespace AlphaRing::Hook {
     enum eDistro {
         Steam,
@@ -15,13 +20,23 @@ namespace AlphaRing::Hook {
     static eDistro distro;
     static __int64 hModule;
     static FileVersion version;
+    static bool ws_offsets; // the Windows Store 1.3498 build: its own offsets (OFFSET_MCC_WS_*)
 
     bool IsWS() {
         return distro == WindowsStore;
     }
 
     static const AlphaRing::Offset& Pick(const AlphaRing::Offset& offset_steam, const AlphaRing::Offset& offset_ws) {
-        return IsWS() ? offset_ws : offset_steam;
+        return ws_offsets ? offset_ws : offset_steam;
+    }
+
+    // An MCC build we look offsets up in has to have every one of the executable's, but these: what uses them
+    // does without (a missing Detour or Offset is skipped), or nothing does yet.
+    static bool Optional(const AlphaRing::Offset& offset) {
+        for (const AlphaRing::Offset* optional : {&OFFSET_MCC_PF_GET_INDEX_BY_XUID, &OFFSET_MCC_PF_GET_PROFILE,
+                                                  &OFFSET_MCC_PV_WINDOWFOCUSED})
+            if (&offset == optional) return true;
+        return strncmp(offset.name, "OFFSET_MCC_WS_", 14) == 0; // the Windows Store build's
     }
 
     // Detects Wine/Proton by probing for a function ntdll only exports under Wine.
@@ -61,19 +76,27 @@ namespace AlphaRing::Hook {
 
         LOG_INFO("Game Version[{}]: {}", IsWS() ? "Windows Store" : "Steam", GAME_VERSION);
 
-        if ((version = FileVersion(hModule)) != FileVersion::fromString(GAME_VERSION)) {
-            if (distro == WindowsStore)
-            {
-				if ((version = FileVersion(hModule)) == FileVersion::fromString("1.3498.0.0"))
-					return true;
-            }
-
-            // Use logging instead of MessageBox for Wine/Proton compatibility
-            LOG_ERROR("Version mismatch - Expected [{}], Got [{}]", GAME_VERSION, version.toString());
-            return false;
+        version = FileVersion(hModule);
+        if (distro == WindowsStore && version == FileVersion::fromString("1.3498.0.0")) {
+            ws_offsets = true;
+            return true;
         }
 
+        // The build the offsets were written for uses them as they are; any other (an MCC update) has them looked
+        // up, as each game module will.
+        if (AlphaRing::Offsets::Prepare(AlphaRing::Offsets::kModuleMCC, hModule)) return true;
 
+        // Use logging instead of MessageBox for Wine/Proton compatibility
+        LOG_WARNING("MCC {} isn't the build AlphaRing's offsets are for ({}): pattern mode", version.toString(),
+                    GAME_VERSION);
+        auto& table = AlphaRing::Offsets::kTables[AlphaRing::Offsets::kModuleMCC];
+        for (size_t i = 0; i < table.count; ++i) {
+            auto& offset = *table.offsets[i].offset;
+            if (!offset.found() && !Optional(offset)) {
+                LOG_ERROR("MCC {}: {} not found", version.toString(), offset.name);
+                return false;
+            }
+        }
 
         return true;
     }
