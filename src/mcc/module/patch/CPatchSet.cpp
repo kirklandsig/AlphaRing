@@ -27,5 +27,7 @@ void CPatchSet::add(const char *name, const char *desc, __int64 offset, const st
     auto patch = new CPatch(name, desc, offset, src, enabled);
     patch->setParent(this);
     patch->capture();
+    for (auto other : m_embed_patches) patch->inheritBackup(*other);
+    for (auto other : m_patches) patch->inheritBackup(*other);
     m_patches.push_back(patch);
 }

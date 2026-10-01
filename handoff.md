@@ -348,7 +348,11 @@ on v2.0.1 (memory reads: Legendary 3P, P3 never spawned, revert every 30-45 s; h
 and fixed with the game's own gate (`0x6A6320` && `0x6A5D40`); box: Legendary 3P fine, hot join Legendary fine (a
 joiner comes in at a starting place), Normal 4P unchanged. Codex approve. Harness: `h2_state.py` (via mem.py),
 `h2_fresh_diff.sh` (env DIFF), `h2_legend.sh <dll> <players> <hotjoin> <tag>`. Side finding (not fixed): `assertm` is
-live in Release builds in both trees, though our `main.cpp` comment says otherwise. Box: X server hit 255 clients
+live in Release builds in both trees, though our `main.cpp` comment says otherwise. Ported back to main afterwards (Codex
+approve, box smoke test: H3 3P side by side, each pad its own view, F4 overlay, Reach pool line): the controller
+cache's races (SRW lock held only to read/update, probes outside it, one batch at a time, per-slot success count),
+the menu key's characters taken out of the queue (`DropChar`), the skinning pool's safe install order and rollback
+(`Unload` on module removal), and `CPatch::inheritBackup` for patch.xml reloads over applied patches. Box: X server hit 255 clients
 after many restarts (Steam leak) - cleared by killing Steam/Wine by PID.
 
 ### 2026-09-30 - v2.0.1: the open reports fixed (#4, #5, #7), GitHub issues - RELEASED as v2.0.1-experimental (commit ccd9127)
