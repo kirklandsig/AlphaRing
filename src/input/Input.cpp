@@ -66,6 +66,7 @@ namespace AlphaRing::Input {
     static ULONGLONG g_last_probe = 0;
     static DWORD g_next_probe_slot = 0;
     static DWORD g_found[4] = {};
+    static bool g_probing = false; // one probe batch at a time; callers meanwhile use the cached mask
     static volatile LONG g_rescan_requested = 1;  // full sweep on first use
 
     void RequestPadRescan() {
@@ -78,7 +79,9 @@ namespace AlphaRing::Input {
         DWORD probe = 0; // the slots to probe: all four on a rescan, else one empty slot every 500 ms
         AcquireSRWLockExclusive(&g_pad_lock);
         auto now = GetTickCount64();
-        if (InterlockedExchange(&g_rescan_requested, 0)) {
+        if (g_probing) {
+            // a rescan asked for now stays pending for the next caller
+        } else if (InterlockedExchange(&g_rescan_requested, 0)) {
             probe = 0xF;
             g_last_probe = now;
         } else if (now - g_last_probe >= 500) {
@@ -92,6 +95,7 @@ namespace AlphaRing::Input {
                 break;
             }
         }
+        g_probing = g_probing || probe != 0;
         DWORD mask = g_connected_mask;
         ReleaseSRWLockExclusive(&g_pad_lock);
         if (!probe) return mask;
@@ -107,6 +111,7 @@ namespace AlphaRing::Input {
         else g_connected_mask |= found;              // a probe only adds a pad it found
         for (DWORD i = 0; i < 4; ++i)
             if (found & (1u << i)) ++g_found[i];
+        g_probing = false;
         mask = g_connected_mask;
         ReleaseSRWLockExclusive(&g_pad_lock);
         return mask;
