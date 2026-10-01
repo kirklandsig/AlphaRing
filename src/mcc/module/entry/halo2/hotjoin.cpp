@@ -6,7 +6,8 @@
 //
 // In a campaign each local player first spawns at one of the mission's starting places, and the missions have two:
 // players 3 and 4 used to wait until players 1 and 2 walked off theirs, and a player joining later came in at the
-// start of the mission, however far behind. Both come in through the co-op respawn instead, beside a teammate.
+// start of the mission, however far behind. Both come in through the co-op respawn instead, beside a teammate -
+// where the game gives co-op respawns (not on Legendary or with the Iron skull).
 #include "halo2.h"
 
 #include "global/Global.h"
@@ -16,7 +17,7 @@
 
 namespace Halo2::Entry::HotJoin {
     EntryFeature("Halo 2 hot join", OFFSET_HALO2_PF_COPY_GAME_OPTIONS, OFFSET_HALO2_PV_RESPAWN, OFFSET_HALO2_PV_PLAYERS,
-                 OFFSET_HALO2_PV_SCENARIO, OFFSET_HALO2_PV_GAME_SESSION);
+                 OFFSET_HALO2_PV_SCENARIO, OFFSET_HALO2_PF_COOP_CAMPAIGN, OFFSET_HALO2_PF_COOP_RESPAWN_ALLOWED);
 
     constexpr int kSlots = 4;
 
@@ -34,9 +35,11 @@ namespace Halo2::Entry::HotJoin {
         return data ? players + data + (handle & 0xFFFF) * 0x224 : nullptr;
     }
 
-    bool Campaign(__int64 module) {
-        char* session = *(char**)(module + OFFSET_HALO2_PV_GAME_SESSION);
-        return session && *(int*)(session + 8) == 1;
+    // Where the game gives a waiting player the co-op respawn: not on Legendary or with the Iron skull, where a co-op
+    // player waiting for one counts as dead and reverts the checkpoint - there they keep their starting place.
+    bool CoopRespawn(__int64 module) {
+        return ((bool (*)())(module + OFFSET_HALO2_PF_COOP_CAMPAIGN))() &&
+               ((bool (*)())(module + OFFSET_HALO2_PF_COOP_RESPAWN_ALLOWED))();
     }
 
     int StartingPlaces(__int64 module) {
@@ -67,7 +70,7 @@ namespace Halo2::Entry::HotJoin {
         if (char* globals = Globals(module)) {
             int joined = s_active ? Joined() : kSlots;
             if (int held = s_active ? Held(globals, joined) : 0) *(short*)(globals + 8) = (short)held;
-            if (Campaign(module)) {
+            if (CoopRespawn(module)) {
                 int places = StartingPlaces(module);
                 for (int j = 0; j < kSlots; ++j) {
                     char* player = Handle(globals, j) != -1 ? Player(module, Handle(globals, j)) : nullptr;

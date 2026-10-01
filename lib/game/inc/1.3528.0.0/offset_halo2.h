@@ -15,7 +15,12 @@ DefOffset(OFFSET_HALO2_PV_RESPAWN, 0xE80A20)//0xE7FA20 - players globals*: int16
 // come back through the co-op respawn (0x6A1320: player_spawn, then moved beside a teammate out of combat)
 DefOffset(OFFSET_HALO2_PF_PLAYERS_UPDATE, 0x6A3910)
 DefOffset(OFFSET_HALO2_PF_PLAYER_SPAWN, 0x69E580) // bool (int player) - a new unit at the best starting location
-DefOffset(OFFSET_HALO2_PV_GAME_SESSION, 0xE80A78) // the game's session object*: int mode +8 (1 campaign, 2 multiplayer)
+// The game's own test before a waiting player's co-op respawn (players_update, at 0x6A3BA2): a co-op campaign
+// (session [0xE80A78]: mode +8 == 1, byte +0x2C8) where co-op respawns are allowed. Where they aren't - Legendary,
+// the Iron skull - a co-op player without a unit and without flag 8 counts as dead (0x6A16F0 -> globals +5, read by
+// 0x6A0BD0), and any dead player reverts to the checkpoint (0x6A7493).
+DefOffset(OFFSET_HALO2_PF_COOP_CAMPAIGN, 0x6A6320) // bool ()
+DefOffset(OFFSET_HALO2_PF_COOP_RESPAWN_ALLOWED, 0x6A5D40) // bool () - not with the Iron skull (11), not on Legendary
 
 DefOffset(OFFSET_HALO2_PF_PLAYER_VALID, 0x6A6C80)//0x6A6C30
 DefOffset(OFFSET_HALO2_PF_PLAYER_COUNT1, 0x8940CA)//0x893FDA

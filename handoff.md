@@ -25,6 +25,7 @@
 | `v1.9.0-experimental` | Testing | Anniversary graphics with 3-4 players in Halo CE and Halo 2 (opt-in, alternating pairs), Halo 4 HUD with bars removed fits each view, Left/Right table rebuild on load, Reach crosshair answered (MCC setting) |
 | `v1.9.1-experimental` | Testing | Reach split screen: black/invisible Spartans after many deaths fixed (Reach's own garbage collector starts sooner with 2+ local players) |
 | `v2.0.0-experimental` | Testing | Hot join in every game (experimental), pattern-mode offsets that survive MCC updates, Players window, H2 players 3-4 beside a teammate at a mission start, H2A 3-4P at 60 fps + 2P black fix, Back switches CE/H2 graphics mid-mission, Reach skinning pool (bodies stay), H2 modded Save & Quit, Reach side-by-side HUD/radar |
+| `v2.0.2-experimental` | Testing | Halo 2 on Legendary/Iron: no more checkpoint loop with 3-4 players or hot join (#8) |
 | `v2.0.1-experimental` | Testing | Fixes for the reported v2.0 issues (#2 CE hot-join split, #3 CE joiner spawns, #4 CE Anniversary 3-4P views/guns, #5 H2A 3-4P brightness, #7 H4 side-by-side gun), CE 3P spawn menus in quarters |
 
 ### Branches
@@ -328,6 +329,27 @@ Look sensitivity bytes (0x1B5/0x1B6) were bools and players 2-4 got zeroed conta
 ---
 
 ## Session History
+
+### 2026-10-01 - upstream PR prep for MegaBit; v2.0.2 (Halo 2 Legendary/Iron checkpoint loop, #8)
+
+The user sent MegaBit the join-forces reply and is in his dev channel; MegaBit answered the open questions there -
+his answers are in `docs/UPSTREAM_SYNC.md` (local, out of git). PRs go to `master-chief`. Local prep (user's go): vcpkg at `C:\Users\yanal\dev\vcpkg`; his tree in a worktree
+`C:\Users\yanal\dev\alpharing-mc` builds clean with `-DCMAKE_TOOLCHAIN_FILE=.../vcpkg.cmake
+-DVCPKG_TARGET_TRIPLET=x64-windows-static-md`; PR branches (worktrees `alpharing-pr`, `-pr02`, `-pr03`):
+`upstream/00b-servicetag` (pushed as `fix/servicetag-master-chief`, opened as megabitt01/AlphaRing#26; #6 closed with
+a pointer - a force-push re-point was blocked by the auto-mode classifier), `upstream/01-halo2-fixes` (Save & Quit
+patch + players 3-4 hook - his first Halo 2 EntrySet, needs #24 first; Codex: approve after the gate below),
+`upstream/02-reach-fixes` (skinning pool, side-by-side HUD centring, CPatch capture, g_writes lock; 2 small
+conflicts with #24), `upstream/03-input-startup` (8 commits: XInput slots, hotkeys, unsupported build runs unmodded,
+logging, WndProc, MenuConfig, mutex define, player count clamp). All build; box runs on his build pending.
+**v2.0.2:** Codex's review of the Halo 2 port found that clearing flag 8 on Legendary/Iron (no co-op respawn there)
+leaves a player who never spawns and counts as dead, and any dead player reverts the checkpoint there. Box-confirmed
+on v2.0.1 (memory reads: Legendary 3P, P3 never spawned, revert every 30-45 s; hot join Legendary at 1P, the same)
+and fixed with the game's own gate (`0x6A6320` && `0x6A5D40`); box: Legendary 3P fine, hot join Legendary fine (a
+joiner comes in at a starting place), Normal 4P unchanged. Codex approve. Harness: `h2_state.py` (via mem.py),
+`h2_fresh_diff.sh` (env DIFF), `h2_legend.sh <dll> <players> <hotjoin> <tag>`. Side finding (not fixed): `assertm` is
+live in Release builds in both trees, though our `main.cpp` comment says otherwise. Box: X server hit 255 clients
+after many restarts (Steam leak) - cleared by killing Steam/Wine by PID.
 
 ### 2026-09-30 - v2.0.1: the open reports fixed (#4, #5, #7), GitHub issues - RELEASED as v2.0.1-experimental (commit ccd9127)
 
