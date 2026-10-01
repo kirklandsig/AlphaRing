@@ -147,33 +147,33 @@ static struct {
          "campaigns with 2+ players)", OFFSET_HALO2_PF_QUIT_TO_LOBBY_TEST, "\x31\xC0\x90\x90\x90", true},
 }}, {Halo3EntrySet(), {
         {"splitscreen_patch1", "", OFFSET_HALO3_PF_COOP_JOIN, "\x31\xC0\xC3\x90", true},
-        {"Remove Black Bar1", "remove black bar", OFFSET_HALO3_PV_SPLITSCREEN_TABLE + kBlackBar1, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
-        {"Remove Black Bar2", "remove black bar", OFFSET_HALO3_PV_SPLITSCREEN_TABLE + kBlackBar2, "\x00\x00\x00\x00\x00\x00\x00\x3F\x00\x00\x80\x3F\x00\x00\x80\x3F\x01\x00\x00\x00", false},
-        {"Remove Black Bar3", "remove black bar", OFFSET_HALO3_PV_SPLITSCREEN_TABLE + kBlackBar3, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
+        {"Remove Black Bar1", "remove black bar", OFFSET_HALO3_PV_SPLITSCREEN_TABLE, kBlackBar1, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
+        {"Remove Black Bar2", "remove black bar", OFFSET_HALO3_PV_SPLITSCREEN_TABLE, kBlackBar2, "\x00\x00\x00\x00\x00\x00\x00\x3F\x00\x00\x80\x3F\x00\x00\x80\x3F\x01\x00\x00\x00", false},
+        {"Remove Black Bar3", "remove black bar", OFFSET_HALO3_PV_SPLITSCREEN_TABLE, kBlackBar3, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
 }}, {nullptr, {
         {"splitscreen_patch1", "", OFFSET_HALO4_PF_COOP_JOIN, "\x31\xC0\xC3\x90", true},
         {"splitscreen_patch2", "", OFFSET_HALO4_PF_COOP_REJOIN, "\xEB", true},
         {"splitscreen_patch3", "", OFFSET_HALO4_PF_COOP_PLAYER_LIMIT, "\x90\x90\x90\x90\x90\x90", true},
-        {"Remove Black Bar1", "remove black bar", OFFSET_HALO4_PV_SPLITSCREEN_TABLE + kBlackBar1, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
-        {"Remove Black Bar2", "remove black bar", OFFSET_HALO4_PV_SPLITSCREEN_TABLE + kBlackBar2, "\x00\x00\x00\x00\x00\x00\x00\x3F\x00\x00\x80\x3F\x00\x00\x80\x3F\x01\x00\x00\x00", false},
-        {"Remove Black Bar3", "remove black bar", OFFSET_HALO4_PV_SPLITSCREEN_TABLE + kBlackBar3, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
+        {"Remove Black Bar1", "remove black bar", OFFSET_HALO4_PV_SPLITSCREEN_TABLE, kBlackBar1, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
+        {"Remove Black Bar2", "remove black bar", OFFSET_HALO4_PV_SPLITSCREEN_TABLE, kBlackBar2, "\x00\x00\x00\x00\x00\x00\x00\x3F\x00\x00\x80\x3F\x00\x00\x80\x3F\x01\x00\x00\x00", false},
+        {"Remove Black Bar3", "remove black bar", OFFSET_HALO4_PV_SPLITSCREEN_TABLE, kBlackBar3, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
 }}, {nullptr, {
         {"splitscreen_patch1", "", OFFSET_GROUNDHOG_PF_COOP_JOIN, "\x31\xC0\xC3\x90", true},
         {"splitscreen_patch2", "", OFFSET_GROUNDHOG_PF_REJOIN, "\xEB", true},
-        {"Remove Black Bar1", "remove black bar", OFFSET_GROUNDHOG_PV_SPLITSCREEN_TABLE + kBlackBar1, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
-        {"Remove Black Bar2", "remove black bar", OFFSET_GROUNDHOG_PV_SPLITSCREEN_TABLE + kBlackBar2, "\x00\x00\x00\x00\x00\x00\x00\x3F\x00\x00\x80\x3F\x00\x00\x80\x3F\x01\x00\x00\x00", false},
-        {"Remove Black Bar3", "remove black bar", OFFSET_GROUNDHOG_PV_SPLITSCREEN_TABLE + kBlackBar3, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
+        {"Remove Black Bar1", "remove black bar", OFFSET_GROUNDHOG_PV_SPLITSCREEN_TABLE, kBlackBar1, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
+        {"Remove Black Bar2", "remove black bar", OFFSET_GROUNDHOG_PV_SPLITSCREEN_TABLE, kBlackBar2, "\x00\x00\x00\x00\x00\x00\x00\x3F\x00\x00\x80\x3F\x00\x00\x80\x3F\x01\x00\x00\x00", false},
+        {"Remove Black Bar3", "remove black bar", OFFSET_GROUNDHOG_PV_SPLITSCREEN_TABLE, kBlackBar3, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
 }}, {nullptr, {
         {"splitscreen_patch1", "", OFFSET_HALO3ODST_PF_COOP_JOIN, "\x31\xC0\xC3\x90", true},
-        {"Remove Black Bar1", "remove black bar", OFFSET_HALO3ODST_PV_SPLITSCREEN_TABLE + kBlackBar1, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
-        {"Remove Black Bar2", "remove black bar", OFFSET_HALO3ODST_PV_SPLITSCREEN_TABLE + kBlackBar2, "\x00\x00\x00\x00\x00\x00\x00\x3F\x00\x00\x80\x3F\x00\x00\x80\x3F\x01\x00\x00\x00", false},
-        {"Remove Black Bar3", "remove black bar", OFFSET_HALO3ODST_PV_SPLITSCREEN_TABLE + kBlackBar3, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
+        {"Remove Black Bar1", "remove black bar", OFFSET_HALO3ODST_PV_SPLITSCREEN_TABLE, kBlackBar1, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
+        {"Remove Black Bar2", "remove black bar", OFFSET_HALO3ODST_PV_SPLITSCREEN_TABLE, kBlackBar2, "\x00\x00\x00\x00\x00\x00\x00\x3F\x00\x00\x80\x3F\x00\x00\x80\x3F\x01\x00\x00\x00", false},
+        {"Remove Black Bar3", "remove black bar", OFFSET_HALO3ODST_PV_SPLITSCREEN_TABLE, kBlackBar3, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
 }}, {HaloReachEntrySet(), {
         {"splitscreen_patch1", "", OFFSET_HALOREACH_PF_COOP_JOIN, "\x31\xC0\xC3\x90", true},
         {"splitscreen_patch2", "", OFFSET_HALOREACH_PF_COOP_REJOIN, "\xEB", true},
-        {"Remove Black Bar1", "remove black bar", OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE + kBlackBar1, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
-        {"Remove Black Bar2", "remove black bar", OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE + kBlackBar2, "\x00\x00\x00\x00\x00\x00\x00\x3F\x00\x00\x80\x3F\x00\x00\x80\x3F\x01\x00\x00\x00", false},
-        {"Remove Black Bar3", "remove black bar", OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE + kBlackBar3, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
+        {"Remove Black Bar1", "remove black bar", OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE, kBlackBar1, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
+        {"Remove Black Bar2", "remove black bar", OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE, kBlackBar2, "\x00\x00\x00\x00\x00\x00\x00\x3F\x00\x00\x80\x3F\x00\x00\x80\x3F\x01\x00\x00\x00", false},
+        {"Remove Black Bar3", "remove black bar", OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE, kBlackBar3, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
         // The black-bar/divider painter at 0x2C6D84 is now handled by a proper
         // per-slot-aware detour (HaloReach::Entry::BlackBars, blackbars.cpp)
         // instead of being NOP'd out wholesale - a raw byte-patch here would

@@ -2,16 +2,19 @@
 
 #include "common.h"
 
+#include "Offset.h"
+
 class EntrySet;
 
 struct Entry {
 public:
-    Entry(EntrySet* set, __int64 offset, void* pDetour);
+    Entry(EntrySet* set, const AlphaRing::Offset& offset, void* pDetour);
 
     bool update(__int64 hModule);
     void remove();
 
-    __int64 m_offset;
+    const AlphaRing::Offset* m_source;
+    __int64 m_offset; // m_source's value, set as it's hooked
     void* m_pOriginal;
     __int64 m_target;
     void* m_pDetour;

@@ -4,10 +4,11 @@
 
 #include <MinHook.h>
 
-Entry::Entry(EntrySet* set, __int64 offset, void *pDetour) {
+Entry::Entry(EntrySet* set, const AlphaRing::Offset& offset, void *pDetour) {
     m_pOriginal = nullptr;
     m_pDetour = pDetour;
-    m_offset = offset;
+    m_source = &offset;
+    m_offset = 0;
     m_target = 0;
 
     set->append(this);
@@ -20,6 +21,7 @@ bool Entry::update(__int64 hModule) {
 
     remove();
 
+    m_offset = m_source->value;
     m_target = m_offset + hModule;
 
     status = MH_CreateHook((void*)m_target, (void*)m_pDetour, (void**)&m_pOriginal);
