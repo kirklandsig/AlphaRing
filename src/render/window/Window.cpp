@@ -17,29 +17,43 @@ LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARA
 namespace AlphaRing::Render::Window {
     WNDPROC oldWndProc = nullptr;
 
-    // A consumed key-down still reaches the game as WM_CHAR (TranslateMessage queued it before this proc runs), so the
-    // characters of a held menu key (SPACE, A-Z) are swallowed until its key-up - also after the menu's close
-    // animation, when the key's repeats no longer reach the open menu.
-    static bool s_hotkey_held[2] = {}; // the menu key, the debug key
+    // A consumed key-down still reaches the game as WM_CHAR: TranslateMessage queued it before this proc ran, and it
+    // can even arrive after the key-up. Each consumed press of a menu key that types (SPACE, A-Z) owes one character,
+    // swallowed whenever it comes - also after the menu's close animation, when the key's repeats no longer reach the
+    // open menu.
+    static int s_owed_chars[2] = {}; // the menu key, the debug key
 
-    static bool HotkeyChar(UINT uMsg, LPARAM lParam) {
+    static int HotkeyIndex(int vk) {
+        return vk == g_menuConfig.keyboardVKey ? 0 : vk == g_menuConfig.debugKeyboardVKey ? 1 : -1;
+    }
+
+    // A consumed WM_KEYDOWN: a menu key that types owes its character.
+    static void Consumed(int vk) {
+        int i = HotkeyIndex(vk);
+        if (i >= 0 && MapVirtualKey(vk, MAPVK_VK_TO_CHAR) != 0 && s_owed_chars[i] < 32) ++s_owed_chars[i];
+    }
+
+    static bool OwedChar(UINT uMsg, LPARAM lParam) {
         if (uMsg != WM_CHAR && uMsg != WM_SYSCHAR) return false;
         UINT scan = (UINT)(lParam >> 16) & 0xFF;
-        return (s_hotkey_held[0] && scan == MapVirtualKey(g_menuConfig.keyboardVKey, MAPVK_VK_TO_VSC)) ||
-               (s_hotkey_held[1] && scan == MapVirtualKey(g_menuConfig.debugKeyboardVKey, MAPVK_VK_TO_VSC));
+        int keys[2] = {g_menuConfig.keyboardVKey, g_menuConfig.debugKeyboardVKey};
+        for (int i = 0; i < 2; ++i) {
+            if (s_owed_chars[i] > 0 && scan == MapVirtualKey(keys[i], MAPVK_VK_TO_VSC)) {
+                --s_owed_chars[i];
+                return true;
+            }
+        }
+        return false;
     }
 
     //todo: WM_IME_COMPOSITION Support
     static LRESULT dWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
         if (uMsg == WM_DEVICECHANGE)
             AlphaRing::Input::RequestPadRescan();
-        if (uMsg == WM_KEYDOWN || uMsg == WM_KEYUP) {
-            int vk = static_cast<int>(wParam);
-            if (vk == g_menuConfig.keyboardVKey) s_hotkey_held[0] = uMsg == WM_KEYDOWN;
-            if (vk == g_menuConfig.debugKeyboardVKey) s_hotkey_held[1] = uMsg == WM_KEYDOWN;
-        } else if (uMsg == WM_KILLFOCUS) {
-            s_hotkey_held[0] = s_hotkey_held[1] = false; // no key-up comes while another window has focus
-        }
+        if (uMsg == WM_KILLFOCUS)
+            s_owed_chars[0] = s_owed_chars[1] = 0; // characters queued for this window went with its focus
+        if (OwedChar(uMsg, lParam))
+            return 0;
 
         bool xboxOpen = g_pXboxContext && g_pXboxContext->isOpen();
 
@@ -54,6 +68,7 @@ namespace AlphaRing::Render::Window {
                 if (static_cast<int>(wParam) == g_menuConfig.keyboardVKey && !(lParam & (1 << 30))) {
                     g_pXboxContext->close();
                 }
+                Consumed(static_cast<int>(wParam));
                 return 0; // consume all keyboard input
             }
             switch (uMsg) {
@@ -93,13 +108,14 @@ namespace AlphaRing::Render::Window {
             if (vk == g_menuConfig.keyboardVKey) {
                 if (uMsg == WM_KEYDOWN && !(lParam & (1 << 30)) && g_pXboxContext)
                     g_pXboxContext->open();
+                if (uMsg == WM_KEYDOWN) Consumed(vk);
                 return 0;
             }
-            if (vk == g_menuConfig.debugKeyboardVKey)
+            if (vk == g_menuConfig.debugKeyboardVKey) {
+                if (uMsg == WM_KEYDOWN) Consumed(vk);
                 return 0;
+            }
         }
-        if (HotkeyChar(uMsg, lParam) && !(AlphaRing::Global::Global()->show_imgui && ImGui::GetIO().WantTextInput))
-            return 0;
 
         // Swallow only the input the debug UI is using. Returning true for every
         // message while the cursor is over it also kept WM_PAINT, WM_SIZE,
