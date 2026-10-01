@@ -8,6 +8,27 @@
 
 ---
 
+## What's New in v2.0.2 (experimental)
+
+> **Testing status:** as with v2.0, tested only on one Batocera Linux machine (MCC 1.3528 on Steam through Proton,
+> virtual Xbox 360 controllers, 1920x1080). Please report what you find on the
+> [AlphaRing Discord](https://discord.gg/TUyAnCrpuz).
+
+### Fix
+- **Halo 2 on Legendary or with the Iron skull: the mission kept going back to the checkpoint**
+  ([#8](https://github.com/kirklandsig/AlphaRing/issues/8)) with 3-4 players, or with hot join on - even with one
+  player in. Since v2.0, players 3 and 4 (and players who haven't joined yet) come in beside a teammate through
+  Halo 2's co-op respawn instead of waiting for a free starting place. Legendary and the Iron skull turn the co-op
+  respawn off and count a player waiting for one as dead, and on those settings any dead player sends everyone back
+  to the checkpoint, so it happened again and again. They now come in beside a teammate only where the game allows
+  co-op respawns; on Legendary and with Iron they wait for a starting place as in the stock game, and a player who
+  joins in the middle of a mission comes in at one. Tested on the box: Legendary with 3 players (before: player 3
+  never spawned and the mission went back every 30-45 seconds; after: player 3 came in at once), hot join on
+  Legendary (no reverts; a joiner came in at a starting place), and Normal with 4 players (players 3-4 still come in
+  beside the others).
+
+---
+
 ## What's New in v2.0.1 (experimental)
 
 > **Testing status:** as with v2.0, tested only on one Batocera Linux machine (MCC 1.3528 on Steam through Proton,

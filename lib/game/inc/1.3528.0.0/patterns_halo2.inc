@@ -30,9 +30,12 @@ const OffsetPatterns kHalo2Patterns[] = {
     {&OFFSET_HALO2_PF_PLAYER_SPAWN, 0x69e580, Code, {
         At("40 55 53 56 57 41 54 41 56 41 57 48 8D AC 24 60 EF FF FF", 0x0),
         Rel("E8 ?? ?? ?? ?? B0 01 EB ?? 32 C0 48 8B 5C 24 30 48 8B 74 24 38 48 8B 7C 24 40", 0x1, 0x5, 0x0)}},
-    {&OFFSET_HALO2_PV_GAME_SESSION, 0xe80a78, Data, {
-        Rel("48 8B 3D ?? ?? ?? ?? 8B 8F 2C 0A 00 00 48 8D 97 30 0A 00 00", 0x3, 0x7, 0x0),
-        Rel("48 8B 05 ?? ?? ?? ?? 48 8B 5C 24 30 C6 40 01 00 48 83 C4 20", 0x3, 0x7, 0x0)}},
+    {&OFFSET_HALO2_PF_COOP_CAMPAIGN, 0x6a6320, Code, {
+        At("48 8B 05 ?? ?? ?? ?? 83 78 08 01 75 ?? 80 B8 C8 02 00 00 00 74", 0x0),
+        Rel("E8 ?? ?? ?? ?? 0F B6 8C 24 90 00 00 00 BE 01 00 00 00 84 C0", 0x1, 0x5, 0x0)}},
+    {&OFFSET_HALO2_PF_COOP_RESPAWN_ALLOWED, 0x6a5d40, Code, {
+        At("48 83 EC 28 B9 0B 00 00 00 E8 ?? ?? ?? ?? 84 C0 75 ?? 48 8B 05", 0x0),
+        Rel("E8 ?? ?? ?? ?? 84 C0 74 ?? 48 8B 05 ?? ?? ?? ?? 80 B8 CA 00 00 00 00 75 ?? C6 80 CA 00 00 00 01", 0x1, 0x5, 0x0)}},
     {&OFFSET_HALO2_PF_PLAYER_VALID, 0x6a6c80, Code, {
         At("40 53 57 41 55 48 83 EC 20 83 39 05 48 8B F9 0F 87", 0x0),
         Rel("E8 ?? ?? ?? ?? 84 C0 74 ?? 80 BD 50 02 00 00 00 75 ?? 80 7D 95 01", 0x1, 0x5, 0x0)}},
