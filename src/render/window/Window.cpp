@@ -16,6 +16,17 @@ LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARA
 namespace AlphaRing::Render::Window {
     WNDPROC oldWndProc = nullptr;
 
+    // A consumed key-down of a menu key still reaches the game as WM_CHAR: TranslateMessage posted that character
+    // before the key-down was dispatched here, possibly behind the key-up. It is taken out of the queue right away,
+    // so a bind like SPACE or A-Z never types into the game; a chord that makes no character posted none, and nothing
+    // later is touched.
+    static void DropChar(HWND hWnd, WPARAM vk) {
+        UINT scan = MapVirtualKey((UINT)vk, MAPVK_VK_TO_VSC);
+        MSG msg; // all of the press's characters: a dead key before it makes two ('^' then the key's own)
+        while (PeekMessage(&msg, hWnd, WM_CHAR, WM_CHAR, PM_NOREMOVE | PM_NOYIELD) && ((msg.lParam >> 16) & 0xFF) == scan)
+            PeekMessage(&msg, hWnd, WM_CHAR, WM_CHAR, PM_REMOVE | PM_NOYIELD);
+    }
+
     //todo: WM_IME_COMPOSITION Support
     static LRESULT dWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
         if (uMsg == WM_DEVICECHANGE)
@@ -36,6 +47,7 @@ namespace AlphaRing::Render::Window {
             if (!typing) {
                 if (uMsg == WM_KEYDOWN && !(lParam & (1 << 30)))
                     AlphaRing::Global::Global()->show_imgui = !AlphaRing::Global::Global()->show_imgui;
+                if (uMsg == WM_KEYDOWN) DropChar(hWnd, wParam);
                 return 0;
             }
         }

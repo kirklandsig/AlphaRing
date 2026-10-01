@@ -35,12 +35,28 @@ namespace HaloReach::Entry::Skinning {
         return true;
     }
 
-    void Restore() {
-        for (auto it = s_writes.rbegin(); it != s_writes.rend(); ++it)
-            CPatch::apply(it->at, it->original, it->size);
-        s_writes.clear();
+    // Puts the module's bytes back, last write first (Enlarge's order, reversed: the allocator's size, the masks,
+    // the handles' offset width, the leas), so code never reaches past the buffer its lea points at. A write that
+    // fails stops it there - the writes left, and the pool they may still reach, stay for the next try.
+    bool Restore() {
+        while (!s_writes.empty()) {
+            const Write& w = s_writes.back();
+            if (!CPatch::apply(w.at, w.original, w.size)) return false;
+            s_writes.pop_back();
+        }
         if (s_pool) VirtualFree(s_pool, 0, MEM_RELEASE);
         s_pool = nullptr;
+        return true;
+    }
+
+    // The module is going away: its bytes back if possible, and the writes forgotten either way (they'd point into
+    // whatever is mapped there next). A pool the module's code may still reach is left allocated rather than freed.
+    void Unload() {
+        if (!Restore()) {
+            LOG_WARNING("Reach: skinning pool writes not undone at unload - the pool stays allocated");
+            s_writes.clear();
+            s_pool = nullptr;
+        }
     }
 
     // The users reach the pool with 32-bit RIP-relative addresses, so the buffer has to sit within 2 GB of the
@@ -64,7 +80,10 @@ namespace HaloReach::Entry::Skinning {
     bool IsStockMask(const unsigned char* p) { return memcmp(p, "\xFF\xFF\x03\x00", 4) == 0; }
 
     void Enlarge(__int64 hModule) {
-        Restore();
+        if (!Restore()) {
+            LOG_WARNING("Reach: skinning pool not enlarged - an earlier enlargement couldn't be undone");
+            return;
+        }
         if (!AlphaRing::Found({OFFSET_HALOREACH_DAT_SKINNING_POOL, OFFSET_HALOREACH_PF_SKINNING_POOL_ALLOCATE})) return;
 
         auto module = (unsigned char*)hModule;
@@ -118,23 +137,29 @@ namespace HaloReach::Entry::Skinning {
             return;
         }
 
+        // Each step leaves a working pool: the users reach the new buffer first (as big as any offset), then the
+        // handles get room for the wider offset, then the masks read it, and only last does the allocator hand out
+        // more than the stock size. The first write that fails stops the install, and Restore takes back what was
+        // written, last first - so whatever stays in place is always one of these steps.
         bool ok = true;
         for (auto lea : leas) {
             int disp = (int)(s_pool - (char*)(lea + 7));
-            ok &= Poke(lea + 3, &disp, 4);
+            if (!(ok = Poke(lea + 3, &disp, 4))) break;
         }
-        for (auto imm : masks) ok &= Poke(imm, &kPoolMask, 4);
+        ok = ok && Poke(shift, &kPoolShift, 1);
+        for (auto imm : masks) {
+            if (!ok) break;
+            ok = Poke(imm, &kPoolMask, 4);
+        }
         unsigned size = kPoolSize;
-        ok &= Poke(limit, &size, 4);
-        ok &= Poke(shift, &kPoolShift, 1);
+        ok = ok && Poke(limit, &size, 4);
         if (!ok) {
-            Restore();
-            LOG_WARNING("Reach: skinning pool not enlarged - a write failed");
+            LOG_WARNING("Reach: skinning pool not enlarged - a write failed{}", Restore() ? "" : ", and undoing it too");
             return;
         }
         LOG_INFO("Reach: skinning pool 0x{:X} -> 0x{:X} bytes ({} users, {} offsets)", kStockSize, kPoolSize, leas.size(),
                  masks.size());
     }
 
-    const bool s_registered = (HaloReachEntrySet()->on_add(&Enlarge), HaloReachEntrySet()->on_remove(&Restore), true);
+    const bool s_registered = (HaloReachEntrySet()->on_add(&Enlarge), HaloReachEntrySet()->on_remove(&Unload), true);
 }

@@ -29,6 +29,9 @@ public:
     bool setState(bool state);
     // Remember the loaded module's own bytes under the patch (CPatchSet::update/add).
     void capture();
+    // Where `other` overlaps this patch and is applied, the module's own bytes are other's backup, not what's there:
+    // a patch added while others are applied (a patch.xml reload) takes those bytes from them.
+    void inheritBackup(const CPatch& other);
     void setParent(CPatchSet* parent) {m_parent = parent;}
 
     // Where it goes is known in the loaded module's build (see src/offsets/Offsets.h).
