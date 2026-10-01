@@ -30,7 +30,9 @@ namespace AlphaRing::Render::Window {
         // polling in Input::Update(), so no handleInput calls are needed here.
         if (xboxOpen) {
             if (uMsg == WM_KEYDOWN) {
-                if (static_cast<int>(wParam) == g_menuConfig.keyboardVKey) {
+                // Initial press only (lParam bit 30 = autorepeat): holding the
+                // key would otherwise reopen the menu once it has closed.
+                if (static_cast<int>(wParam) == g_menuConfig.keyboardVKey && !(lParam & (1 << 30))) {
                     g_pXboxContext->close();
                 }
                 return 0; // consume all keyboard input
@@ -61,12 +63,21 @@ namespace AlphaRing::Render::Window {
         if (menuActive && ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam))
             return true;
 
-        // Keyboard trigger to open the menu (only reached when menu is closed)
-        if (uMsg == WM_KEYDOWN) {
-            if (static_cast<int>(wParam) == g_menuConfig.keyboardVKey) {
-                if (g_pXboxContext) g_pXboxContext->open();
+        // Menu keys (only reached when the Xbox menu is closed): consume keydown
+        // and keyup alike so a bind like SPACE or A-Z never reaches the game,
+        // and open on the initial press only (lParam bit 30 = autorepeat). The
+        // debug UI key is toggled by Input::Update(), so here it is only
+        // consumed. While typing in a debug UI text field, both keys type.
+        if ((uMsg == WM_KEYDOWN || uMsg == WM_KEYUP) &&
+            !(AlphaRing::Global::Global()->show_imgui && ImGui::GetIO().WantTextInput)) {
+            int vk = static_cast<int>(wParam);
+            if (vk == g_menuConfig.keyboardVKey) {
+                if (uMsg == WM_KEYDOWN && !(lParam & (1 << 30)) && g_pXboxContext)
+                    g_pXboxContext->open();
                 return 0;
             }
+            if (vk == g_menuConfig.debugKeyboardVKey)
+                return 0;
         }
 
         auto& io = ImGui::GetIO();
