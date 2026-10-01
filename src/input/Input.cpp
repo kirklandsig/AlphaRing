@@ -57,9 +57,15 @@ namespace AlphaRing::Input {
     // The probes call g_pXInputGetState, the hook's trampoline (the real
     // function, not XInputGetStateDetour), as the wrapper consults this mask.
     // Present (Input::Update) and the game's input (get_key_state) both poll
-    // pads, so the mask, the probe timer and cursor are kept under one lock.
+    // pads, so the cache below is kept under one lock - held only to read and
+    // update it, never across a probe (an empty slot's can take milliseconds).
+    // g_found counts each slot's discoveries: a failed poll that started before
+    // a probe found the pad again doesn't drop it.
     static SRWLOCK g_pad_lock = SRWLOCK_INIT;
     static DWORD g_connected_mask = 0;
+    static ULONGLONG g_last_probe = 0;
+    static DWORD g_next_probe_slot = 0;
+    static DWORD g_found[4] = {};
     static volatile LONG g_rescan_requested = 1;  // full sweep on first use
 
     void RequestPadRescan() {
@@ -67,36 +73,41 @@ namespace AlphaRing::Input {
     }
 
     static DWORD ConnectedPadMask() {
-        static ULONGLONG last_probe = 0;
-        static DWORD next_probe_slot = 0;
-
         if (!g_pXInputGetState) return 0;
 
+        DWORD probe = 0; // the slots to probe: all four on a rescan, else one empty slot every 500 ms
         AcquireSRWLockExclusive(&g_pad_lock);
         auto now = GetTickCount64();
         if (InterlockedExchange(&g_rescan_requested, 0)) {
-            DWORD mask = 0;
-            for (DWORD i = 0; i < 4; ++i) {
-                XINPUT_STATE state;
-                if (g_pXInputGetState(i, &state) == ERROR_SUCCESS)
-                    mask |= 1u << i;
-            }
-            g_connected_mask = mask;
-            last_probe = now;
-        } else if (now - last_probe >= 500) {
-            last_probe = now;
+            probe = 0xF;
+            g_last_probe = now;
+        } else if (now - g_last_probe >= 500) {
+            g_last_probe = now;
             for (DWORD n = 0; n < 4; ++n) {
-                DWORD i = (next_probe_slot + n) % 4;
+                DWORD i = (g_next_probe_slot + n) % 4;
                 if (g_connected_mask & (1u << i))
                     continue;
-                XINPUT_STATE state;
-                if (g_pXInputGetState(i, &state) == ERROR_SUCCESS)
-                    g_connected_mask |= 1u << i;
-                next_probe_slot = (i + 1) % 4;
+                probe = 1u << i;
+                g_next_probe_slot = (i + 1) % 4;
                 break;
             }
         }
         DWORD mask = g_connected_mask;
+        ReleaseSRWLockExclusive(&g_pad_lock);
+        if (!probe) return mask;
+
+        DWORD found = 0;
+        for (DWORD i = 0; i < 4; ++i) {
+            XINPUT_STATE state;
+            if ((probe & (1u << i)) && g_pXInputGetState(i, &state) == ERROR_SUCCESS)
+                found |= 1u << i;
+        }
+        AcquireSRWLockExclusive(&g_pad_lock);
+        if (probe == 0xF) g_connected_mask = found; // a rescan has the last word
+        else g_connected_mask |= found;              // a probe only adds a pad it found
+        for (DWORD i = 0; i < 4; ++i)
+            if (found & (1u << i)) ++g_found[i];
+        mask = g_connected_mask;
         ReleaseSRWLockExclusive(&g_pad_lock);
         return mask;
     }
@@ -106,9 +117,13 @@ namespace AlphaRing::Input {
         memset(pState, 0, sizeof(XINPUT_STATE));
         if (dwUserIndex >= 4 || !(ConnectedPadMask() & (1u << dwUserIndex)))
             return false;
+        AcquireSRWLockShared(&g_pad_lock);
+        DWORD found = g_found[dwUserIndex];
+        ReleaseSRWLockShared(&g_pad_lock);
         if (g_pXInputGetState(dwUserIndex, pState) != ERROR_SUCCESS) {
             AcquireSRWLockExclusive(&g_pad_lock);
-            g_connected_mask &= ~(1u << dwUserIndex);
+            if (g_found[dwUserIndex] == found) // not found again while this poll ran
+                g_connected_mask &= ~(1u << dwUserIndex);
             ReleaseSRWLockExclusive(&g_pad_lock);
             memset(pState, 0, sizeof(XINPUT_STATE));
             return false;
