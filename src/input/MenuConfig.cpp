@@ -1,5 +1,7 @@
 #include "MenuConfig.h"
 
+#include "log/Log.h"
+
 #include <fstream>
 #include <sstream>
 #include <algorithm>
@@ -115,7 +117,9 @@ int MenuConfig::parseKey(const std::string& raw) {
     if (name.size() == 1 && name[0] >= 'A' && name[0] <= 'Z')
         return static_cast<int>(name[0]);
 
-    return VK_F4;
+    // Unknown name: 0, so the caller keeps its default. Falling back to F4
+    // turned a typo in open_debug_keyboard into the dashboard's own key.
+    return 0;
 }
 
 void MenuConfig::writeDefault(const std::string& path) {
@@ -273,30 +277,41 @@ MenuConfig MenuConfig::load() {
         std::string val = trim(line.substr(eq + 1));
         std::transform(key.begin(), key.end(), key.begin(), ::tolower);
 
+        // Any unknown token makes the whole combo invalid: dropping it would turn
+        // a typo like START+LEFT_THUMP into a bare START binding that fires on
+        // every ordinary pause.
         auto parseCombo = [&](const std::string& v) -> WORD {
             WORD mask = 0;
             std::istringstream ss(v);
             std::string token;
-            while (std::getline(ss, token, '+'))
-                mask |= parseButton(token);
+            while (std::getline(ss, token, '+')) {
+                WORD button = parseButton(token);
+                if (button == 0)
+                    return 0;
+                mask |= button;
+            }
             return mask;
         };
 
         if (key == "open_menu_controller") {
             WORD mask = parseCombo(val);
             if (mask != 0) cfg.controllerComboMask = mask;
+            else LOG_WARNING("MenuConfig: invalid combo '{}' for {}, keeping the default", val, key);
         }
         else if (key == "open_debug_controller") {
             WORD mask = parseCombo(val);
             if (mask != 0) cfg.debugComboMask = mask;
+            else LOG_WARNING("MenuConfig: invalid combo '{}' for {}, keeping the default", val, key);
         }
         else if (key == "open_menu_keyboard") {
             int vk = parseKey(val);
             if (vk != 0) cfg.keyboardVKey = vk;
+            else LOG_WARNING("MenuConfig: unknown key '{}' for {}, keeping the default", val, key);
         }
         else if (key == "open_debug_keyboard") {
             int vk = parseKey(val);
             if (vk != 0) cfg.debugKeyboardVKey = vk;
+            else LOG_WARNING("MenuConfig: unknown key '{}' for {}, keeping the default", val, key);
         }
         else if (key.size() > 2 && key[1] == '_') {
             // Controller profile binding: "<prefix>_<action> = BUTTON" (e.g. d_jump = A)
