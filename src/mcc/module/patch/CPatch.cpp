@@ -1,6 +1,7 @@
 #include "CPatch.h"
 #include "CPatchSet.h"
 #include <cstring>
+#include <algorithm>
 #include <Windows.h>
 
 bool CPatch::apply(void *dst, const void *src, size_t size)  {
@@ -32,6 +33,14 @@ static bool ReadBytes(void* dst, const void* src, size_t size) {
 void CPatch::capture() {
     m_captured = m_parent->moduleAddress() != 0 &&
                  ReadBytes(m_backup.data(), (const void*)(m_parent->moduleAddress() + m_offset), m_backup.size());
+}
+
+void CPatch::inheritBackup(const CPatch& other) {
+    if (&other == this || !m_captured || !other.m_captured || !other.m_enabled) return;
+    __int64 lo = (std::max)(m_offset, other.m_offset);
+    __int64 hi = (std::min)(m_offset + (__int64)m_backup.size(), other.m_offset + (__int64)other.m_backup.size());
+    for (__int64 at = lo; at < hi; ++at)
+        m_backup[at - m_offset] = other.m_backup[at - other.m_offset];
 }
 
 bool CPatch::setState(bool state) {
