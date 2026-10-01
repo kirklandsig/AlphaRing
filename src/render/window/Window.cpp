@@ -17,43 +17,21 @@ LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARA
 namespace AlphaRing::Render::Window {
     WNDPROC oldWndProc = nullptr;
 
-    // A consumed key-down still reaches the game as WM_CHAR: TranslateMessage queued it before this proc ran, and it
-    // can even arrive after the key-up. Each consumed press of a menu key that types (SPACE, A-Z) owes one character,
-    // swallowed whenever it comes - also after the menu's close animation, when the key's repeats no longer reach the
-    // open menu.
-    static int s_owed_chars[2] = {}; // the menu key, the debug key
-
-    static int HotkeyIndex(int vk) {
-        return vk == g_menuConfig.keyboardVKey ? 0 : vk == g_menuConfig.debugKeyboardVKey ? 1 : -1;
-    }
-
-    // A consumed WM_KEYDOWN: a menu key that types owes its character.
-    static void Consumed(int vk) {
-        int i = HotkeyIndex(vk);
-        if (i >= 0 && MapVirtualKey(vk, MAPVK_VK_TO_CHAR) != 0 && s_owed_chars[i] < 32) ++s_owed_chars[i];
-    }
-
-    static bool OwedChar(UINT uMsg, LPARAM lParam) {
-        if (uMsg != WM_CHAR && uMsg != WM_SYSCHAR) return false;
-        UINT scan = (UINT)(lParam >> 16) & 0xFF;
-        int keys[2] = {g_menuConfig.keyboardVKey, g_menuConfig.debugKeyboardVKey};
-        for (int i = 0; i < 2; ++i) {
-            if (s_owed_chars[i] > 0 && scan == MapVirtualKey(keys[i], MAPVK_VK_TO_VSC)) {
-                --s_owed_chars[i];
-                return true;
-            }
-        }
-        return false;
+    // A consumed key-down of a menu key (dashboard or debug) still reaches the game as WM_CHAR: TranslateMessage posted that character
+    // before the key-down was dispatched here, possibly behind the key-up. It is taken out of the queue right away,
+    // so a bind like SPACE or A-Z never types into the game, also after the dashboard's close animation; a chord that makes no character posted none, and nothing
+    // later is touched.
+    static void DropChar(HWND hWnd, WPARAM vk) {
+        UINT scan = MapVirtualKey((UINT)vk, MAPVK_VK_TO_VSC);
+        MSG msg;
+        if (PeekMessage(&msg, hWnd, WM_CHAR, WM_CHAR, PM_NOREMOVE | PM_NOYIELD) && ((msg.lParam >> 16) & 0xFF) == scan)
+            PeekMessage(&msg, hWnd, WM_CHAR, WM_CHAR, PM_REMOVE | PM_NOYIELD);
     }
 
     //todo: WM_IME_COMPOSITION Support
     static LRESULT dWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
         if (uMsg == WM_DEVICECHANGE)
             AlphaRing::Input::RequestPadRescan();
-        if (uMsg == WM_KILLFOCUS)
-            s_owed_chars[0] = s_owed_chars[1] = 0; // characters queued for this window went with its focus
-        if (OwedChar(uMsg, lParam))
-            return 0;
 
         bool xboxOpen = g_pXboxContext && g_pXboxContext->isOpen();
 
@@ -68,7 +46,8 @@ namespace AlphaRing::Render::Window {
                 if (static_cast<int>(wParam) == g_menuConfig.keyboardVKey && !(lParam & (1 << 30))) {
                     g_pXboxContext->close();
                 }
-                Consumed(static_cast<int>(wParam));
+                if (static_cast<int>(wParam) == g_menuConfig.keyboardVKey || static_cast<int>(wParam) == g_menuConfig.debugKeyboardVKey)
+                    DropChar(hWnd, wParam);
                 return 0; // consume all keyboard input
             }
             switch (uMsg) {
@@ -108,11 +87,11 @@ namespace AlphaRing::Render::Window {
             if (vk == g_menuConfig.keyboardVKey) {
                 if (uMsg == WM_KEYDOWN && !(lParam & (1 << 30)) && g_pXboxContext)
                     g_pXboxContext->open();
-                if (uMsg == WM_KEYDOWN) Consumed(vk);
+                if (uMsg == WM_KEYDOWN) DropChar(hWnd, wParam);
                 return 0;
             }
             if (vk == g_menuConfig.debugKeyboardVKey) {
-                if (uMsg == WM_KEYDOWN) Consumed(vk);
+                if (uMsg == WM_KEYDOWN) DropChar(hWnd, wParam);
                 return 0;
             }
         }
