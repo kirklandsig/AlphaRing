@@ -4,6 +4,7 @@
 #include "common.h"
 
 #include "global/Global.h"
+#include "input/Input.h"
 #include "input/MenuConfig.h"
 #include "render/imgui/game/xbox/CXboxContext.h"
 
@@ -18,6 +19,9 @@ namespace AlphaRing::Render::Window {
 
     //todo: WM_IME_COMPOSITION Support
     static LRESULT dWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+        if (uMsg == WM_DEVICECHANGE)
+            AlphaRing::Input::RequestPadRescan();
+
         bool xboxOpen = g_pXboxContext && g_pXboxContext->isOpen();
 
         // Intercept keyboard/mouse before ImGui and the game while the Xbox
