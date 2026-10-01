@@ -23,8 +23,8 @@ namespace HaloReach::Entry::SplitscreenRt {
 
 namespace HaloReach::Entry::Skinning {
     // Moves Reach's per-frame skinning pool to a bigger buffer (skinning.cpp).
-    // CModule calls Enlarge once haloreach.dll is loaded and hooked, and Restore
+    // CModule calls Enlarge once haloreach.dll is loaded and hooked, and Unload
     // while it is still mapped, before MCC unloads it.
     void Enlarge(__int64 hModule);
-    void Restore();
+    void Unload();
 }

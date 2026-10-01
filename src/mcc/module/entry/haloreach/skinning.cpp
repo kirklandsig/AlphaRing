@@ -44,12 +44,29 @@ namespace HaloReach::Entry::Skinning {
         return true;
     }
 
-    void Restore() {
-        for (auto it = s_writes.rbegin(); it != s_writes.rend(); ++it)
-            if (CPatch::apply(it->at, it->original, it->size)) FlushInstructionCache(GetCurrentProcess(), it->at, it->size);
-        s_writes.clear();
+    // Puts the module's bytes back, last write first: the allocator's size and the masks before the leas, so code
+    // never reaches past the buffer its lea points at. A write that fails stops it there - the writes left, and the
+    // pool they may still reach, stay for the next try.
+    bool Restore() {
+        while (!s_writes.empty()) {
+            const Write& w = s_writes.back();
+            if (!CPatch::apply(w.at, w.original, w.size)) return false;
+            FlushInstructionCache(GetCurrentProcess(), w.at, w.size);
+            s_writes.pop_back();
+        }
         if (s_pool) VirtualFree(s_pool, 0, MEM_RELEASE);
         s_pool = nullptr;
+        return true;
+    }
+
+    // The module is going away: its bytes back if possible, and the writes forgotten either way (they'd point into
+    // whatever is mapped there next). A pool the module's code may still reach is left allocated rather than freed.
+    void Unload() {
+        if (!Restore()) {
+            LOG_WARNING("Reach: skinning pool writes not undone at unload - the pool stays allocated");
+            s_writes.clear();
+            s_pool = nullptr;
+        }
     }
 
     // The module's PE headers (for its code sections and size), or nullptr if it isn't a 64-bit image.
@@ -83,7 +100,10 @@ namespace HaloReach::Entry::Skinning {
     bool IsStockMask(const unsigned char* p) { return memcmp(p, "\xFF\xFF\x03\x00", 4) == 0; }
 
     void Enlarge(__int64 hModule) {
-        Restore();
+        if (!Restore()) {
+            LOG_WARNING("Reach: skinning pool not enlarged - an earlier enlargement couldn't be undone");
+            return;
+        }
 
         auto module = (unsigned char*)hModule;
         auto nt = NtHeaders(module);
@@ -146,8 +166,7 @@ namespace HaloReach::Entry::Skinning {
         ok &= Poke(limit, &size, 4);
         ok &= Poke(shift, &kPoolShift, 1);
         if (!ok) {
-            Restore();
-            LOG_WARNING("Reach: skinning pool not enlarged - a write failed");
+            LOG_WARNING("Reach: skinning pool not enlarged - a write failed{}", Restore() ? "" : ", and undoing it too");
             return;
         }
         LOG_INFO("Reach: skinning pool 0x{:X} -> 0x{:X} bytes ({} users, {} offsets)", kStockSize, kPoolSize, leas.size(),

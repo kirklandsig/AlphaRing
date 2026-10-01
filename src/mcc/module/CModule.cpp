@@ -99,7 +99,7 @@ void CModule::unload_module() {
     // MCC reloads it at a new address, and the next Enlarge would otherwise
     // restore them into whatever is then mapped at the old one.
     if (m_info.title == MCC::Module::MODULE_HALOREACH)
-        HaloReach::Entry::Skinning::Restore();
+        HaloReach::Entry::Skinning::Unload();
     memset(&m_info, 0, sizeof(module_info_t));
 }
 
