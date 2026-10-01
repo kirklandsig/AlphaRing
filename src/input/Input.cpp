@@ -56,6 +56,9 @@ namespace AlphaRing::Input {
     // a failed poll of a connected slot drops it from the mask on the spot.
     // The probes call g_pXInputGetState, the hook's trampoline (the real
     // function, not XInputGetStateDetour), as the wrapper consults this mask.
+    // Present (Input::Update) and the game's input (get_key_state) both poll
+    // pads, so the mask, the probe timer and cursor are kept under one lock.
+    static SRWLOCK g_pad_lock = SRWLOCK_INIT;
     static DWORD g_connected_mask = 0;
     static volatile LONG g_rescan_requested = 1;  // full sweep on first use
 
@@ -69,6 +72,7 @@ namespace AlphaRing::Input {
 
         if (!g_pXInputGetState) return 0;
 
+        AcquireSRWLockExclusive(&g_pad_lock);
         auto now = GetTickCount64();
         if (InterlockedExchange(&g_rescan_requested, 0)) {
             DWORD mask = 0;
@@ -92,7 +96,9 @@ namespace AlphaRing::Input {
                 break;
             }
         }
-        return g_connected_mask;
+        DWORD mask = g_connected_mask;
+        ReleaseSRWLockExclusive(&g_pad_lock);
+        return mask;
     }
 
     bool GetXInputGetState(DWORD dwUserIndex, XINPUT_STATE* pState) {
@@ -101,7 +107,9 @@ namespace AlphaRing::Input {
         if (dwUserIndex >= 4 || !(ConnectedPadMask() & (1u << dwUserIndex)))
             return false;
         if (g_pXInputGetState(dwUserIndex, pState) != ERROR_SUCCESS) {
+            AcquireSRWLockExclusive(&g_pad_lock);
             g_connected_mask &= ~(1u << dwUserIndex);
+            ReleaseSRWLockExclusive(&g_pad_lock);
             memset(pState, 0, sizeof(XINPUT_STATE));
             return false;
         }
