@@ -15,3 +15,6 @@ DefOffset(OFFSET_HALO4_PF_ADD_LOCAL_PLAYER, 0x7D948)
 
 #define OFFSET_HALO4_V_ENTRY_PLAYERS 0x1
 #define OFFSET_HALO4_V_ENTRY_PLAYERS_ACTION 0x22
+
+// c_splitscreen_config::m_config_table; the black-bar patches rewrite entries 8, 9 and 12 (0xE84E50, 0xE84E64, 0xE84EA0)
+DefOffset(OFFSET_HALO4_PV_SPLITSCREEN_TABLE, 0xE84DB0)//0xE84DA0

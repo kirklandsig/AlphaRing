@@ -14,6 +14,10 @@ DefOffset(OFFSET_HALO2_PF_PLAYER_VALID, 0x6A6C80)//0x6A6C30
 DefOffset(OFFSET_HALO2_PF_PLAYER_COUNT1, 0x8940CA)//0x893FDA
 DefOffset(OFFSET_HALO2_PF_PLAYER_COUNT2, 0x894127)//0x894037
 
+// The views' hand-over splits the screen only for exactly two local players (cmp eax, 2 / jne);
+// splitscreen_patch4 makes it any count but one (cmp eax, 1 / je)
+DefOffset(OFFSET_HALO2_TWO_PLAYERS_TEST_HAND_OVER, 0x5153E)
+
 // In the main loop's quit handling (0x679CD0): call 0x6A6320 (did this game come from a Halo 2 lobby?), then
 // test al, al / je - true loads the main-menu map to go back to that lobby, false quits to MCC.
 DefOffset(OFFSET_HALO2_PF_QUIT_TO_LOBBY_TEST, 0x679EE0)

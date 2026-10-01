@@ -6,10 +6,10 @@
 // (table index, field name) instead of (module, patch name) since the table
 // itself has no config file section of its own.
 namespace AlphaRing::SplitscreenConfigStore {
-    // c_splitscreen_config::m_config_table layout in haloreach.dll. Table index
+    // c_splitscreen_config::m_config_table layout in haloreach.dll
+    // (OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE). Table index
     // is (block * SLOT_COUNT + slot), where block is the player-count variant
     // (0: alias of 4p, 1: 1p, 2: 2p, 3: 3p, 4: 4p).
-    constexpr __int64 TABLE_OFFSET = 0xB43C40;
     constexpr int     ENTRY_SIZE   = 20;
     constexpr int     BLOCK_COUNT  = 5;
     constexpr int     SLOT_COUNT   = 4;

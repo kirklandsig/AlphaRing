@@ -82,11 +82,12 @@ namespace HaloReach::Entry::Skinning {
     // The users reach the pool with 32-bit RIP-relative addresses, so the buffer has to sit within 2 GB of the
     // module: the first free range after it.
     char* AllocateAfter(unsigned char* module, size_t image_size) {
+        constexpr uintptr_t kReach = 0x7FF00000; // past the module's base, with a margin under 2 GB
         SYSTEM_INFO info;
         GetSystemInfo(&info);
         const uintptr_t granularity = info.dwAllocationGranularity;
         uintptr_t at = ((uintptr_t)module + image_size + granularity - 1) & ~(granularity - 1);
-        const uintptr_t limit = (uintptr_t)module + 0x7FF00000 - kPoolSize;
+        const uintptr_t limit = (uintptr_t)module + kReach - kPoolSize;
         MEMORY_BASIC_INFORMATION mbi;
         while (at < limit && VirtualQuery((void*)at, &mbi, sizeof(mbi))) {
             uintptr_t end = (uintptr_t)mbi.BaseAddress + mbi.RegionSize;

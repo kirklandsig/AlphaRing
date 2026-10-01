@@ -16,8 +16,8 @@ namespace HaloReach::Entry::BlackBars {
     struct ScreenRect { short top, left, bottom, right; };
 
     // c_splitscreen_config::m_config_table entry layout (dep/libmcc), 20 bytes/
-    // entry, indexed [slot + player_count * 4] from base 0xB43C40 - same table
-    // and indexing loadout.cpp's fix already relies on.
+    // entry, indexed [slot + player_count * 4] from OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE
+    // - same table and indexing loadout.cpp's fix already relies on.
     struct SplitscreenViewConfig { float x0, y0, x1, y1; int resolution; };
 
     // The game's own black-bar/divider painter (RVA 0x2C6D84) hardcodes its
@@ -62,12 +62,12 @@ namespace HaloReach::Entry::BlackBars {
             return;
         }
 
-        auto DrawFilledRect = (DrawFilledRect_t)(hModule + 0xD3774);
-        auto RenderSetup1 = (RenderSetup1_t)(hModule + 0x274488);
-        auto RenderSetup2 = (RenderSetup2_t)(hModule + 0x2743A4);
+        auto DrawFilledRect = (DrawFilledRect_t)(hModule + OFFSET_HALOREACH_PF_FILL_RECT);
+        auto RenderSetup1 = (RenderSetup1_t)(hModule + OFFSET_HALOREACH_PF_RENDER_SETUP_1);
+        auto RenderSetup2 = (RenderSetup2_t)(hModule + OFFSET_HALOREACH_PF_RENDER_SETUP_2);
 
-        short screenWidth = *(short*)(hModule + 0xB43A90);
-        short screenHeight = *(short*)(hModule + 0xB43A94);
+        short screenWidth = *(short*)(hModule + OFFSET_HALOREACH_PV_SCREEN_SIZE);
+        short screenHeight = *(short*)(hModule + OFFSET_HALOREACH_PV_SCREEN_SIZE + 4);
 
         if (leftRight) {
             // Same 2px-band arithmetic as the stock 3p/4p dividers.
@@ -87,7 +87,7 @@ namespace HaloReach::Entry::BlackBars {
         }
 
         auto configFor = [&](int slot) -> SplitscreenViewConfig* {
-            return (SplitscreenViewConfig*)(hModule + 0xB43C40 + (size_t)(slot + 2 * 4) * 20);
+            return (SplitscreenViewConfig*)(hModule + OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE + (size_t)(slot + 2 * 4) * 20);
         };
         SplitscreenViewConfig* slot0 = configFor(0);
         SplitscreenViewConfig* slot1 = configFor(1);

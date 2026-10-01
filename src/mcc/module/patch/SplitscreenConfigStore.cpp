@@ -10,6 +10,7 @@
 #include <Windows.h>
 
 #include "common.h"
+#include "offset_haloreach.h"
 
 namespace {
     std::map<std::string, float> g_states;
@@ -313,7 +314,7 @@ namespace AlphaRing::SplitscreenConfigStore {
             // Reach's next level-load reset. The caller re-applies any enabled
             // black-bar patch afterwards, since these stock bytes cover them.
             auto writeEntry = [hModule](int index, const LayoutEntry& entry) {
-                auto p_entry = (unsigned char*)(hModule + TABLE_OFFSET
+                auto p_entry = (unsigned char*)(hModule + OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE
                                                 + (__int64)index * ENTRY_SIZE);
                 WriteBytes(p_entry, &entry, sizeof(LayoutEntry));
             };
@@ -344,7 +345,7 @@ namespace AlphaRing::SplitscreenConfigStore {
         if (hModule == 0 || g_writes.empty()) return;
 
         for (const auto& w : g_writes) {
-            auto p_field = (unsigned char*)(hModule + TABLE_OFFSET
+            auto p_field = (unsigned char*)(hModule + OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE
                                             + (__int64)w.index * ENTRY_SIZE
                                             + w.byte_offset);
 

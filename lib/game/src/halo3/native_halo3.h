@@ -56,7 +56,7 @@ DefNative(Halo3) {
     inline entity_manager_t<players_definition>* players() { return (entity_manager_t<players_definition>*)teb_data()->players; }
     inline entity_manager_t<object_definition>* object() { return (entity_manager_t<object_definition>*)teb_data()->object; }
 
-    DefPtr(Log, 0xA49170/*0xA48170*/) {
+    DefPtr(Log, OFFSET_HALO3_PV_LOG) {
         struct log_t {
             char title[0x100];
             char content[0x200];
@@ -105,14 +105,14 @@ DefNative(Halo3) {
     };
 
     // https://github.com/XboxChaos/Assembly/blob/a9650c010fc6bb8e7d0ea01afe3a024619e4db95/src/Blamite/Blam/ITagGroup.cs#L6
-    DefPPtr(ITagGroup, 0x20AD058/*0x20AC058*/, 0x8) {
+    DefPPtr(ITagGroup, OFFSET_HALO3_PV_TAGS_HEADER, 0x8) {
         CharConstant Magic;
         CharConstant ParentMagic;
         CharConstant GrandparentMagic;
         StringID Description;
     };
 
-    DefPPtr(TagSalt, 0xA49018/*0xA48018*/, 0x0) {
+    DefPPtr(TagSalt, OFFSET_HALO3_PV_TAG_SALTS, 0x0) {
         __int16 tag_group_index;
         __int16 datum_index_salt;
         __int32 memory_address;

@@ -6,6 +6,7 @@
 #include "tinyxml2.h"
 
 #include "common.h"
+#include "offset_haloreach.h"
 #include "offset_mcc.h"
 #include "mcc/CGameManager.h"
 #include "mcc/module/patch/PatchConfig.h"
@@ -341,7 +342,7 @@ namespace MCC::Module {
                 if (i == MODULE_HALOREACH) {
                     auto hModule = GetSubModule((eModule)i)->info().hModule;
 
-                    constexpr __int64 base_offset = 0xB43C40;
+                    const AlphaRing::Offset& base_offset = OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE;
                     constexpr int entry_size = 20;
                     constexpr int block_count = 5;
                     constexpr int slot_count = 4;
@@ -483,7 +484,7 @@ namespace MCC::Module {
                         if (hModule == 0) {
                             LOG_ERROR("Dump Splitscreen Config Table: haloreach.dll not loaded");
                         } else {
-                            LOG_INFO("=== c_splitscreen_config::m_config_table @ base+0x{:X} ===", base_offset);
+                            LOG_INFO("=== c_splitscreen_config::m_config_table @ base+0x{:X} ===", base_offset.value);
 
                             for (int block = 0; block < block_count; ++block) {
                                 for (int slot = 0; slot < slot_count; ++slot) {
@@ -527,15 +528,15 @@ namespace MCC::Module {
                             typedef unsigned int (*GetSplitscreenSlotToken_t)(int);
                             typedef int (*ResolveHudProfile_t)(unsigned int);
                             typedef int (*SelectResolutionRow_t)(void*, int, unsigned char);
-                            auto GetSplitscreenSlotToken = (GetSplitscreenSlotToken_t)(hModule + 0x53EC8);
-                            auto ResolveHudProfile = (ResolveHudProfile_t)(hModule + 0x2C2F60);
-                            auto SelectResolutionRow = (SelectResolutionRow_t)(hModule + 0x2D91BC);
+                            auto GetSplitscreenSlotToken = (GetSplitscreenSlotToken_t)(hModule + OFFSET_HALOREACH_PF_GET_SPLITSCREEN_SLOT_TOKEN);
+                            auto ResolveHudProfile = (ResolveHudProfile_t)(hModule + OFFSET_HALOREACH_PF_RESOLVE_HUD_PROFILE);
+                            auto SelectResolutionRow = (SelectResolutionRow_t)(hModule + OFFSET_HALOREACH_PF_SELECT_HUD_LAYOUT_SUBRECORD);
 
-                            __int64 container = *(__int64*)(hModule + 0x4E38C68);
+                            __int64 container = *(__int64*)(hModule + OFFSET_HALOREACH_DAT_PLAYER_VIEW_CONTAINER);
                             if (container == 0) {
                                 LOG_INFO("Dump Resolution/FOV Table: no live per-player view container yet (not in a game?)");
                             } else {
-                                void* viewContext = *(void**)(hModule + 0x4E389A8);
+                                void* viewContext = *(void**)(hModule + OFFSET_HALOREACH_DAT_VIEW_CONTEXT);
                                 int candidates[] = {0, 1, 2, 3, 5};
 
                                 LOG_INFO("=== HUD FOV/scale table dump ===");
@@ -546,7 +547,7 @@ namespace MCC::Module {
 
                                     unsigned int uVar11 = *(unsigned int*)(container + 4);
                                     __int64 localB8 = (__int64)uVar11 + (__int64)category * 0x14d;
-                                    __int64 poolBase1 = *(__int64*)(hModule + 0x4E39F20 + (size_t)(uVar11 >> 0x1c) * 8);
+                                    __int64 poolBase1 = *(__int64*)(hModule + OFFSET_HALOREACH_DAT_TAG_SEGMENT_TABLE + (size_t)(uVar11 >> 0x1c) * 8);
 
                                     if (poolBase1 == 0) {
                                         LOG_INFO("slot={} token={:#x} category={} - poolBase1 null, skipping", slot, token, category);
@@ -560,7 +561,7 @@ namespace MCC::Module {
                                     }
 
                                     unsigned int categoryBase = *(unsigned int*)(poolBase1 + 0x2e0 + localB8 * 4);
-                                    __int64 poolBase2 = *(__int64*)(hModule + 0x4E39F20 + (size_t)(categoryBase >> 0x1c) * 8);
+                                    __int64 poolBase2 = *(__int64*)(hModule + OFFSET_HALOREACH_DAT_TAG_SEGMENT_TABLE + (size_t)(categoryBase >> 0x1c) * 8);
 
                                     if (poolBase2 == 0) {
                                         LOG_INFO("slot={} category={} - poolBase2 null, skipping", slot, category);

@@ -113,3 +113,34 @@ DefOffset(OFFSET_HALOREACH_PF_SKINNING_POOL_ALLOCATE,   0x25093C)
 #define OFFSET_HALOREACH_V_ENTRY_PLAYERS 0x3
 #define OFFSET_HALOREACH_V_ENTRY_PLAYERS_ACTION 0x23
 #define OFFSET_HALOREACH_V_ENTRY_SPLIT_SCREEN 0x2B
+
+// Split-screen layout (mcc/module/patch/SplitscreenConfigStore, haloreach/blackbars.cpp, loadout.cpp)
+DefOffset(OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE, 0xB43C40) // c_splitscreen_config::m_config_table, {x0, y0, x1, y1, variant}[players * 4 + slot]
+DefOffset(OFFSET_HALOREACH_PV_SCREEN_SIZE, 0xB43A90) // int width, height of the backbuffer the views are laid out on
+DefOffset(OFFSET_HALOREACH_PF_FILL_RECT, 0xD3774) // void (short rect[4] {top, left, bottom, right}, unsigned argb)
+DefOffset(OFFSET_HALOREACH_PF_RENDER_SETUP_1, 0x274488) // (int, int) - the bar painter calls it with (0, 1) ...
+DefOffset(OFFSET_HALOREACH_PF_RENDER_SETUP_2, 0x2743A4) // (int) - ... and this with 0, before drawing
+
+// Split-screen render targets (haloreach/splitscreen_rt.cpp)
+DefOffset(OFFSET_HALOREACH_DAT_RT_DESC_TABLE, 0xBB9230) // the pool's target descriptors, 0x58 each
+DefOffset(OFFSET_HALOREACH_DAT_RT_STOCK_FRAC_W, 0xA8AE58) // float 0.805208325: RT_COMPUTE_SIZE's two-player width ...
+DefOffset(OFFSET_HALOREACH_DAT_RT_STOCK_FRAC_H, 0xA8AD74) // float 0.5: ... and height (a shared constant, read only)
+
+// CUI canvas scale (haloreach/cui_canvas_scale.cpp)
+DefOffset(OFFSET_HALOREACH_DAT_CUI_CANVAS_SCALE, 0xB4BBD8) // float x, y: backbuffer size over the 1152x720 canvas
+DefOffset(OFFSET_HALOREACH_DAT_CUI_CANVAS_CACHE_W, 0x4E38C8C) // int backbuffer width the scale was worked out for ...
+DefOffset(OFFSET_HALOREACH_DAT_CUI_CANVAS_CACHE_H, 0x4E38C94) // int ... and height
+DefOffset(OFFSET_HALOREACH_V_CUI_WINDOW_DRAW_RETURN, 0x26CEE9) // where UpdatePlayerFrame's (per-player) call to CUI_WINDOW_DRAW returns
+
+// HUD layout (haloreach/hud_layout_probe.cpp, hud_anchor.cpp)
+DefOffset(OFFSET_HALOREACH_V_SELECT_HUD_LAYOUT_RETURN, 0x2D95DF) // where UpdatePlayerHudView's call to SELECT_HUD_LAYOUT_SUBRECORD returns
+DefOffset(OFFSET_HALOREACH_DAT_HUD_VIEW_BOUNDS, 0xD1F6D0) // short y0, x0, y1, x1 of the slot whose HUD is laid out
+DefOffset(OFFSET_HALOREACH_PV_HUD_CANVAS, 0xD1F6F0) // float width, height of that slot's HUD virtual canvas
+DefOffset(OFFSET_HALOREACH_DAT_HUD_BASIS, 0xD1F740) // float4[5], ending where the next begins
+DefOffset(OFFSET_HALOREACH_DAT_HUD_SCREEN_SCALE_AND_OFFSET, 0xD1F790) // chud_screen_scale_and_offset: float xInset, yInset, halfW, halfH
+
+// Dev Tools' resolution/FOV table dump (mcc/module/Module.cpp)
+DefOffset(OFFSET_HALOREACH_PF_GET_SPLITSCREEN_SLOT_TOKEN, 0x53EC8) // unsigned (int slot)
+DefOffset(OFFSET_HALOREACH_PF_RESOLVE_HUD_PROFILE, 0x2C2F60) // int (unsigned token)
+DefOffset(OFFSET_HALOREACH_DAT_PLAYER_VIEW_CONTAINER, 0x4E38C68) // the per-player view container*
+DefOffset(OFFSET_HALOREACH_DAT_VIEW_CONTEXT, 0x4E389A8) // void*, SELECT_HUD_LAYOUT_SUBRECORD's context
