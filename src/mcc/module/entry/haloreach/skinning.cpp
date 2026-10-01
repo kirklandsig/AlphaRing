@@ -44,9 +44,9 @@ namespace HaloReach::Entry::Skinning {
         return true;
     }
 
-    // Puts the module's bytes back, last write first: the allocator's size and the masks before the leas, so code
-    // never reaches past the buffer its lea points at. A write that fails stops it there - the writes left, and the
-    // pool they may still reach, stay for the next try.
+    // Puts the module's bytes back, last write first (Enlarge's order, reversed: the allocator's size, the masks,
+    // the handles' offset width, the leas), so code never reaches past the buffer its lea points at. A write that
+    // fails stops it there - the writes left, and the pool they may still reach, stay for the next try.
     bool Restore() {
         while (!s_writes.empty()) {
             const Write& w = s_writes.back();
@@ -156,15 +156,22 @@ namespace HaloReach::Entry::Skinning {
             return;
         }
 
+        // Each step leaves a working pool: the users reach the new buffer first (as big as any offset), then the
+        // handles get room for the wider offset, then the masks read it, and only last does the allocator hand out
+        // more than the stock size. The first write that fails stops the install, and Restore takes back what was
+        // written, last first - so whatever stays in place is always one of these steps.
         bool ok = true;
         for (auto lea : leas) {
             int disp = (int)(s_pool - (char*)(lea + 7));
-            ok &= Poke(lea + 3, &disp, 4);
+            if (!(ok = Poke(lea + 3, &disp, 4))) break;
         }
-        for (auto imm : masks) ok &= Poke(imm, &kPoolMask, 4);
+        ok = ok && Poke(shift, &kPoolShift, 1);
+        for (auto imm : masks) {
+            if (!ok) break;
+            ok = Poke(imm, &kPoolMask, 4);
+        }
         unsigned size = kPoolSize;
-        ok &= Poke(limit, &size, 4);
-        ok &= Poke(shift, &kPoolShift, 1);
+        ok = ok && Poke(limit, &size, 4);
         if (!ok) {
             LOG_WARNING("Reach: skinning pool not enlarged - a write failed{}", Restore() ? "" : ", and undoing it too");
             return;
