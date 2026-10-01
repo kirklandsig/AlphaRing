@@ -2,6 +2,7 @@
 
 #include "common.h"
 #include "mcc/module/patch/CPatch.h"
+#include "offsets/Pattern.h"
 
 #include <Windows.h>
 
@@ -69,16 +70,6 @@ namespace HaloReach::Entry::Skinning {
         }
     }
 
-    // The module's PE headers (for its code sections and size), or nullptr if it isn't a 64-bit image.
-    const IMAGE_NT_HEADERS64* NtHeaders(const unsigned char* module) {
-        auto dos = (const IMAGE_DOS_HEADER*)module;
-        if (module == nullptr || dos->e_magic != IMAGE_DOS_SIGNATURE) return nullptr;
-        auto nt = (const IMAGE_NT_HEADERS64*)(module + dos->e_lfanew);
-        if (nt->Signature != IMAGE_NT_SIGNATURE || nt->OptionalHeader.Magic != IMAGE_NT_OPTIONAL_HDR64_MAGIC)
-            return nullptr;
-        return nt;
-    }
-
     // The users reach the pool with 32-bit RIP-relative addresses, so the buffer has to sit within 2 GB of the
     // module: the first free range after it.
     char* AllocateAfter(unsigned char* module, size_t image_size) {
@@ -108,7 +99,7 @@ namespace HaloReach::Entry::Skinning {
         if (!AlphaRing::Found({OFFSET_HALOREACH_DAT_SKINNING_POOL, OFFSET_HALOREACH_PF_SKINNING_POOL_ALLOCATE})) return;
 
         auto module = (unsigned char*)hModule;
-        auto nt = NtHeaders(module);
+        auto nt = AlphaRing::Offsets::NtHeaders(module);
         if (nt == nullptr) return;
         auto pool = module + OFFSET_HALOREACH_DAT_SKINNING_POOL;
         auto allocate = module + OFFSET_HALOREACH_PF_SKINNING_POOL_ALLOCATE;
