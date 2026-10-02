@@ -24,6 +24,7 @@ namespace Halo4::Entry::HudFit {
     EntryFeature("Halo 4 split-screen HUD fit", OFFSET_HALO4_PV_SPLITSCREEN_TABLE, OFFSET_HALO4_PV_SCREEN_SIZE,
                  OFFSET_HALO4_PF_HUD_LAYOUT, OFFSET_HALO4_PF_SPLITSCREEN_PLAYER_COUNT, OFFSET_HALO4_PF_UI_USER_INDEX,
                  OFFSET_HALO4_VT_UI_GROUP, OFFSET_HALO4_VT_HUD_RETICLE_GROUP);
+    const ::AlphaRing::Feature& Hooks() { return *entry_feature; }
 
     struct Fit {
         bool on = false;

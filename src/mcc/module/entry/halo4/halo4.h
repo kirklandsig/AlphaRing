@@ -23,6 +23,7 @@ namespace Halo4::Entry {
 
     namespace HudFit {
         void Refresh(__int64 module); // each user's fit, once a frame (hud_fit.cpp)
+        const ::AlphaRing::Feature& Hooks(); // its hooks and offsets, which Left/Right requires
     }
 }
 
