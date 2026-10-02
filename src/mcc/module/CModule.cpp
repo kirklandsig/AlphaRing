@@ -28,6 +28,10 @@ void CModule::load_module(const module_info_t *p_info) {
 
     m_info = *p_info;
 
+    // The split-screen layout choice has to be known before the game builds its render targets
+    // (mcc/splitscreen/LeftRight), in every game, not only Reach.
+    AlphaRing::SplitscreenConfigStore::Load();
+
     m_patches.update(m_info.hModule, known_build);
 
     if (!known_build) {
@@ -67,7 +71,6 @@ void CModule::load_module(const module_info_t *p_info) {
     // drawn. HaloReach::Entry::Render re-asserts them per frame; this is the
     // "already correct before the first frame" half.
     if (m_info.title == MCC::Module::MODULE_HALOREACH) {
-        AlphaRing::SplitscreenConfigStore::Load();
         if (AlphaRing::SplitscreenConfigStore::GetTwoPlayerLayout() ==
                     AlphaRing::SplitscreenConfigStore::TwoPlayerLayout::LeftRight &&
             !AlphaRing::SplitscreenConfigStore::LeftRightAvailable())
