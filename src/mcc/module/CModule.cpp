@@ -196,7 +196,7 @@ static struct {
         {"Remove Black Bar1", "remove black bar", OFFSET_HALO3_PV_SPLITSCREEN_TABLE, kBlackBar1, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
         {"Remove Black Bar2", "remove black bar", OFFSET_HALO3_PV_SPLITSCREEN_TABLE, kBlackBar2, "\x00\x00\x00\x00\x00\x00\x00\x3F\x00\x00\x80\x3F\x00\x00\x80\x3F\x01\x00\x00\x00", false},
         {"Remove Black Bar3", "remove black bar", OFFSET_HALO3_PV_SPLITSCREEN_TABLE, kBlackBar3, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
-}}, {nullptr, {
+}}, {Halo4SplitscreenEntrySet(), {
         {"splitscreen_patch1", "", OFFSET_HALO4_PF_COOP_JOIN, "\x31\xC0\xC3\x90", true},
         {"splitscreen_patch2", "", OFFSET_HALO4_PF_COOP_REJOIN, "\xEB", true},
         {"splitscreen_patch3", "", OFFSET_HALO4_PF_COOP_PLAYER_LIMIT, "\x90\x90\x90\x90\x90\x90", true},
