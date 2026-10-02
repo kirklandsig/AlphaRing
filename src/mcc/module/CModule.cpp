@@ -67,6 +67,11 @@ void CModule::load_module(const module_info_t *p_info) {
     // "already correct before the first frame" half.
     if (m_info.title == MCC::Module::MODULE_HALOREACH) {
         AlphaRing::SplitscreenConfigStore::Load();
+        if (AlphaRing::SplitscreenConfigStore::GetTwoPlayerLayout() ==
+                    AlphaRing::SplitscreenConfigStore::TwoPlayerLayout::LeftRight &&
+            !AlphaRing::SplitscreenConfigStore::LeftRightAvailable())
+            LOG_WARNING("[Offsets] Reach Left/Right layout stays off: a hook it needs isn't in this build - "
+                        "the stock split is used");
 
         // User debug setting only. The Left/Right layout's own painter bypass is
         // derived per frame in blackbars.cpp, so it never overwrites this.

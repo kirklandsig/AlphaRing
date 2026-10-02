@@ -44,6 +44,11 @@ namespace AlphaRing::SplitscreenConfigStore {
     TwoPlayerLayout GetTwoPlayerLayout();
     void SetTwoPlayerLayout(TwoPlayerLayout layout, __int64 hModule);
 
+    // This haloreach.dll build has every hook that draws Left/Right: the full-height views' render targets, the CUI
+    // variant and the HUD. On an MCC update where one isn't found (src/offsets) the saved preference is kept, but
+    // the stock split is used: Apply leaves the Left/Right entries alone and ResolveActiveLayout says Native.
+    bool LeftRightAvailable();
+
     enum class ActiveLayout {
         Native,
         LeftRight,
@@ -52,7 +57,8 @@ namespace AlphaRing::SplitscreenConfigStore {
     // The layout actually in effect for a live local-player count, which the
     // caller must read on the game thread (GetSplitscreenPlayerCount is
     // TLS-rooted and returns 1 outside gameplay). This is the one place that
-    // knows which player counts have a Left/Right implementation: 2 and 3.
+    // knows which player counts have a Left/Right implementation: 2 and 3
+    // (and only where LeftRightAvailable).
     ActiveLayout ResolveActiveLayout(int playerCount);
 
     // True while Left/Right is active and this slot's Left/Right region is a

@@ -11,6 +11,7 @@
 namespace HaloReach::Entry::Loadout {
     EntryFeature("Reach split-screen CUI variant", OFFSET_HALOREACH_PF_GET_SPLITSCREEN_PLAYER_COUNT,
                  OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE);
+    bool Available() { return entry_feature->Available(); }
 
     typedef unsigned __int64 (*GetSplitscreenPlayerCount_t)();
 

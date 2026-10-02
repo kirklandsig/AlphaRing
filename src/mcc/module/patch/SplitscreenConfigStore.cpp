@@ -12,6 +12,14 @@
 #include "common.h"
 #include "offset_haloreach.h"
 
+// The hooks that draw Left/Right (LeftRightAvailable)
+namespace HaloReach::Entry {
+    namespace SplitscreenRt { bool Available(); }
+    namespace Loadout { bool Available(); }
+    namespace HudLayoutProbe { bool Available(); }
+    namespace HudAnchor { bool Available(); }
+}
+
 namespace {
     std::map<std::string, float> g_states;
     bool g_loaded = false;
@@ -86,6 +94,12 @@ namespace {
 
     constexpr int TWO_PLAYER_FIRST_ENTRY   = 2 * AlphaRing::SplitscreenConfigStore::SLOT_COUNT;
     constexpr int THREE_PLAYER_FIRST_ENTRY = 3 * AlphaRing::SplitscreenConfigStore::SLOT_COUNT;
+
+    // The entries the Left/Right layout owns: two-player 8/9, three-player 12-14
+    bool LeftRightEntry(int index) {
+        return (index >= TWO_PLAYER_FIRST_ENTRY && index < TWO_PLAYER_FIRST_ENTRY + 2) ||
+               (index >= THREE_PLAYER_FIRST_ENTRY && index < THREE_PLAYER_FIRST_ENTRY + 3);
+    }
 
     // Legacy key: the layout selection used to overwrite the user's painter
     // debug choice here, so its saved value cannot be trusted. Dropped on load.
@@ -276,9 +290,15 @@ namespace AlphaRing::SplitscreenConfigStore {
         return g_twoPlayerLayout.load(std::memory_order_acquire);
     }
 
+    bool LeftRightAvailable() {
+        using namespace HaloReach::Entry;
+        return SplitscreenRt::Available() && Loadout::Available() && HudLayoutProbe::Available() &&
+               HudAnchor::Available();
+    }
+
     ActiveLayout ResolveActiveLayout(int playerCount) {
         return (playerCount == 2 || playerCount == 3)
-                       && GetTwoPlayerLayout() == TwoPlayerLayout::LeftRight
+                       && GetTwoPlayerLayout() == TwoPlayerLayout::LeftRight && LeftRightAvailable()
              ? ActiveLayout::LeftRight
              : ActiveLayout::Native;
     }
@@ -343,8 +363,11 @@ namespace AlphaRing::SplitscreenConfigStore {
     void Apply(__int64 hModule) {
         WritesLock lock;
         if (hModule == 0 || g_writes.empty() || !OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE.found()) return;
+        // a saved Left/Right on a build without what draws it: the stock split
+        bool stock_split = GetTwoPlayerLayout() == TwoPlayerLayout::LeftRight && !LeftRightAvailable();
 
         for (const auto& w : g_writes) {
+            if (stock_split && LeftRightEntry(w.index)) continue;
             auto p_field = (unsigned char*)(hModule + OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE
                                             + (__int64)w.index * ENTRY_SIZE
                                             + w.byte_offset);

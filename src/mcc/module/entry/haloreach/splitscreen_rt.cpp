@@ -54,6 +54,7 @@ namespace HaloReach::Entry::SplitscreenRt {
     EntryFeature("Reach split-screen render-target sizing", OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE,
                  OFFSET_HALOREACH_DAT_RT_DESC_TABLE, OFFSET_HALOREACH_PV_SCREEN_SIZE,
                  OFFSET_HALOREACH_DAT_RT_STOCK_FRAC_W, OFFSET_HALOREACH_DAT_RT_STOCK_FRAC_H);
+    bool Available() { return entry_feature->Available(); }
 
     struct SplitscreenViewConfig { float x0, y0, x1, y1; int resolution; };
 
