@@ -18,6 +18,7 @@ namespace HaloReach::Entry {
     namespace Loadout { bool Available(); }
     namespace HudLayoutProbe { bool Available(); }
     namespace HudAnchor { bool Available(); }
+    namespace BlackBars { bool Available(); }
 }
 
 namespace {
@@ -42,6 +43,7 @@ namespace {
         int   index;       // 0 .. ENTRY_COUNT-1
         int   byte_offset; // 0/4/8/12 = x0/y0/x1/y1, 16 = resolution
         bool  is_int;      // resolution is stored as __int32, the rest as float
+        bool  left_right;  // the saved Left/Right layout's: written only where LeftRightAvailable
         float value;
     };
     std::vector<TableWrite> g_writes;
@@ -101,6 +103,8 @@ namespace {
                (index >= THREE_PLAYER_FIRST_ENTRY && index < THREE_PLAYER_FIRST_ENTRY + 3);
     }
 
+    AlphaRing::SplitscreenConfigStore::TwoPlayerLayout ResolveTwoPlayerLayoutState();
+
     // Legacy key: the layout selection used to overwrite the user's painter
     // debug choice here, so its saved value cannot be trusted. Dropped on load.
     constexpr const char* LEGACY_PAINTER_DEBUG_KEY = "disable_bars_debug";
@@ -118,6 +122,8 @@ namespace {
 
         WritesLock lock;
         g_writes.clear();
+        // from the saved state, not the published layout: SetTwoPlayerLayout applies before it publishes
+        bool left_right = ResolveTwoPlayerLayoutState() == TwoPlayerLayout::LeftRight;
 
         for (const auto& [key, value] : g_states) {
             auto dot = key.find('.');
@@ -135,12 +141,13 @@ namespace {
             if (index < 0 || index >= ENTRY_COUNT) continue;
 
             std::string field = key.substr(dot + 1);
+            bool owned = left_right && LeftRightEntry(index);
 
-            if      (field == "x0")  g_writes.push_back({index,  0, false, value});
-            else if (field == "y0")  g_writes.push_back({index,  4, false, value});
-            else if (field == "x1")  g_writes.push_back({index,  8, false, value});
-            else if (field == "y1")  g_writes.push_back({index, 12, false, value});
-            else if (field == "res") g_writes.push_back({index, 16, true,  value});
+            if      (field == "x0")  g_writes.push_back({index,  0, false, owned, value});
+            else if (field == "y0")  g_writes.push_back({index,  4, false, owned, value});
+            else if (field == "x1")  g_writes.push_back({index,  8, false, owned, value});
+            else if (field == "y1")  g_writes.push_back({index, 12, false, owned, value});
+            else if (field == "res") g_writes.push_back({index, 16, true,  owned, value});
         }
     }
 
@@ -292,8 +299,12 @@ namespace AlphaRing::SplitscreenConfigStore {
 
     bool LeftRightAvailable() {
         using namespace HaloReach::Entry;
+        // and the render hook, which re-applies the table after each level load resets it, with what rebuilds the
+        // render targets on a live switch (render.cpp)
         return SplitscreenRt::Available() && Loadout::Available() && HudLayoutProbe::Available() &&
-               HudAnchor::Available();
+               HudAnchor::Available() && BlackBars::Available() &&
+               AlphaRing::Found({OFFSET_HALOREACH_PF_RENDER, OFFSET_HALOREACH_DAT_RT_SCRATCH_DEPTH,
+                                 OFFSET_HALOREACH_PF_RT_POOL_RELEASE, OFFSET_HALOREACH_PF_RT_POOL_INIT});
     }
 
     ActiveLayout ResolveActiveLayout(int playerCount) {
@@ -364,10 +375,10 @@ namespace AlphaRing::SplitscreenConfigStore {
         WritesLock lock;
         if (hModule == 0 || g_writes.empty() || !OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE.found()) return;
         // a saved Left/Right on a build without what draws it: the stock split
-        bool stock_split = GetTwoPlayerLayout() == TwoPlayerLayout::LeftRight && !LeftRightAvailable();
+        bool left_right = LeftRightAvailable();
 
         for (const auto& w : g_writes) {
-            if (stock_split && LeftRightEntry(w.index)) continue;
+            if (w.left_right && !left_right) continue;
             auto p_field = (unsigned char*)(hModule + OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE
                                             + (__int64)w.index * ENTRY_SIZE
                                             + w.byte_offset);
