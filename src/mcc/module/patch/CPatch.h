@@ -11,10 +11,12 @@ class CPatch {
 public:
     // size - 1 to exclude '\0'
     template<size_t size>
-    CPatch(const char* name, const char* desc, const AlphaRing::Offset& offset, const char (&src)[size], bool enabled = false)
-            : CPatch(name, desc, offset, 0, src, enabled) {}
+    CPatch(const char* name, const char* desc, const AlphaRing::Offset& offset, const char (&src)[size], bool enabled = false,
+           bool (*needs)() = nullptr)
+            : CPatch(name, desc, offset, 0, src, enabled, needs) {}
 
-    // `offset` bytes past an offset (a field of a table); `needs`: whether the hooks it relies on are in the build
+    // `offset` bytes past an offset (a field of a table). `needs`: whether what else it relies on (hooks, the other
+    // patches it only works with) is in the build.
     template<size_t size>
     CPatch(const char* name, const char* desc, const AlphaRing::Offset& base, __int64 offset, const char (&src)[size],
            bool enabled = false, bool (*needs)() = nullptr)
@@ -55,7 +57,7 @@ private:
     std::vector<__int8> m_data;
     std::vector<__int8> m_backup; // the module's own bytes (see capture())
     bool m_enabled;
-    bool (*m_needs)() = nullptr;  // the hooks it relies on are in the build (none: nothing else)
+    bool (*m_needs)() = nullptr;  // what else it relies on is in the build (none: nothing else)
     bool m_captured = false;      // m_backup is valid: the module is loaded and the patch lies in it
 
 };

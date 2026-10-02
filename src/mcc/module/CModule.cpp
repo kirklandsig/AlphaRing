@@ -154,6 +154,13 @@ static bool ReachBarsAvailable() {
     return HaloReach::Entry::BlackBars::Available() && HaloReach::Entry::Loadout::Available();
 }
 
+// Halo 2's four-player unlock only works whole - the player check, both counts and the views' hand-over test -
+// so on a build without one of them none is applied, and Halo 2 admits the players it does by itself.
+static bool Halo2FourPlayers() {
+    return AlphaRing::Found({OFFSET_HALO2_PF_PLAYER_VALID, OFFSET_HALO2_PF_PLAYER_COUNT1, OFFSET_HALO2_PF_PLAYER_COUNT2,
+                             OFFSET_HALO2_TWO_PLAYERS_TEST_HAND_OVER});
+}
+
 static struct {
     CModule halo1;
     CModule halo2;
@@ -168,10 +175,10 @@ static struct {
         {"splitscreen_patch2", "", OFFSET_HALO1_PF_PAUSE, "\xEB", true},
         {"splitscreen_patch3", "", OFFSET_HALO1_PF_IDK, "\x90\x90\x90\x90\x90\x90", true}, // fix [issue](https://github.com/WinterSquire/AlphaRing/issues/19)
 }}, {Halo2EntrySet(), {
-        {"splitscreen_patch1", "", OFFSET_HALO2_PF_PLAYER_VALID, "\x31\xC0\xB0\x01\xC3\x90", true},
-        {"splitscreen_patch2", "", OFFSET_HALO2_PF_PLAYER_COUNT1, "\x04", true},
-        {"splitscreen_patch3", "", OFFSET_HALO2_PF_PLAYER_COUNT2, "\x04", true},
-        {"splitscreen_patch4", "force making splitscreen works with more than 2 players", OFFSET_HALO2_TWO_PLAYERS_TEST_HAND_OVER, "\x83\xF8\x01\x74\x04", true},
+        {"splitscreen_patch1", "", OFFSET_HALO2_PF_PLAYER_VALID, "\x31\xC0\xB0\x01\xC3\x90", true, &Halo2FourPlayers},
+        {"splitscreen_patch2", "", OFFSET_HALO2_PF_PLAYER_COUNT1, "\x04", true, &Halo2FourPlayers},
+        {"splitscreen_patch3", "", OFFSET_HALO2_PF_PLAYER_COUNT2, "\x04", true, &Halo2FourPlayers},
+        {"splitscreen_patch4", "force making splitscreen works with more than 2 players", OFFSET_HALO2_TWO_PLAYERS_TEST_HAND_OVER, "\x83\xF8\x01\x74\x04", true, &Halo2FourPlayers},
         // Save & Quit from a modded campaign with 2+ players hung on the loading screen (reported by SR388): Halo 2
         // decided the game came from its own lobby and went back to it by loading its main-menu map, which MCC
         // doesn't have. MCC is the lobby, so quitting always goes back to it.
