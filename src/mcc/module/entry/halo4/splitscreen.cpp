@@ -34,7 +34,9 @@ namespace Halo4::Entry::Splitscreen {
     }
 
     Halo4SplitscreenEntry(entry_render, OFFSET_HALO4_PF_RENDER, void, render) {
-        LeftRight::Frame(kGame, entry_render.m_target - entry_render.m_offset, s_state);
+        __int64 module = entry_render.m_target - entry_render.m_offset;
+        LeftRight::Frame(kGame, module, s_state);
+        HudFit::Refresh(module);
         ((render_t)entry_render.m_pOriginal)();
     }
 

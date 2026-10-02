@@ -20,6 +20,10 @@ inline EntrySet* Halo4SplitscreenEntrySet() {return &g_Halo4SplitscreenEntrySet;
 namespace Halo4::Entry {
     // HUD layouts (OFFSET_HALO4_PF_HUD_LAYOUT): full screen 1280x720, two-player 960x360, quarter 640x360
     constexpr int kFullHudLayout = 0x80076, kHalfHudLayout = 0x80077, kQuarterHudLayout = 0x80078;
+
+    namespace HudFit {
+        void Refresh(__int64 module); // each user's fit, once a frame (hud_fit.cpp)
+    }
 }
 
 #define Halo4Entry(name, offset, returnType, pDetour, ...) \
