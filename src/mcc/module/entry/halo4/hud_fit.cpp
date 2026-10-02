@@ -51,10 +51,8 @@ namespace Halo4::Entry::HudFit {
         if (view_h < 1 || (std::abs(view_w - layout_w) < 1 && std::abs(view_h - layout_h) < 1)) return fit;
         fit.on = true;
         fit.aspect = (view_w / view_h) / (layout_w / layout_h);
-        // each axis on its own: the root translation adds both (0x3D61EB, 0x3D61FF), and a half of a screen wider
-        // than 16:9 has room either side of its layout as well as above and below it
-        fit.extra_x = (view_w - layout_w) * 0.5f;
-        fit.extra_y = (view_h - layout_h) * 0.5f;
+        if (fit.aspect > 1.0f) fit.extra_x = (view_w - layout_w) * 0.5f;
+        else fit.extra_y = (view_h - layout_h) * 0.5f;
         return fit;
     }
 
