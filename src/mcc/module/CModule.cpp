@@ -31,7 +31,7 @@ void CModule::load_module(const module_info_t *p_info) {
 
     if (!known_build) {
         for (auto patch : m_patches.embed_patches())
-            if (!patch->usable()) LOG_WARNING("[Offsets] patch \"{}\" stays off: not in this build", patch->name());
+            if (!patch->usable()) LOG_WARNING("[Offsets] patch \"{}\" stays off: it, or what it needs, isn't in this build", patch->name());
         for (auto patch : m_patches.patches())
             if (!patch->usable()) LOG_WARNING("[Offsets] patch.xml \"{}\" stays off: its offset is for another build", patch->name());
     }
@@ -145,6 +145,15 @@ using AlphaRing::SplitscreenConfigStore::ENTRY_SIZE, AlphaRing::SplitscreenConfi
 constexpr __int64 kBlackBar1 = (2 * SLOT_COUNT) * ENTRY_SIZE, kBlackBar2 = (2 * SLOT_COUNT + 1) * ENTRY_SIZE,
                   kBlackBar3 = (3 * SLOT_COUNT) * ENTRY_SIZE;
 
+// In Reach, the views they widen rely on the per-slot painter (BlackBars) and the CUI variant (Loadout).
+namespace HaloReach::Entry {
+    namespace BlackBars { bool Available(); }
+    namespace Loadout { bool Available(); }
+}
+static bool ReachBarsAvailable() {
+    return HaloReach::Entry::BlackBars::Available() && HaloReach::Entry::Loadout::Available();
+}
+
 static struct {
     CModule halo1;
     CModule halo2;
@@ -194,9 +203,9 @@ static struct {
 }}, {HaloReachEntrySet(), {
         {"splitscreen_patch1", "", OFFSET_HALOREACH_PF_COOP_JOIN, "\x31\xC0\xC3\x90", true},
         {"splitscreen_patch2", "", OFFSET_HALOREACH_PF_COOP_REJOIN, "\xEB", true},
-        {"Remove Black Bar1", "remove black bar", OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE, kBlackBar1, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
-        {"Remove Black Bar2", "remove black bar", OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE, kBlackBar2, "\x00\x00\x00\x00\x00\x00\x00\x3F\x00\x00\x80\x3F\x00\x00\x80\x3F\x01\x00\x00\x00", false},
-        {"Remove Black Bar3", "remove black bar", OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE, kBlackBar3, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
+        {"Remove Black Bar1", "remove black bar", OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE, kBlackBar1, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false, &ReachBarsAvailable},
+        {"Remove Black Bar2", "remove black bar", OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE, kBlackBar2, "\x00\x00\x00\x00\x00\x00\x00\x3F\x00\x00\x80\x3F\x00\x00\x80\x3F\x01\x00\x00\x00", false, &ReachBarsAvailable},
+        {"Remove Black Bar3", "remove black bar", OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE, kBlackBar3, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false, &ReachBarsAvailable},
         // The black-bar/divider painter at 0x2C6D84 is now handled by a proper
         // per-slot-aware detour (HaloReach::Entry::BlackBars, blackbars.cpp)
         // instead of being NOP'd out wholesale - a raw byte-patch here would

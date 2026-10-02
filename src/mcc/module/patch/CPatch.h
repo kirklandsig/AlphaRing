@@ -14,12 +14,12 @@ public:
     CPatch(const char* name, const char* desc, const AlphaRing::Offset& offset, const char (&src)[size], bool enabled = false)
             : CPatch(name, desc, offset, 0, src, enabled) {}
 
-    // `offset` bytes past an offset (a field of a table)
+    // `offset` bytes past an offset (a field of a table); `needs`: whether the hooks it relies on are in the build
     template<size_t size>
     CPatch(const char* name, const char* desc, const AlphaRing::Offset& base, __int64 offset, const char (&src)[size],
-           bool enabled = false)
+           bool enabled = false, bool (*needs)() = nullptr)
             : m_base(&base), m_offset(offset), m_name(name), m_desc(desc), m_data(src, src+size-1), m_backup(src, src+size-1),
-              m_enabled(enabled) {}
+              m_enabled(enabled), m_needs(needs) {}
 
     // patch.xml's, at a fixed offset: only for the build the offsets were written for
     CPatch(const char* name, const char* desc, __int64 offset, const std::vector<__int8>& src, bool enabled = false)
@@ -34,7 +34,7 @@ public:
     void inheritBackup(const CPatch& other);
     void setParent(CPatchSet* parent) {m_parent = parent;}
 
-    // Where it goes is known in the loaded module's build (see src/offsets/Offsets.h).
+    // Where it goes, and what it needs, are in the loaded module's build (see src/offsets/Offsets.h).
     bool usable() const;
 
     inline const char* name() const {return m_name.c_str();}
@@ -55,6 +55,7 @@ private:
     std::vector<__int8> m_data;
     std::vector<__int8> m_backup; // the module's own bytes (see capture())
     bool m_enabled;
+    bool (*m_needs)() = nullptr;  // the hooks it relies on are in the build (none: nothing else)
     bool m_captured = false;      // m_backup is valid: the module is loaded and the patch lies in it
 
 };
