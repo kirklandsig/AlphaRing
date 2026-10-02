@@ -1,6 +1,7 @@
 // Left/Right split screen for Halo 4 (mcc/splitscreen/LeftRight), after XiaoDanny's Reach port.
 #include "halo4.h"
 
+#include "mcc/module/entry/PreservingThunk.h"
 #include "mcc/module/patch/CPatch.h"
 #include "mcc/splitscreen/LeftRight.h"
 
@@ -17,6 +18,12 @@ namespace Halo4::Entry::Splitscreen {
     void BeforePainting(__int64 module) {
         ((void (*)(int, int))(module + OFFSET_HALO4_PF_RENDER_SETUP_1))(0, 1);
         ((void (*)(int))(module + OFFSET_HALO4_PF_RENDER_SETUP_2))(0);
+    }
+
+    // Each view's own title-safe box (LeftRight::ViewSafeBox, ViewportRect); a leaf, hence the preserving thunk.
+    PreservedEntry(entry_viewport_rect, Halo4SplitscreenEntrySet(), OFFSET_HALO4_PF_COMPUTE_VIEWPORT_RECT,
+                   viewport_rect, void* slot, void* players, void* view, void* box, __int64) {
+        return LeftRight::ViewportRect(entry_viewport_rect.m_pOriginal, slot, players, view, box);
     }
 
     constexpr LeftRight::Gen3 kGame {

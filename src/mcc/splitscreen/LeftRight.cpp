@@ -79,6 +79,39 @@ namespace MCC::Splitscreen::LeftRight {
         if (!left_right) reach->patches()->apply();
     }
 
+    Rect ViewSafeBox(const Rect& v) {
+        short dy = (short)((v.bottom - v.top) * 0.05f), dx = (short)((v.right - v.left) * 0.05f);
+        return {(short)(v.top + dy), (short)(v.left + dx), (short)(v.bottom - dy), (short)(v.right - dx)};
+    }
+
+    namespace {
+        thread_local int t_view_players = 0, t_view_slot = 0; // the view being set up (ViewSetup)
+    }
+
+    ViewSetup::ViewSetup(int slot, int players) { t_view_players = players, t_view_slot = slot; }
+    ViewSetup::~ViewSetup() { t_view_players = 0; }
+
+    bool TitleSafe(const Gen3& game, __int64 module, __int64 return_address, short box[4]) {
+        int players = t_view_players, slot = t_view_slot;
+        if (game.title_safe_return == nullptr || return_address - module != *game.title_safe_return || players < 2 ||
+            players > 4 || slot >= players)
+            return false;
+        auto& entry = *Entry(game, module, {players, slot});
+        auto screen = Screen(game, module);
+        // the view, as the engine rounds it
+        Rect view = {(short)(screen[1] * entry.y0), (short)(screen[0] * entry.x0),
+                     (short)(screen[1] * entry.y1), (short)(screen[0] * entry.x1)};
+        if (view.right <= view.left || view.bottom <= view.top) return false;
+        *(Rect*)box = ViewSafeBox(view);
+        return true;
+    }
+
+    __int64 ViewportRect(void* original, void* slot, void* players, void* view, void* box) {
+        auto result = ((__int64 (*)(void*, void*, void*, void*))original)(slot, players, view, box);
+        if ((int)(__int64)players > 1) *(Rect*)box = ViewSafeBox(*(const Rect*)view);
+        return result;
+    }
+
     void Frame(const Gen3& game, __int64 module, State& state) {
         if (state.module != module) {
             state.module = module;
@@ -143,12 +176,20 @@ namespace MCC::Splitscreen::LeftRight {
     }
 
     const void* HudLayout(const Gen3& game, __int64 module, State& state, int user, const void* layout) {
-        if (layout == nullptr || user < 0 || user >= 4 || !state.tall_hud[user]) return layout;
+        if (layout == nullptr || user < 0 || user >= 4) return layout;
+        bool tall = state.tall_hud[user], split = game.hud_safe_frame && Players(game, module) > 1;
+        if (!tall && !split) return layout;
         auto copy = state.hud_layouts[user];
         memcpy(copy, layout, (std::min)(game.hud_layout_size, kMaxHudLayoutSize));
-        auto screen = Screen(game, module);
-        auto canvas = (int*)(copy + game.hud_canvas);
-        if (screen[0] > 1) canvas[1] = (int)((float)canvas[0] * screen[1] / (screen[0] / 2) + 0.5f);
+        if (tall) {
+            auto screen = Screen(game, module);
+            auto canvas = (int*)(copy + game.hud_canvas);
+            if (screen[0] > 1) canvas[1] = (int)((float)canvas[0] * screen[1] / (screen[0] / 2) + 0.5f);
+        }
+        if (split) { // zero: the game skips the clamp
+            auto frame = (float*)(copy + game.hud_safe_frame);
+            frame[0] = frame[1] = 0.0f;
+        }
         return copy;
     }
 
