@@ -354,6 +354,23 @@ cache's races (SRW lock held only to read/update, probes outside it, one batch a
 the menu key's characters taken out of the queue (`DropChar`), the skinning pool's safe install order and rollback
 (`Unload` on module removal), and `CPatch::inheritBackup` for patch.xml reloads over applied patches. Box: X server hit 255 clients
 after many restarts (Steam leak) - cleared by killing Steam/Wine by PID.
+**Upstream PR 4 (offsets that survive MCC updates)** - branch `upstream/04-offsets` on a local base with the five
+pending PRs merged (`upstream/base-pending`, worktree `C:\Users\yanal\dev\alpharing-pr04`): 15 commits, ready to send
+once those five are merged (rebase then; body in the session scratchpad, `pr04_body.md`). Codex approved on the 5th pass;
+the passes before found four gaps that only matter on an MCC update, and **our v2.0 has all four too (port pending)**:
+the XUID lookup was optional in pattern mode (without its hook a split-screen player changing team freezes the game);
+Reach's Left/Right table entries could be written while hooks they need were skipped (render-target sizing and rebuild,
+CUI variant, HUD, bars, the render hook) - fixed there with `SplitscreenConfigStore::LeftRightAvailable` and writes
+tagged as the list is rebuilt; Reach's black-bar patches didn't need the painter/CUI hooks; Halo 2's four splitscreen
+patches could apply in part - both fixed with a `CPatch` `needs` callback. In our tree Left/Right spans every game, so
+the Reach gate belongs in the Reach-only paths (`UsesFullHeightLeftRightSlot`, `blackbars.cpp`, the table writes),
+not in `ResolveActiveLayout`. Box (his files): forced lookup re-found 158/158 at the same address; negative controls -
+XUID patterns broken: AlphaRing off, MCC unmodified; painter + hand-over patterns broken: those patches, the layout and
+the bar hook stay off; Left/Right with `RT_POOL_INIT` zeroed: stock table; Halo 2 co-op respawn offset zeroed: hook
+skipped. **Halo 2 measured** (`h2_pos.py`, fresh Delta Halo 3P Normal, his build): stock spawning puts P3 on P1's
+starting place during the intro and leaves it about 490 units from P1-2 at the drop pod; the players hook brings P3 in
+2.4 units from P1 (with the game's co-op respawn loadout: no grenades). Reach's Remove Black Bar patches never show in
+the table at the menu, on his build too (not looked into).
 
 ### 2026-09-30 - v2.0.1: the open reports fixed (#4, #5, #7), GitHub issues - RELEASED as v2.0.1-experimental (commit ccd9127)
 
