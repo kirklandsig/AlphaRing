@@ -34,7 +34,7 @@ void CModule::load_module(const module_info_t *p_info) {
 
     if (!known_build) {
         for (auto patch : m_patches.embed_patches())
-            if (!patch->usable()) LOG_WARNING("[Offsets] patch \"{}\" stays off: not in this build", patch->name());
+            if (!patch->usable()) LOG_WARNING("[Offsets] patch \"{}\" stays off: it, or what it needs, isn't in this build", patch->name());
         for (auto patch : m_patches.patches())
             if (!patch->usable()) LOG_WARNING("[Offsets] patch.xml \"{}\" stays off: its offset is for another build", patch->name());
     }
@@ -72,6 +72,12 @@ void CModule::load_module(const module_info_t *p_info) {
     // drawn. HaloReach::Entry::Render re-asserts them per frame; this is the
     // "already correct before the first frame" half.
     if (m_info.title == MCC::Module::MODULE_HALOREACH) {
+        if (AlphaRing::SplitscreenConfigStore::GetTwoPlayerLayout() ==
+                    AlphaRing::SplitscreenConfigStore::TwoPlayerLayout::LeftRight &&
+            !AlphaRing::SplitscreenConfigStore::ReachLeftRightAvailable())
+            LOG_WARNING("[Offsets] Reach's Left/Right layout stays off: a hook it needs isn't in this build - Reach "
+                        "uses its stock split");
+
         // User debug setting only. The Left/Right layout's own painter bypass is
         // derived per frame in blackbars.cpp, so it never overwrites this.
         float debug_bars_value;
@@ -132,6 +138,22 @@ using AlphaRing::SplitscreenConfigStore::ENTRY_SIZE, AlphaRing::SplitscreenConfi
 constexpr __int64 kBlackBar1 = (2 * SLOT_COUNT) * ENTRY_SIZE, kBlackBar2 = (2 * SLOT_COUNT + 1) * ENTRY_SIZE,
                   kBlackBar3 = (3 * SLOT_COUNT) * ENTRY_SIZE;
 
+// In Reach, the views they widen rely on the per-slot painter (BlackBars) and the CUI variant (Loadout).
+namespace HaloReach::Entry {
+    namespace BlackBars { bool Available(); }
+    namespace Loadout { bool Available(); }
+}
+static bool ReachBarsAvailable() {
+    return HaloReach::Entry::BlackBars::Available() && HaloReach::Entry::Loadout::Available();
+}
+
+// Halo 2's four-player unlock only works whole - the player check, both counts and the views' hand-over test -
+// so on a build without one of them none is applied, and Halo 2 admits the players it does by itself.
+static bool Halo2FourPlayers() {
+    return AlphaRing::Found({OFFSET_HALO2_PF_PLAYER_VALID, OFFSET_HALO2_PF_PLAYER_COUNT1, OFFSET_HALO2_PF_PLAYER_COUNT2,
+                             OFFSET_HALO2_TWO_PLAYERS_TEST_HAND_OVER});
+}
+
 static struct {
     CModule halo1;
     CModule halo2;
@@ -146,10 +168,10 @@ static struct {
         {"splitscreen_patch2", "", OFFSET_HALO1_PF_PAUSE, "\xEB", true},
         {"splitscreen_patch3", "", OFFSET_HALO1_PF_IDK, "\x90\x90\x90\x90\x90\x90", true}, // fix [issue](https://github.com/WinterSquire/AlphaRing/issues/19)
 }}, {Halo2EntrySet(), {
-        {"splitscreen_patch1", "", OFFSET_HALO2_PF_PLAYER_VALID, "\x31\xC0\xB0\x01\xC3\x90", true},
-        {"splitscreen_patch2", "", OFFSET_HALO2_PF_PLAYER_COUNT1, "\x04", true},
-        {"splitscreen_patch3", "", OFFSET_HALO2_PF_PLAYER_COUNT2, "\x04", true},
-        {"splitscreen_patch4", "force making splitscreen works with more than 2 players", OFFSET_HALO2_TWO_PLAYERS_TEST_HAND_OVER, "\x83\xF8\x01\x74\x04", true},
+        {"splitscreen_patch1", "", OFFSET_HALO2_PF_PLAYER_VALID, "\x31\xC0\xB0\x01\xC3\x90", true, &Halo2FourPlayers},
+        {"splitscreen_patch2", "", OFFSET_HALO2_PF_PLAYER_COUNT1, "\x04", true, &Halo2FourPlayers},
+        {"splitscreen_patch3", "", OFFSET_HALO2_PF_PLAYER_COUNT2, "\x04", true, &Halo2FourPlayers},
+        {"splitscreen_patch4", "force making splitscreen works with more than 2 players", OFFSET_HALO2_TWO_PLAYERS_TEST_HAND_OVER, "\x83\xF8\x01\x74\x04", true, &Halo2FourPlayers},
         // With MCC's default "HUD anchor: Centered", Halo 2 fits the whole HUD frame into a centred 16:9 box
         // on wider screens and splits that box between the players, so on ultrawide or multi-monitor
         // screens every player's HUD bunches up toward the middle of the screen. Always "Edge" instead.
@@ -186,9 +208,9 @@ static struct {
 }}, {HaloReachEntrySet(), { // Reach hooks wired by XiaoDanny, megabitt01/AlphaRing#17
         {"splitscreen_patch1", "", OFFSET_HALOREACH_PF_COOP_JOIN, "\x31\xC0\xC3\x90", true},
         {"splitscreen_patch2", "", OFFSET_HALOREACH_PF_COOP_REJOIN, "\xEB", true},
-        {"Remove Black Bar1", "remove black bar", OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE, kBlackBar1, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", true},
-        {"Remove Black Bar2", "remove black bar", OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE, kBlackBar2, "\x00\x00\x00\x00\x00\x00\x00\x3F\x00\x00\x80\x3F\x00\x00\x80\x3F\x01\x00\x00\x00", true},
-        {"Remove Black Bar3", "remove black bar", OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE, kBlackBar3, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", true},
+        {"Remove Black Bar1", "remove black bar", OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE, kBlackBar1, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", true, &ReachBarsAvailable},
+        {"Remove Black Bar2", "remove black bar", OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE, kBlackBar2, "\x00\x00\x00\x00\x00\x00\x00\x3F\x00\x00\x80\x3F\x00\x00\x80\x3F\x01\x00\x00\x00", true, &ReachBarsAvailable},
+        {"Remove Black Bar3", "remove black bar", OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE, kBlackBar3, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", true, &ReachBarsAvailable},
         // The black-bar/divider painter at 0x2C6D84 is now handled by a proper
         // per-slot-aware detour (HaloReach::Entry::BlackBars, blackbars.cpp)
         // instead of being NOP'd out wholesale - a raw byte-patch here would

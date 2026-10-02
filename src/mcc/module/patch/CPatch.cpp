@@ -32,7 +32,7 @@ static bool ReadBytes(void* dst, const void* src, size_t size) {
 }
 
 bool CPatch::usable() const {
-    return m_base ? m_base->found() : m_parent->knownBuild();
+    return (m_base ? m_base->found() : m_parent->knownBuild()) && (m_needs == nullptr || m_needs());
 }
 
 void CPatch::capture() {

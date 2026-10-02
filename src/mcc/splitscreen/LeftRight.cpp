@@ -75,7 +75,8 @@ namespace MCC::Splitscreen::LeftRight {
 
     bool OnScreen(int game, int player_count) {
         return Supports(game, player_count) &&
-               (ClassicGame(game) ? s_classic_side_by_side == game && ClassicShown(game) : Chosen());
+               (ClassicGame(game) ? s_classic_side_by_side == game && ClassicShown(game) : Chosen()) &&
+               (game != CGameGlobal::HaloReach || Store::ReachLeftRightAvailable());
     }
 
     void StartClassicMission(int game, bool side_by_side) { s_classic_side_by_side = side_by_side ? game : -1; }

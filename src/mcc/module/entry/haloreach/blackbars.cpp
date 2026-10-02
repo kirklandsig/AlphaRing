@@ -10,6 +10,7 @@ namespace HaloReach::Entry::BlackBars {
     EntryFeature("Reach per-slot black bars", OFFSET_HALOREACH_PF_GET_SPLITSCREEN_PLAYER_COUNT,
                  OFFSET_HALOREACH_PF_FILL_RECT, OFFSET_HALOREACH_PF_RENDER_SETUP_1, OFFSET_HALOREACH_PF_RENDER_SETUP_2,
                  OFFSET_HALOREACH_PV_SCREEN_SIZE, OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE);
+    bool Available() { return entry_feature->Available(); }
 
     typedef unsigned __int64 (*GetSplitscreenPlayerCount_t)();
     typedef void (*DrawFilledRect_t)(void* rect, unsigned int color);
@@ -57,7 +58,8 @@ namespace HaloReach::Entry::BlackBars {
         int player_count = (int)GetSplitscreenPlayerCount();
 
         bool leftRight = AlphaRing::SplitscreenConfigStore::ResolveActiveLayout(player_count)
-                         == AlphaRing::SplitscreenConfigStore::ActiveLayout::LeftRight;
+                         == AlphaRing::SplitscreenConfigStore::ActiveLayout::LeftRight &&
+                         AlphaRing::SplitscreenConfigStore::ReachLeftRightAvailable();
 
         if (leftRight && player_count == 2)
             return;

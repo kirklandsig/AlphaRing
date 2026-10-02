@@ -64,6 +64,13 @@ namespace AlphaRing::SplitscreenConfigStore {
     // CUI (half -> quarter variant) corrections both key on it.
     bool UsesFullHeightLeftRightSlot(int playerCount, int slot);
 
+    // This haloreach.dll build has every hook that draws Reach's Left/Right: the full-height views' render targets
+    // and their rebuild on a live switch, the CUI variant, the HUD, the black bars, and the render hook that
+    // re-applies the table. On an MCC update where one isn't found (src/offsets) Reach uses its stock split - Apply
+    // leaves the Left/Right entries alone, UsesFullHeightLeftRightSlot says no - while the saved choice stays and
+    // the other games' Left/Right (mcc/splitscreen/LeftRight) goes on as before.
+    bool ReachLeftRightAvailable();
+
     // One m_config_table entry. Halo 3, ODST and Halo 4 share Reach's table layout, so the
     // Left/Right regions serve them too (mcc/splitscreen/LeftRight, kirklandsig fork).
     struct LayoutEntry {

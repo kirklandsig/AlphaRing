@@ -30,11 +30,10 @@ namespace AlphaRing::Hook {
         return ws_offsets ? offset_ws : offset_steam;
     }
 
-    // An MCC build we look offsets up in has to have every one of the executable's, but these: what uses them
-    // does without (a missing Detour or Offset is skipped), or nothing does yet.
+    // An MCC build we look offsets up in has to have every one of the executable's, but these, which nothing uses
+    // yet. (Not the XUID lookup: without its hook a split-screen player changing team freezes the game.)
     static bool Optional(const AlphaRing::Offset& offset) {
-        for (const AlphaRing::Offset* optional : {&OFFSET_MCC_PF_GET_INDEX_BY_XUID, &OFFSET_MCC_PF_GET_PROFILE,
-                                                  &OFFSET_MCC_PV_WINDOWFOCUSED})
+        for (const AlphaRing::Offset* optional : {&OFFSET_MCC_PF_GET_PROFILE, &OFFSET_MCC_PV_WINDOWFOCUSED})
             if (&offset == optional) return true;
         return strncmp(offset.name, "OFFSET_MCC_WS_", 14) == 0; // the Windows Store build's
     }
