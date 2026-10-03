@@ -330,6 +330,32 @@ Look sensitivity bytes (0x1B5/0x1B6) were bools and players 2-4 got zeroed conta
 
 ## Session History
 
+### 2026-10-02 - upstream PRs 5-7 prepared while MegaBit's merges wait; our fork's offset gaps closed (PAUSED)
+
+The user: "if we're still waiting on megabit, you might as well just keep going as far as we can without his
+input/action", then (evening) "take a break, button up what you have". Nothing new from MegaBit on #24/#26/#27. PR
+branches are stacked locally (`upstream/05-splitscreen` on `upstream/04-offsets`; `-06-anniversary` and `-07-hud` on
+05; worktrees `C:\Users\yanal\dev\alpharing-pr05/06/07`), each to be rebased as the earlier ones merge; state table
+and next steps in `docs/UPSTREAM_SYNC.md` (local, out of git).
+- **This fork (committed, not pushed or released):** `10fb351` the four offset gaps the upstream review found (XUID
+  lookup required; Reach's Left/Right only with all its hooks - gated on Reach's own paths, the other games'
+  Left/Right untouched; Reach's bar patches need painter + CUI hooks via a `CPatch` `needs`; Halo 2's four splitscreen
+  patches all or nothing) - Codex approve, box: control build turns off exactly those parts while Halo 3 stays side
+  by side. `957d4c9` Halo 4's Left/Right requires its HUD fit (`Feature::Requires`). `190adc1` + `2794df0` (revert)
+  net out: giving the HUD fit both extras centres ultrawide halves but would shift nametags/waypoints (the
+  world-marker projection 0x3F2783-0x3F27C5 cancels only one extra) - known limit, Halo 4 Left/Right HUD not centred
+  horizontally on screens wider than 16:9.
+- **PR 5 split screen:** ready (Codex approve; box on his build: H3/ODST/H4/CE/H2 side by side and stacked, ODST 4P
+  full HUD, H4 2-then-3 start, two negative controls).
+- **PR 6 Anniversary 3-4P:** Codex [high] open - CE's cached texture pointers dangle after the game's render-target
+  reset; the fix was in progress (uncommitted edits in the pr06 worktree). Box: CE 4P quad works (68 quarter targets,
+  slot byte 03), option off unchanged; Halo 2 runs not done.
+- **PR 7 per-player HUD:** Codex round-1 fixes in (settings under an SRW lock, radar uses its own view's canvas,
+  Halo 2 screen-edges patch off by default); round 2 and box tests to do. This fork has the same settings race and
+  radar-canvas issue (port later).
+- Box: restored to the user's setup (cfg-user-0929b, v2.0.2 DLL, vpad stopped). The machine was heavily loaded by
+  other sessions (shell commands ~15 s to start).
+
 ### 2026-10-01 - upstream PR prep for MegaBit; v2.0.2 (Halo 2 Legendary/Iron checkpoint loop, #8)
 
 The user sent MegaBit the join-forces reply and is in his dev channel; MegaBit answered the open questions there -
