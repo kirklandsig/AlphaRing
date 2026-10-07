@@ -222,6 +222,10 @@ DefOffset(OFFSET_HALO3_PF_OBJECT_NEW, 0x341AE8) // int (data*)
 DefOffset(OFFSET_HALO3_PF_OBJECT_POST_CREATE, 0x1EA04) // (int object) - called by the engine after object_new
 DefOffset(OFFSET_HALO3_PF_AI_PLACE, 0x577AA4) // (int ai_index, bool) - ai_scripting_place_internal
 DefOffset(OFFSET_HALO3_PF_TAG_LOADED, 0x12C9EC) // bool (int tag): in the loaded zone set (object_new refuses others)
+// int (int input user) - the player datum that local user controls, -1: none. The player mapping globals (thread-local
+// slot +0x110): input user -> player int[4] at +0x4 (what this reads), player -> input user at +0x74, set together
+// at 0xEDF70; output users (views) at +0xB4 on.
+DefOffset(OFFSET_HALO3_PF_PLAYER_OF_INPUT_USER, 0xEE0D4)
 
 // per-player HUD (mcc/hud)
 DefOffset(OFFSET_HALO3_PV_HUD_DRAWING_PLAYER, 0xAD317C) // int user whose HUD is being drawn
