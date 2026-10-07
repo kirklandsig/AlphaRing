@@ -64,6 +64,9 @@ const OffsetPatterns kHalo1Patterns[] = {
     {&OFFSET_HALO1_PF_OBJECT_TELEPORTED, 0xba83ec, Code, {
         At("83 F9 FF 74 1F 80 3D ?? ?? ?? ?? 00 74 ?? 48 8B 05 ?? ?? ?? ?? 0F B7 C9 48 69 D1 4C 0D 00 00", 0x0),
         Rel("8B CB E8 ?? ?? ?? ?? 33 D2 8B CF E8 ?? ?? ?? ?? 48 8B 5C 24 30 48 83 C4 20", 0x3, 0x7, 0x0)}},
+    {&OFFSET_HALO1_PF_PLAYER_MOVE_BESIDE, 0xad2fbc, Code, {
+        At("48 89 5C 24 08 48 89 6C 24 10 48 89 74 24 18 57 48 83 EC 20 48 8B 05 ?? ?? ?? ?? 8B EA", 0x0),
+        Rel("49 81 C0 90 00 00 00 4D 03 C1 44 3B CD 4C 0F 44 C0 E8 ?? ?? ?? ??", 0x12, 0x16, 0x0)}},
     {&OFFSET_HALO1_PF_OBJECT_TRY_AND_GET, 0xb389a4, Code, {
         At("40 53 48 83 EC 20 8B DA 8B D1 48 8B 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 4C 8B D8 33 C0 4D 85 DB 74 ?? 41 0F B6 4B 03", 0x0),
         Rel("E8 ?? ?? ?? ?? 83 C9 FF 48 85 C0 0F 45 CB 8B C1 48 83 C4 20", 0x1, 0x5, 0x0)}},

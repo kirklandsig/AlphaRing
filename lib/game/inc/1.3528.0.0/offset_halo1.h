@@ -28,6 +28,7 @@ DefOffset(OFFSET_HALO1_PF_OBJECT_NEW, 0xB35F80) // int (data*)
 DefOffset(OFFSET_HALO1_PF_OBJECT_GET_ORIGIN, 0xB37DE0) // (int object, vector3* out)
 DefOffset(OFFSET_HALO1_PF_OBJECT_SET_POSITION, 0xB359E8) // void (int object, point3*, vector3* forward, vector3* up) - null keeps
 DefOffset(OFFSET_HALO1_PF_OBJECT_TELEPORTED, 0xBA83EC) // void (int object) - what object_teleport resets after the move
+DefOffset(OFFSET_HALO1_PF_PLAYER_MOVE_BESIDE, 0xAD2FBC) // bool (int player, int other, void*) - moves a just-spawned player's unit beside another player (the co-op respawn, players_update 0xAD058F); true when it did
 DefOffset(OFFSET_HALO1_PF_OBJECT_TRY_AND_GET, 0xB389A4) // void* (int object, unsigned type_mask) - object data, or null
 DefOffset(OFFSET_HALO1_PF_ACTOR_CUSTOMIZE_UNIT, 0xC01DD0) // (int actor_variant, int unit) - weapon, grenades, colors
 DefOffset(OFFSET_HALO1_PF_AI_ATTACH_FREE, 0xBFF120) // (int unit, int actor_variant) - creates an encounterless actor

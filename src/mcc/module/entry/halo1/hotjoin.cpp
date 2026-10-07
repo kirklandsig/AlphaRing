@@ -188,11 +188,10 @@ namespace Halo1::Entry::HotJoin {
     // A joiner's first body at a teammate's spot: while they spawn, the starting place the game picks is that spot
     // (the game thread's).
     thread_local const Spawn* t_spawn = nullptr;
-    thread_local bool t_start_chosen = false; // the spawn going on took a starting place
+    thread_local bool t_spot_taken = false; // the spawn going on took that spot
     char s_start[0x34];
 
     Halo1Entry(entry_choose_start, OFFSET_HALO1_PF_CHOOSE_START_LOCATION, short, choose_start, int player) {
-        t_start_chosen = true;
         return t_spawn ? 0 : ((choose_start_t)entry_choose_start.m_pOriginal)(player);
     }
 
@@ -201,7 +200,21 @@ namespace Halo1::Entry::HotJoin {
         if (!t_spawn || entry == nullptr) return entry;
         memcpy(s_start, entry, sizeof s_start);
         memcpy(s_start, t_spawn, sizeof *t_spawn);
+        t_spot_taken = true;
         return s_start;
+    }
+
+    // The co-op respawn (players_update, 0xAD0546) spawns a waiting player - at a starting place, through the two
+    // above - and then moves them beside a teammate, true when it could: moved, they're where Place would bring them.
+    Halo1Entry(entry_move_beside, OFFSET_HALO1_PF_PLAYER_MOVE_BESIDE, bool, move_beside, int player, int other,
+               void* where) {
+        bool moved = ((move_beside_t)entry_move_beside.m_pOriginal)(player, other, where);
+        if (moved && s_active) {
+            char* globals = Globals(entry_move_beside.m_target - entry_move_beside.m_offset);
+            int local = globals ? LocalIndex(globals, player) : -1;
+            if (local >= 0) s_place[local] = 0;
+        }
+        return moved;
     }
 
     // Players who aren't in the mission don't spawn, and one who joined comes in at a teammate's spot if there is one.
@@ -216,11 +229,10 @@ namespace Halo1::Entry::HotJoin {
         Spawn spawn;
         bool at_spot = local >= 0 && s_place[local] > 0 && Spot(module, globals, local, joined, &spawn);
         t_spawn = at_spot ? &spawn : nullptr;
-        t_start_chosen = false;
+        t_spot_taken = false;
         original(player);
         t_spawn = nullptr;
-        // at a teammate's spot, where Place would have moved them, or not at a starting place (the co-op respawn)
-        if (local >= 0 && Unit(globals, local) != -1 && (at_spot || !t_start_chosen)) s_place[local] = 0;
+        if (t_spot_taken && Unit(globals, local) != -1) s_place[local] = 0; // where Place would have moved them
     }
 
     bool Available() { return entry_feature->Available(); }
