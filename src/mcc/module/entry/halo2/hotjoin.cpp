@@ -29,7 +29,11 @@ namespace Halo2::Entry::HotJoin {
     constexpr int kSlots = 4;
 
     std::atomic<bool> s_active = false; // the running mission is a hot-join one
-    bool s_held_back[kSlots] = {};      // held back in it, and not in yet (game thread)
+    // Held back in it at some point, until the next mission starts (game thread). A checkpoint saved before such a
+    // player joined brings back, as it's restored, their record waiting for a starting place without a unit (players
+    // and their globals are game state, allocated through 0x15A0AF0's allocator): they're still sent to the co-op
+    // respawn, as whenever they have no unit.
+    bool s_held_back[kSlots] = {};
 
     // players globals: int16 local player count +8, player handle[4] +0xC (both kept by 0x69E4A0, which maps a player
     // to a local index), bytes +4 every player dead and +5 one is (0x6A16F0)
@@ -98,16 +102,12 @@ namespace Halo2::Entry::HotJoin {
     }
 
     // Each tick: the game's local player count, and who takes the co-op respawn rather than a starting place - past the
-    // starting places, or joined in the middle of a hot-join mission and not in yet; not the players held back.
+    // starting places, or joined in the middle of a hot-join mission; not the players held back.
     Halo2Entry(entry_update, OFFSET_HALO2_PF_PLAYERS_UPDATE, void, players_update, void* state) {
         __int64 module = entry_update.m_target - entry_update.m_offset;
         if (char* globals = Globals(module)) {
             int joined = s_active ? Joined() : kSlots;
-            for (int j = 0; s_active && j < kSlots; ++j) {
-                char* player = j < joined ? Record(module, globals, j) : nullptr;
-                if (j >= joined) s_held_back[j] = true;
-                else if (player != nullptr && HasUnit(player)) s_held_back[j] = false; // came in
-            }
+            for (int j = joined; s_active && j < kSlots; ++j) s_held_back[j] = true;
             if (int held = s_active ? Held(globals, joined) : 0) *(short*)(globals + 8) = (short)held;
             if (CoopRespawn(module)) {
                 int places = StartingPlaces(module);
