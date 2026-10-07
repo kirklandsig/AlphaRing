@@ -50,6 +50,11 @@ namespace Halo1::Entry::HotJoin {
     bool s_has_sample[kSlots] = {};
     int s_place[kSlots] = {};
     int s_tick = 0;
+    // Held back in this mission at some point, until the next one starts. Players and their globals are game state
+    // (allocated through 0xACD75C), so going back to a checkpoint from before such a player joined brings back their
+    // record without a unit, to spawn at a starting place (0xAD0B63 -> 0xAD4184 -> 0xAD39AC): whenever they have no
+    // unit they're to be brought beside a teammate again.
+    bool s_held_back[kSlots] = {};
 
     // players globals: int16 local player count +0xB4, player handle[4] +0xB8, unit[4] +0xC8
     char* Globals(__int64 module) { return *(char**)(module + OFFSET_HALO1_PV_LOCAL_PLAYERS); }
@@ -148,6 +153,7 @@ namespace Halo1::Entry::HotJoin {
         if (s_slots == 0) s_slots = std::clamp((int)*(short*)(globals + 0xB4), 1, kSlots);
         int joined = (std::min)(Joined(), s_slots);
         for (int j = joined; j < s_slots; ++j) {
+            s_held_back[j] = true;
             s_place[j] = kPlaceTicks;
             Forget(j);
             int unit = Unit(globals, j);
@@ -165,6 +171,7 @@ namespace Halo1::Entry::HotJoin {
             int unit = Unit(globals, j);
             if (unit == -1) {
                 Forget(j); // the next body starts a new trail
+                if (s_held_back[j]) s_place[j] = kPlaceTicks;
             } else if (s_place[j] > 0) {
                 if (Place(module, globals, j, joined) || --s_place[j] == 0) s_place[j] = 0;
             } else if (sample) {
@@ -181,9 +188,11 @@ namespace Halo1::Entry::HotJoin {
     // A joiner's first body at a teammate's spot: while they spawn, the starting place the game picks is that spot
     // (the game thread's).
     thread_local const Spawn* t_spawn = nullptr;
+    thread_local bool t_start_chosen = false; // the spawn going on took a starting place
     char s_start[0x34];
 
     Halo1Entry(entry_choose_start, OFFSET_HALO1_PF_CHOOSE_START_LOCATION, short, choose_start, int player) {
+        t_start_chosen = true;
         return t_spawn ? 0 : ((choose_start_t)entry_choose_start.m_pOriginal)(player);
     }
 
@@ -207,9 +216,11 @@ namespace Halo1::Entry::HotJoin {
         Spawn spawn;
         bool at_spot = local >= 0 && s_place[local] > 0 && Spot(module, globals, local, joined, &spawn);
         t_spawn = at_spot ? &spawn : nullptr;
+        t_start_chosen = false;
         original(player);
         t_spawn = nullptr;
-        if (at_spot && Unit(globals, local) != -1) s_place[local] = 0; // where Place would have moved them
+        // at a teammate's spot, where Place would have moved them, or not at a starting place (the co-op respawn)
+        if (local >= 0 && Unit(globals, local) != -1 && (at_spot || !t_start_chosen)) s_place[local] = 0;
     }
 
     bool Available() { return entry_feature->Available(); }
@@ -219,6 +230,7 @@ namespace Halo1::Entry::HotJoin {
         s_slots = s_tick = 0;
         for (int j = 0; j < kSlots; ++j) {
             s_place[j] = 0;
+            s_held_back[j] = false;
             Forget(j);
         }
     }
