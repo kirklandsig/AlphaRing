@@ -47,8 +47,9 @@ namespace MCC::Spawn {
 
     // Per-player controller menus, drawn in each player's split-screen view.
     // Called from the game's input poll with local player `player`'s pad; true while that
-    // player's menu is open, when the menu owns the pad and the game must not see it.
-    bool HandlePlayerInput(int player, const XINPUT_GAMEPAD& pad);
+    // player's menu is open, when the menu owns the pad and the game must not see it. Otherwise
+    // takes out of `pad` what was held as the menu closed, each input until it's released.
+    bool HandlePlayerInput(int player, XINPUT_GAMEPAD& pad);
     bool AnyPlayerMenuOpen();
     // Draws open player menus and acts on their input; call inside an ImGui frame.
     void RenderPlayerMenus();

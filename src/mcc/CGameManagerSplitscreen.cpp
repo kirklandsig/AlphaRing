@@ -152,11 +152,15 @@ bool CGameManager::get_key_state(CGameManager *self, DWORD index, input_data_t *
         return true;
 
     if (!p_profile->b_override) {
-        // MCC reads the pads itself; its player 0 is the first controller.
+        // MCC reads the pads itself; its player 0 is the first controller. While the player's spawn menu keeps any
+        // of it - all of it while open, what was held as it closed until released - the game gets no input from
+        // them, as MCC's own read can't have single inputs taken out.
         XINPUT_STATE state;
-        if (index == 0 && g_menuConfig.spawnMenuMask && AlphaRing::Input::GetXInputGetState(0, &state) &&
-            MCC::Spawn::HandlePlayerInput(0, state.Gamepad))
-            return true; // the player's spawn menu has the pad
+        if (index == 0 && g_menuConfig.spawnMenuMask && AlphaRing::Input::GetXInputGetState(0, &state)) {
+            XINPUT_GAMEPAD pad = state.Gamepad;
+            if (MCC::Spawn::HandlePlayerInput(0, pad) || memcmp(&pad, &state.Gamepad, sizeof(pad)) != 0)
+                return true;
+        }
         return ppOriginal.get_key_state(self, index, p_input);
     }
 
@@ -177,7 +181,8 @@ bool CGameManager::get_key_state(CGameManager *self, DWORD index, input_data_t *
 
         AlphaRing::Input::GetXInputGetState(p_device->input_user, &p_device->state);
 
-        // While the player's spawn menu is open it has the pad; the game sees it released.
+        // While the player's spawn menu is open it has the pad, which the game sees released; after it closes, what
+        // was held then is taken out of the pad until released.
         if (MCC::Spawn::HandlePlayerInput(index, p_device->state.Gamepad))
             memset(&p_device->state.Gamepad, 0, sizeof(p_device->state.Gamepad));
     }
