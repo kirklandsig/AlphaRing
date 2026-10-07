@@ -38,9 +38,11 @@ namespace MCC::Hud {
 
     constexpr int kPlayers = 4;
 
-    // The settings, read by the games' HUD drawing; edited by the overlay window and the
-    // players' controller menus. Load() runs at startup.
-    PlayerHud& Player(int player);
+    // A player's settings, as the games' HUD drawing reads them: a copy, and a whole new set put in
+    // place at once (the overlay window and the players' controller menus publish their edits so).
+    // A default PlayerHud changes nothing. Load() runs at startup.
+    PlayerHud Settings(int player);
+    void SetSettings(int player, const PlayerHud& settings);
     void Load();
     void Save();
 

@@ -139,7 +139,7 @@ namespace MCC::Splitscreen {
     }
 
     static ImU32 SlotColor(int slot) {
-        auto& hud = MCC::Hud::Player(slot);
+        auto hud = MCC::Hud::Settings(slot);
         return MCC::Hud::HueColor(hud.recolor ? hud.hue : kDefaultHues[slot]);
     }
 

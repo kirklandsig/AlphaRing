@@ -15,15 +15,35 @@
 #include "imgui.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <string>
 
 namespace MCC::Hud {
+    // The settings the games read. A player's are replaced whole under the exclusive lock and copied whole under
+    // the shared one, so a HUD callback on a game thread never sees half of an edit. An SRW lock rather than
+    // std::mutex, as in SplitscreenConfigStore: no dependence on the msvcp140 MCC loads.
+    static SRWLOCK s_lock = SRWLOCK_INIT;
     static PlayerHud s_players[kPlayers];
 
-    PlayerHud& Player(int player) { return s_players[std::clamp(player, 0, kPlayers - 1)]; }
+    PlayerHud Settings(int player) {
+        PlayerHud settings; // the defaults for no player, which change nothing
+        if (player < 0 || player >= kPlayers) return settings;
+        AcquireSRWLockShared(&s_lock);
+        settings = s_players[player];
+        ReleaseSRWLockShared(&s_lock);
+        return settings;
+    }
+
+    void SetSettings(int player, const PlayerHud& settings) {
+        if (player < 0 || player >= kPlayers) return;
+        AcquireSRWLockExclusive(&s_lock);
+        s_players[player] = settings;
+        ReleaseSRWLockExclusive(&s_lock);
+    }
 
     // --- the games -----------------------------------------------------------------------------
 
@@ -109,12 +129,32 @@ namespace MCC::Hud {
         return game_element >= 0 && game_element < 16 ? game.elements[game_element] : -1;
     }
 
-    // What `player`'s settings do to one element of `game` in a view `aspect` wide per unit of
-    // height (0: no area presets); false when nothing.
-    static bool Effective(const Game& game, int player, int game_element, float aspect, float* x, float* y, float* scale) {
+    // Halo 3, ODST and Reach ask for the motion sensor while they set each view's HUD up, before they store that
+    // view's canvas (Halo 3 0x2ED267, then 0x2ED40C; ODST 0x3287F5, then 0x328991; Reach 0x2D96B7, then 0x2D984E):
+    // the canvas then is still the previous view's. Every other element is asked for after, so each user's canvas
+    // is kept from those asks, and the motion sensor's ask gets its own view's, as of the frame before.
+    struct Canvas { float width, height; };
+    static std::atomic<Canvas> s_view_canvas[std::size(kGames)][kPlayers]; // {0, 0}: not seen yet
+
+    static void ViewCanvas(const Game& game, int user, int game_element, float* width, float* height) {
+        if (user < 0 || user >= kPlayers) return;
+        auto& kept = s_view_canvas[&game - kGames][user];
+        if (ElementOf(game, game_element) != MotionSensor) {
+            kept.store({*width, *height}, std::memory_order_relaxed);
+            return;
+        }
+        Canvas canvas = kept.load(std::memory_order_relaxed);
+        if (canvas.width <= 0.0f) return; // first frame: the game's
+        *width = canvas.width;
+        *height = canvas.height;
+    }
+
+    // What `settings` do to one element of `game` in a view `aspect` wide per unit of height
+    // (0: no area presets); false when nothing.
+    static bool Effective(const Game& game, const PlayerHud& settings, int game_element, float aspect, float* x,
+                          float* y, float* scale) {
         int element = ElementOf(game, game_element);
-        if (player < 0 || player >= kPlayers || element < 0) return false;
-        auto& settings = s_players[player];
+        if (element < 0) return false;
         auto& layout = settings.elements[element];
         *x = layout.x;
         *y = layout.y;
@@ -136,6 +176,9 @@ namespace MCC::Hud {
             caller == (const void*)(module + *widget) && ElementOf(*game, game_element) == MotionSensor)
             return false;
 
+        auto user_at = module + *game->drawing_user;
+        int user = game->user_is_short ? *(short*)user_at : *(int*)user_at;
+
         // the size of the drawing player's view: the HUD's virtual canvas, or pixels (Halo 2);
         // Halo CE takes only sizes from here (its offsets: OffsetCE)
         float width = 0.0f, height = 1.0f;
@@ -143,17 +186,16 @@ namespace MCC::Hud {
             auto canvas = (const float*)(module + *game->size); // width, height
             width = canvas[0];
             height = canvas[1];
+            ViewCanvas(*game, user, game_element, &width, &height);
         } else if (game->units == Units::Pixels) {
             auto rect = (const short*)(module + *game->size); // top, left, bottom, right
             width = rect[3] - rect[1];
             height = rect[2] - rect[0];
         }
 
-        auto user_at = module + *game->drawing_user;
-        int user = game->user_is_short ? *(short*)user_at : *(int*)user_at;
         float aspect = height > 0.0f && (!game->box_is_area || game->box_is_area(module)) ? width / height : 0.0f;
         float x, y, s;
-        if (!Effective(*game, user, game_element, aspect, &x, &y, &s)) return false;
+        if (!Effective(*game, Settings(user), game_element, aspect, &x, &y, &s)) return false;
         *scale *= s;
         if (s == 0.0f || game->units == Units::None || height <= 0.0f) return true;
         if (game->units == Units::Pixels) {
@@ -177,7 +219,8 @@ namespace MCC::Hud {
 
     bool OffsetCE(int player, int game_element, float view_width, float view_height, float* dx, float* dy) {
         float x, y, s;
-        if (view_height <= 0.0f || !Effective(kGames[0], player, game_element, view_width / view_height, &x, &y, &s) ||
+        if (view_height <= 0.0f ||
+            !Effective(kGames[0], Settings(player), game_element, view_width / view_height, &x, &y, &s) ||
             (x == 0.0f && y == 0.0f))
             return false;
         *dx = x * view_width;
@@ -219,9 +262,8 @@ namespace MCC::Hud {
     }
 
     unsigned Color(int user, unsigned argb) {
-        if (user < 0 || user >= kPlayers) return argb;
-        auto& player = s_players[user];
-        return player.recolor ? Recolor(argb, player.hue, player.strength) : argb;
+        auto settings = Settings(user);
+        return settings.recolor ? Recolor(argb, settings.hue, settings.strength) : argb;
     }
 
     // --- settings file ---------------------------------------------------------------------------
@@ -243,7 +285,7 @@ namespace MCC::Hud {
         if (!out) return;
         out << "# AlphaRing per-player HUD settings (edited from the overlay's HUD window)\n";
         for (int p = 0; p < kPlayers; ++p) {
-            auto& player = s_players[p];
+            auto player = Settings(p);
             std::string prefix = "p" + std::to_string(p + 1) + ".";
             out << prefix << "scale=" << player.scale << "\n" << prefix << "area=" << player.area << "\n"
                 << prefix << "recolor=" << player.recolor << "\n" << prefix << "hue=" << player.hue << "\n"
@@ -258,6 +300,7 @@ namespace MCC::Hud {
     }
 
     void Load() {
+        PlayerHud players[kPlayers];
         std::ifstream in(ConfigPath());
         std::string line;
         while (std::getline(in, line)) {
@@ -267,7 +310,7 @@ namespace MCC::Hud {
             if (p < 0 || p >= kPlayers || line[2] != '.') continue;
             std::string key = line.substr(3, eq - 3);
             float value = std::strtof(line.c_str() + eq + 1, nullptr);
-            auto& player = s_players[p];
+            auto& player = players[p];
 
             if (key == "scale") player.scale = std::clamp(value, 0.25f, 3.0f);
             else if (key == "area") player.area = std::clamp((int)value, 0, kAreaCount - 1);
@@ -285,6 +328,7 @@ namespace MCC::Hud {
                 else if (field == "hidden") l.hidden = value != 0.0f;
             }
         }
+        for (int p = 0; p < kPlayers; ++p) SetSettings(p, players[p]);
     }
 
     // --- menus ------------------------------------------------------------------------------------
@@ -298,19 +342,27 @@ namespace MCC::Hud {
         return ImGui::ColorConvertFloat4ToU32(color);
     }
 
+    // Edits a copy of the player's settings, published whole when something changed; true when the
+    // file should be saved (a slider let go, any other change).
     static bool PlayerTab(int p) {
-        auto& player = s_players[p];
-        bool changed = false;
-        auto edited = [&] { changed |= ImGui::IsItemDeactivatedAfterEdit(); };
+        PlayerHud player = Settings(p);
+        bool changed = false, save = false;
+        auto edited = [&](bool value_changed) {
+            changed |= value_changed;
+            save |= ImGui::IsItemDeactivatedAfterEdit();
+        };
+        auto set = [&](bool value_changed) {
+            changed |= value_changed;
+            save |= value_changed;
+        };
 
         ImGui::SeparatorText("Size");
         ImGui::SetNextItemWidth(260);
-        ImGui::SliderFloat("Whole HUD", &player.scale, 0.25f, 3.0f, "%.2fx");
-        edited();
+        edited(ImGui::SliderFloat("Whole HUD", &player.scale, 0.25f, 3.0f, "%.2fx"));
 
         // presets by the shape of screen the player looks at, for views wider than their eyes follow
         ImGui::SetNextItemWidth(260);
-        changed |= ImGui::Combo("HUD area", &player.area, kAreaNames, kAreaCount);
+        set(ImGui::Combo("HUD area", &player.area, kAreaNames, kAreaCount));
         ImGui::SameLine();
         ImGui::TextDisabled("(?)");
         if (ImGui::IsItemHovered())
@@ -320,16 +372,14 @@ namespace MCC::Hud {
                               "screen edges.");
 
         ImGui::SeparatorText("Colour (Halo 3, ODST, Reach)");
-        changed |= ImGui::Checkbox("Recolour this player's HUD", &player.recolor);
+        set(ImGui::Checkbox("Recolour this player's HUD", &player.recolor));
         ImGui::BeginDisabled(!player.recolor);
         ImGui::ColorButton("##preview", ImGui::ColorConvertU32ToFloat4(HueColor(player.hue)), ImGuiColorEditFlags_NoTooltip, ImVec2(ImGui::GetFrameHeight() * 2, ImGui::GetFrameHeight()));
         ImGui::SameLine();
         ImGui::SetNextItemWidth(260);
-        ImGui::SliderFloat("Hue", &player.hue, 0.0f, 360.0f, "%.0f");
-        edited();
+        edited(ImGui::SliderFloat("Hue", &player.hue, 0.0f, 360.0f, "%.0f"));
         ImGui::SetNextItemWidth(260);
-        ImGui::SliderFloat("Strength", &player.strength, 0.0f, 1.0f, "%.2f");
-        edited();
+        edited(ImGui::SliderFloat("Strength", &player.strength, 0.0f, 1.0f, "%.2f"));
         ImGui::EndDisabled();
         ImGui::TextDisabled("Whites and enemy reds keep their colour.");
 
@@ -351,19 +401,16 @@ namespace MCC::Hud {
                 ImGui::BeginDisabled(e == Crosshair);
                 ImGui::TableSetColumnIndex(1);
                 ImGui::SetNextItemWidth(150);
-                ImGui::SliderFloat("##x", &l.x, -0.5f, 0.5f, "%+.2f");
-                edited();
+                edited(ImGui::SliderFloat("##x", &l.x, -0.5f, 0.5f, "%+.2f"));
                 ImGui::TableSetColumnIndex(2);
                 ImGui::SetNextItemWidth(150);
-                ImGui::SliderFloat("##y", &l.y, -0.5f, 0.5f, "%+.2f");
-                edited();
+                edited(ImGui::SliderFloat("##y", &l.y, -0.5f, 0.5f, "%+.2f"));
                 ImGui::EndDisabled();
                 ImGui::TableSetColumnIndex(3);
                 ImGui::SetNextItemWidth(130);
-                ImGui::SliderFloat("##scale", &l.scale, 0.25f, 3.0f, "%.2fx");
-                edited();
+                edited(ImGui::SliderFloat("##scale", &l.scale, 0.25f, 3.0f, "%.2fx"));
                 ImGui::TableSetColumnIndex(4);
-                changed |= ImGui::Checkbox("##hide", &l.hidden);
+                set(ImGui::Checkbox("##hide", &l.hidden));
                 ImGui::PopID();
             }
             ImGui::EndTable();
@@ -372,13 +419,17 @@ namespace MCC::Hud {
         ImGui::TextDisabled("in Halo 3, ODST and Reach; Halo 2's shield moves with its motion tracker.");
 
         ImGui::Spacing();
-        if (ImGui::Button("Reset this player")) { player = PlayerHud(); changed = true; }
-        ImGui::SameLine();
-        if (ImGui::Button("Copy to all players")) {
-            for (auto& other : s_players) other = player;
-            changed = true;
+        if (ImGui::Button("Reset this player")) {
+            player = PlayerHud();
+            set(true);
         }
-        return changed;
+        ImGui::SameLine();
+        bool copy = ImGui::Button("Copy to all players");
+
+        if (changed || save) SetSettings(p, player);
+        if (copy)
+            for (int other = 0; other < kPlayers; ++other) SetSettings(other, player);
+        return save || copy;
     }
 
     void ImGuiContext() {

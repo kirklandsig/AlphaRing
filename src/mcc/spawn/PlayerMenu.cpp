@@ -82,24 +82,26 @@ namespace MCC::Spawn {
 
         // D-pad left/right (`turn`) on `row` of `player`'s HUD page; true when it changed a setting.
         bool TurnHud(int player, int row, int turn) {
-            auto& hud = MCC::Hud::Player(player);
+            auto hud = MCC::Hud::Settings(player);
             switch (row) {
                 case HudArea:
                     hud.area = Cycle(hud.area, turn, MCC::Hud::kAreaCount);
-                    return true;
+                    break;
                 case HudSize:
                     hud.scale = std::clamp(std::round(hud.scale * 10.0f + turn) / 10.0f, 0.5f, 2.0f);
-                    return true;
+                    break;
                 case HudColor: { // off, then a hue
                     int hue = hud.recolor ? (int)std::lround(hud.hue / 30.0f) % kHues : -1;
                     hue = Cycle(hue + 1, turn, kHues + 1) - 1;
                     hud.recolor = hue >= 0;
                     if (hue >= 0) hud.hue = hue * 30.0f;
-                    return true;
+                    break;
                 }
                 default:
                     return false;
             }
+            MCC::Hud::SetSettings(player, hud);
+            return true;
         }
 
         // The triggers, as two of the button bits XInput leaves unused.
@@ -281,7 +283,7 @@ namespace MCC::Spawn {
 
             float row = text * 1.45f, top = y, bottom = status_y - pad * 0.5f;
             if (hud_page) {
-                auto& hud = MCC::Hud::Player(player);
+                auto hud = MCC::Hud::Settings(player);
                 if (rows > 0) row = std::min(row, (bottom - top) / rows); // all of them fit a half-height view
                 for (int i = 0; i < rows; ++i) {
                     int r = shown[i];
@@ -423,7 +425,7 @@ namespace MCC::Spawn {
                 m.refresh = false;
                 if (m.category == kHudPage) {
                     int row = rows ? ShownRow(player, m.selected[kHudPage]) : -1;
-                    if (a && row == HudReset) MCC::Hud::Player(player) = MCC::Hud::PlayerHud();
+                    if (a && row == HudReset) MCC::Hud::SetSettings(player, MCC::Hud::PlayerHud());
                     hud_changed = (a && row == HudReset) || (turn && TurnHud(player, row, turn));
                     turn_split = turn && row == HudSplit;
                     turn_species = turn && row == HudSpecies;
