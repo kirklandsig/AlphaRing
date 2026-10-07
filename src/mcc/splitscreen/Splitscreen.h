@@ -10,6 +10,10 @@ namespace MCC::Splitscreen {
     // From the game's input poll (CGameManagerSplitscreen.cpp): true while controller `pad` still holds what it joined
     // with, when the game must see it released - until its buttons and triggers are all let go.
     bool JoinPressHeld(int pad, const _XINPUT_GAMEPAD& gamepad);
+    // The player count (Global::MCC::Splitscreen), read with an acquire load: the Players window and hot join put a new
+    // player's controller in place before the count, which they publish with a release store, so a reader on the game
+    // thread that sees the count sees the controller too.
+    int PlayerCount();
 }
 
 namespace MCC::Splitscreen {

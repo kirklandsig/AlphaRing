@@ -8,6 +8,7 @@
 #include "halo1.h"
 
 #include "global/Global.h"
+#include "mcc/splitscreen/Splitscreen.h"
 
 #include <algorithm>
 #include <atomic>
@@ -61,7 +62,7 @@ namespace Halo1::Entry::HotJoin {
     int Handle(char* globals, int local) { return *(int*)(globals + 0xB8 + 4 * local); }
     int Unit(char* globals, int local) { return *(int*)(globals + 0xC8 + 4 * local); }
 
-    int Joined() { return std::clamp(AlphaRing::Global::MCC::Splitscreen()->player_count, 1, kSlots); }
+    int Joined() { return std::clamp(MCC::Splitscreen::PlayerCount(), 1, kSlots); }
 
     int LocalIndex(char* globals, int player) {
         for (int j = 0; j < kSlots; ++j)

@@ -73,6 +73,18 @@ namespace MCC::Splitscreen {
         return false;
     }
 
+    // The player count, published last with a release store and read on the game thread with an acquire load, so that
+    // whoever reads a new count sees the controllers put in place before it. It's a plain int (Global.h), so through
+    // Windows' interlocked-ordered accessors for it (winnt.h).
+    static_assert(sizeof(LONG) == sizeof(int));
+    static void PublishPlayerCount(int count) {
+        WriteRelease(reinterpret_cast<volatile LONG*>(&AlphaRing::Global::MCC::Splitscreen()->player_count), count);
+    }
+
+    int PlayerCount() {
+        return ReadAcquire(reinterpret_cast<const volatile LONG*>(&AlphaRing::Global::MCC::Splitscreen()->player_count));
+    }
+
     // The first player without a controller gets it, else a new player: their slot, or -1. The game reads these live
     // in a mission (hot join), so the controller - held back until what it joined with is let go - is in place before
     // the count makes them a player.
@@ -84,9 +96,9 @@ namespace MCC::Splitscreen {
         if (slot >= kSlots) return -1;
         s_join_held[pad] = true;
         CGameManager::get_profile(slot)->controller_index = pad;
-        std::atomic_thread_fence(std::memory_order_release);
-        setting->player_count = std::max(setting->player_count, slot + 1);
-        if (setting->player_count > 1) setting->b_override = true;
+        int count = std::max(setting->player_count, slot + 1);
+        if (count > 1) setting->b_override = true;
+        PublishPlayerCount(count);
         return slot;
     }
 
@@ -97,7 +109,7 @@ namespace MCC::Splitscreen {
         for (int i = slot; i + 1 < setting->player_count; ++i)
             CGameManager::get_profile(i)->controller_index = CGameManager::get_profile(i + 1)->controller_index;
         CGameManager::get_profile(setting->player_count - 1)->controller_index = kNone;
-        --setting->player_count;
+        PublishPlayerCount(setting->player_count - 1);
         return true;
     }
 

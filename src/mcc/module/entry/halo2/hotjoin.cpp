@@ -17,6 +17,7 @@
 #include "halo2.h"
 
 #include "global/Global.h"
+#include "mcc/splitscreen/Splitscreen.h"
 
 #include <algorithm>
 #include <atomic>
@@ -63,7 +64,7 @@ namespace Halo2::Entry::HotJoin {
         return scenario ? *(int*)(scenario + 0x100) : 0;
     }
 
-    int Joined() { return std::clamp(AlphaRing::Global::MCC::Splitscreen()->player_count, 1, kSlots); }
+    int Joined() { return std::clamp(MCC::Splitscreen::PlayerCount(), 1, kSlots); }
 
     int LocalIndex(char* globals, int player) {
         for (int j = 0; j < kSlots; ++j)

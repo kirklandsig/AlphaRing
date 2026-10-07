@@ -97,7 +97,7 @@ static int deferred_player_count(int count) {
 
 int CGameManager::active_player_count() {
     static std::atomic<int> s_last_logged = -1;
-    int active = deferred_player_count(AlphaRing::Global::MCC::Splitscreen()->player_count);
+    int active = deferred_player_count(MCC::Splitscreen::PlayerCount());
 
     if (active != s_last_logged) {
         s_last_logged = active;
