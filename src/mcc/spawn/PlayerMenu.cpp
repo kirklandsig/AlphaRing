@@ -170,6 +170,9 @@ namespace MCC::Spawn {
             m.closed = true;
         }
 
+        // The overlay is up: it has the controllers, so no menu is open meanwhile.
+        bool OverlayHasInput() { return AlphaRing::Global::Global()->show_imgui; }
+
         // Screen area of `player`'s view (x, y, width, height), as the games' split-screen tables
         // lay them out: stacked halves for two players; for three, player 1 on the top half and
         // players 2 and 3 on the bottom quarters; quarters for four. The Left/Right split puts
@@ -383,15 +386,17 @@ namespace MCC::Spawn {
         if (button == 0 || (pad.wButtons & button) != button || !(pressed & button)) return false;
         // games without spawning (Reach) still get the HUD page
         bool spawning = Catalog::CurrentGame() >= 0;
-        if (AlphaRing::Global::Global()->show_imgui || (!spawning && ShownRowCount(player) == 0)) return false;
+        if (OverlayHasInput() || (!spawning && ShownRowCount(player) == 0)) return false;
         m.open = true;
         m.kept = 0;
         m.closed = false;
         if (!spawning) m.category = kHudPage;
         m.refresh = true;
-        // the press that opened the menu isn't a menu action, nor the start of a scroll
-        m.handled = Buttons(pad);
+        // the press that opened the menu isn't a menu action, nor the start of a scroll or a weapon turn
+        WORD buttons = Buttons(pad);
+        m.handled = buttons;
         m.rows = {Vertical(pad), ~0ull};
+        m.weapon_turns = {buttons & kLeftTrigger ? -1 : buttons & kRightTrigger ? 1 : 0, ~0ull};
         return true;
     }
 
@@ -403,6 +408,7 @@ namespace MCC::Spawn {
         WORD pressed = pad.wButtons & ~m.seen;
         m.seen = pad.wButtons;
 
+        if (m.open && OverlayHasInput()) Close(m);
         if (!m.open && !Open(m, player, pad, pressed)) {
             // what's held as it closed, then each until it's released
             m.kept = m.closed ? Held(pad) : m.kept & Held(pad);
@@ -422,6 +428,7 @@ namespace MCC::Spawn {
     void RenderPlayerMenus() {
         int game = Catalog::CurrentGame();
         int count = LocalPlayerCount();
+        bool overlay = OverlayHasInput(); // closes the open menus before they act on another frame
         ImVec2 display = ImGui::GetIO().DisplaySize;
         auto p_global = GameGlobal();
         int shown = p_global ? p_global->current_game : -1;
@@ -438,7 +445,7 @@ namespace MCC::Spawn {
                 auto& m = s_menus[player];
                 if (!m.open) continue;
                 int rows = ShownRowCount(player);
-                if ((game < 0 && rows == 0) || player >= count) { Close(m); continue; }
+                if (overlay || (game < 0 && rows == 0) || player >= count) { Close(m); continue; }
                 if (rows) m.selected[kHudPage] = std::min(m.selected[kHudPage], rows - 1);
 
                 WORD buttons = Buttons(m.pad);
