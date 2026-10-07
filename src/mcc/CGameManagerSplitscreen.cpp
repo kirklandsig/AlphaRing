@@ -181,9 +181,11 @@ bool CGameManager::get_key_state(CGameManager *self, DWORD index, input_data_t *
 
         AlphaRing::Input::GetXInputGetState(p_device->input_user, &p_device->state);
 
-        // While the player's spawn menu is open it has the pad, which the game sees released; after it closes, what
-        // was held then is taken out of the pad until released.
-        if (MCC::Spawn::HandlePlayerInput(index, p_device->state.Gamepad))
+        // Until what a player who just joined pressed is let go (Players window, hot join), the game sees the pad
+        // released. While the player's spawn menu is open it has the pad, which the game sees released too; after it
+        // closes, what was held then is taken out of the pad until released.
+        if (MCC::Splitscreen::JoinPressHeld(p_device->input_user, p_device->state.Gamepad) ||
+            MCC::Spawn::HandlePlayerInput(index, p_device->state.Gamepad))
             memset(&p_device->state.Gamepad, 0, sizeof(p_device->state.Gamepad));
     }
 

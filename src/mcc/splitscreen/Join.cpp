@@ -60,14 +60,29 @@ namespace MCC::Splitscreen {
         return pressed;
     }
 
+    // A pad that just joined gives the game nothing until what it joined with is let go: the A would jump, and anything
+    // else held would act at once (JoinPressHeld, from the game's input poll).
+    static std::atomic<bool> s_join_held[kSlots] = {};
+
+    bool JoinPressHeld(int pad, const XINPUT_GAMEPAD& gamepad) {
+        if (pad < 0 || pad >= kSlots || !s_join_held[pad]) return false;
+        if (gamepad.wButtons || gamepad.bLeftTrigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD ||
+            gamepad.bRightTrigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD)
+            return true;
+        s_join_held[pad] = false;
+        return false;
+    }
+
     // The first player without a controller gets it, else a new player: their slot, or -1. The game reads these live
-    // in a mission (hot join), so the controller is in place before the count makes them a player.
+    // in a mission (hot join), so the controller - held back until what it joined with is let go - is in place before
+    // the count makes them a player.
     static int Join(int pad) {
         auto setting = AlphaRing::Global::MCC::Splitscreen();
         if (SlotOf(pad) >= 0) return -1;
         int slot = KeyboardSlot() ? 1 : 0;
         while (slot < setting->player_count && CGameManager::get_profile(slot)->controller_index != kNone) ++slot;
         if (slot >= kSlots) return -1;
+        s_join_held[pad] = true;
         CGameManager::get_profile(slot)->controller_index = pad;
         std::atomic_thread_fence(std::memory_order_release);
         setting->player_count = std::max(setting->player_count, slot + 1);

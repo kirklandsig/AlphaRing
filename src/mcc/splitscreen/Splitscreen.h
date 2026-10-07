@@ -1,10 +1,15 @@
 #pragma once
 
+struct _XINPUT_GAMEPAD;
+
 namespace MCC::Splitscreen {
     bool Initialize();
     void ImGuiContext();
     // The Players window (Join.cpp): controllers join and leave with A and B.
     void JoinContext();
+    // From the game's input poll (CGameManagerSplitscreen.cpp): true while controller `pad` still holds what it joined
+    // with, when the game must see it released - until its buttons and triggers are all let go.
+    bool JoinPressHeld(int pad, const _XINPUT_GAMEPAD& gamepad);
 }
 
 namespace MCC::Splitscreen {
