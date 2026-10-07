@@ -66,8 +66,9 @@ namespace Halo1::Entry::Anniversary {
         return view >= 0 && view < CameraCount(module) ? Cameras(module)[view] : nullptr;
     }
 
-    // ---- render targets: quarter-size children beside the split ones. The texture manager finds textures by
-    // name, so ours carry their size, and a resize makes new ones.
+    // ---- render targets: quarter-size children beside the split ones, made as the game makes those (its parent is
+    // alive then). The texture manager finds textures by name, so ours carry their size, and a resize makes new ones;
+    // the manager keeps them until the module goes, and a parent's set made again at a size it had takes them back.
 
     std::string SizedName(const char* name, int width, int height) {
         return std::string(name) + "_" + std::to_string(width) + "x" + std::to_string(height);
@@ -75,10 +76,12 @@ namespace Halo1::Entry::Anniversary {
 
     struct QuadChildren {
         char* parent;
-        char* children[2];
+        char* children[2];    // ours, or the game's split ones while ours are in the parent
+        bool swapped = false; // ours are in the parent (the frame, below)
     };
     std::mutex s_children_mutex;
     std::vector<QuadChildren> s_children;
+    std::atomic<char*> s_image = nullptr; // our full-screen image the quadrants are copied into (the composite)
 
     extern ::Entry entry_create_child;
     // the fifth argument is unused; the sixth's low word is the texture's flags (+0x7C)
@@ -106,13 +109,42 @@ namespace Halo1::Entry::Anniversary {
     ::Entry entry_create_child(Halo1EntrySet(), OFFSET_HALO1_PF_SABER_TEXTURE_CREATE_CHILD, (void*)&CreateChild,
                                entry_feature);
 
-    void SwapChildren() {
+    void Swap(QuadChildren& e) {
+        std::swap(*(char**)(e.parent + 0xA8), e.children[0]);
+        std::swap(*(char**)(e.parent + 0xB0), e.children[1]);
+        e.swapped = !e.swapped;
+    }
+
+    // For the frame: ours into every split target that has both (in), the game's back (out).
+    void SwapChildren(bool in) {
         std::lock_guard<std::mutex> lock(s_children_mutex);
-        for (auto& e : s_children) {
-            if (e.children[0] == nullptr || e.children[1] == nullptr) continue;
-            std::swap(*(char**)(e.parent + 0xA8), e.children[0]);
-            std::swap(*(char**)(e.parent + 0xB0), e.children[1]);
+        for (auto& e : s_children)
+            if (e.swapped != in && e.children[0] != nullptr && e.children[1] != nullptr) Swap(e);
+    }
+
+    // The texture manager deleting its texture `index` (a render target set let go on a resize, for one): nothing of
+    // ours may point at it after. A parent takes whatever is in its +0xA8/+0xB0 with it, so the game's own children
+    // go back in first.
+    Halo1Entry(entry_delete_texture, OFFSET_HALO1_PF_SABER_DELETE_TEXTURE, void, delete_texture, char* manager,
+               int index) {
+        if (char* texture = (*(char***)(manager + 0x1B8))[index]) {
+            std::lock_guard<std::mutex> lock(s_children_mutex);
+            for (auto it = s_children.begin(); it != s_children.end();) {
+                if (it->swapped && (it->parent == texture || *(char**)(it->parent + 0xA8) == texture ||
+                                    *(char**)(it->parent + 0xB0) == texture || it->children[0] == texture ||
+                                    it->children[1] == texture))
+                    Swap(*it);
+                if (it->parent == texture) {
+                    it = s_children.erase(it);
+                    continue;
+                }
+                for (char*& child : it->children)
+                    if (child == texture) child = nullptr;
+                ++it;
+            }
+            s_image.compare_exchange_strong(texture, nullptr);
         }
+        ((delete_texture_t)entry_delete_texture.m_pOriginal)(manager, index);
     }
 
     // ---- cameras: the renderer makes one for the second view; the third and fourth are ours. They are made by
@@ -441,7 +473,6 @@ namespace Halo1::Entry::Anniversary {
     bool s_quad = false;     // this frame is drawn in quarters
     int s_frame_pair = 0;    // and shows this pair
     int s_frame_views = 0;
-    char* s_image = nullptr; // our full-screen image the quadrants are copied into
 
     // 3 players: the second pair's frames have nobody's second view
     bool NoFourthView(int index) { return s_frame_pair == 1 && index == 1 && s_frame_views < 4; }
@@ -470,9 +501,9 @@ namespace Halo1::Entry::Anniversary {
         if (!s_quad) return ((frame_t)entry_frame.m_pOriginal)(a, b, c, d);
         s_frame_pair = s_listed_pair;
         s_frame_views = Views(module);
-        SwapChildren();
+        SwapChildren(true);
         auto result = ((frame_t)entry_frame.m_pOriginal)(a, b, c, d);
-        SwapChildren();
+        SwapChildren(false);
         return result;
     }
 
@@ -482,17 +513,18 @@ namespace Halo1::Entry::Anniversary {
         char* view = *(char**)(module + OFFSET_HALO1_PV_SABER_VIEW_IMAGES
                                + 8 * (__int64)*(int*)(module + OFFSET_HALO1_PV_SABER_VIEW_IMAGE_INDEX));
         int width = ScreenWidth(module), height = ScreenHeight(module);
+        char* image = s_image;
         if (view != nullptr) {
-            if (s_image == nullptr || TextureWidth(s_image) != width || TextureHeight(s_image) != height)
-                s_image = ((create_child_t)entry_create_child.m_pOriginal)(
+            if (image == nullptr || TextureWidth(image) != width || TextureHeight(image) != height)
+                s_image = image = ((create_child_t)entry_create_child.m_pOriginal)(
                     view, SizedName("ALPHARING_QUAD_IMAGE", width, height).c_str(), width, height,
                     0, *(unsigned short*)(view + 0x7C));
-            if (s_image != nullptr && !NoFourthView(camera))
-                Copy(module, view, s_image, (camera & 1) * (width / 2), s_frame_pair * (height / 2));
+            if (image != nullptr && !NoFourthView(camera))
+                Copy(module, view, image, (camera & 1) * (width / 2), s_frame_pair * (height / 2));
         }
         ((composite_t)entry_composite.m_pOriginal)(camera);
         char* target = *(char**)(module + OFFSET_HALO1_PV_SABER_SCREEN_IMAGE);
-        if (camera == 1 && s_image != nullptr && target != nullptr) Copy(module, s_image, target, 0, 0);
+        if (camera == 1 && image != nullptr && target != nullptr) Copy(module, image, target, 0, 0);
     }
 
     // ---- the classic HUD over the image: its pass draws views 0 and 1 in the screen's halves, then view -1 (the
