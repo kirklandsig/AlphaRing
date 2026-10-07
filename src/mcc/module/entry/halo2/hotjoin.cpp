@@ -34,6 +34,10 @@ namespace Halo2::Entry::HotJoin {
     // and their globals are game state, allocated through 0x15A0AF0's allocator): they're still sent to the co-op
     // respawn, as whenever they have no unit.
     bool s_held_back[kSlots] = {};
+    // The players it lets into the mission, taken once a tick, as players_update starts (game thread): one who joins
+    // in the middle of a tick waits for the next, so that their record is sent to the co-op respawn before they can
+    // spawn - spawning first, they would take the mission's starting place (0x6A3B93).
+    std::atomic<int> s_admitted = kSlots;
 
     // players globals: int16 local player count +8, player handle[4] +0xC (both kept by 0x69E4A0, which maps a player
     // to a local index), bytes +4 every player dead and +5 one is (0x6A16F0)
@@ -88,7 +92,7 @@ namespace Halo2::Entry::HotJoin {
     // them out over every player, over the ones who joined (once they're all mapped; until then the game's own).
     void Account(__int64 module) {
         char* globals = s_active ? Globals(module) : nullptr;
-        int joined = Joined();
+        int joined = s_admitted;
         if (globals == nullptr || !Held(globals, joined)) return;
         bool all_dead = true, dead = false;
         for (int j = 0; j < joined; ++j) {
@@ -105,8 +109,9 @@ namespace Halo2::Entry::HotJoin {
     // starting places, or joined in the middle of a hot-join mission; not the players held back.
     Halo2Entry(entry_update, OFFSET_HALO2_PF_PLAYERS_UPDATE, void, players_update, void* state) {
         __int64 module = entry_update.m_target - entry_update.m_offset;
+        if (s_active) s_admitted = Joined();
         if (char* globals = Globals(module)) {
-            int joined = s_active ? Joined() : kSlots;
+            int joined = s_active ? s_admitted.load() : kSlots;
             for (int j = joined; s_active && j < kSlots; ++j) s_held_back[j] = true;
             if (int held = s_active ? Held(globals, joined) : 0) *(short*)(globals + 8) = (short)held;
             if (CoopRespawn(module)) {
@@ -127,7 +132,7 @@ namespace Halo2::Entry::HotJoin {
         if (s_active) {
             char* globals = Globals(entry_spawn.m_target - entry_spawn.m_offset);
             int local = globals ? LocalIndex(globals, player) : -1;
-            if (local >= Joined()) return false;
+            if (local >= s_admitted) return false;
         }
         return ((player_spawn_t)entry_spawn.m_pOriginal)(player);
     }
@@ -136,6 +141,7 @@ namespace Halo2::Entry::HotJoin {
 
     void Reset() {
         s_active = false;
+        s_admitted = kSlots;
         std::fill(std::begin(s_held_back), std::end(s_held_back), false);
     }
     const bool s_reset = (Halo2EntrySet()->on_remove(&Reset), true);
@@ -143,6 +149,7 @@ namespace Halo2::Entry::HotJoin {
     // As a mission starts (halo2/graphics.cpp).
     void Start(bool on) {
         Reset();
+        s_admitted = Joined();
         s_active = on && Available();
     }
 
