@@ -43,6 +43,9 @@ bool loadMenuStateBin(MenuState& state, const std::string& path) {
     uint8_t invert[4] = {0, 0, 0, 0};
 
     ifs.read(reinterpret_cast<char*>(&state.playerCount), sizeof(state.playerCount));
+    // Unchecked file data: the count indexes the four player profiles and
+    // per-player settings, so keep it to 1-4 even for a corrupt file.
+    state.playerCount = std::clamp(state.playerCount, 1, 4);
     ifs.read(reinterpret_cast<char*>(&useKM), sizeof(useKM));
     state.useKM = useKM != 0;
     ifs.read(reinterpret_cast<char*>(state.controllerIndex), sizeof(state.controllerIndex));
