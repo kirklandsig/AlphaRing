@@ -87,6 +87,16 @@ namespace MCC::Splitscreen {
         return false;
     }
 
+    // Each frame (HotJoinPoll), whether Bind is drawn or not: a press acted on is let go once its controller holds
+    // nothing.
+    static void LetGoTaken() {
+        for (int pad = 0; pad < kSlots; ++pad) {
+            XINPUT_STATE state{};
+            if (s_taken[pad] && (!AlphaRing::Input::GetXInputGetState(pad, &state) || !Held(state.Gamepad)))
+                s_taken[pad] = false;
+        }
+    }
+
     // The player count, published last with a release store and read on the game thread with an acquire load, so that
     // whoever reads a new count sees the controllers put in place before it. It's a plain int (Global.h), so through
     // Windows' interlocked-ordered accessors for it (winnt.h).
@@ -135,6 +145,7 @@ namespace MCC::Splitscreen {
     static bool s_hot_unsaved = false;
 
     void HotJoinPoll() {
+        LetGoTaken();
         if (s_hot_unsaved && !CGameManager::running()) {
             s_hot_unsaved = false;
             SavePlayers();
