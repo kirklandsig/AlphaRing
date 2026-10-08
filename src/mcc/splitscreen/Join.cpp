@@ -87,13 +87,17 @@ namespace MCC::Splitscreen {
         return false;
     }
 
-    // Each frame (HotJoinPoll), whether Bind is drawn or not: a press acted on is let go once its controller holds
+    // Each frame (HotJoinPoll), whether Bind is drawn or not, and whether the game reads the controller or not (not
+    // while the overlay is shown, by default): a press acted on, a join's included, is let go once its controller holds
     // nothing.
     static void LetGoTaken() {
         for (int pad = 0; pad < kSlots; ++pad) {
             XINPUT_STATE state{};
-            if (s_taken[pad] && (!AlphaRing::Input::GetXInputGetState(pad, &state) || !Held(state.Gamepad)))
+            if ((s_taken[pad] || s_join_held[pad]) &&
+                (!AlphaRing::Input::GetXInputGetState(pad, &state) || !Held(state.Gamepad))) {
                 s_taken[pad] = false;
+                s_join_held[pad] = false;
+            }
         }
     }
 
