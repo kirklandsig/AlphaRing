@@ -330,6 +330,33 @@ Look sensitivity bytes (0x1B5/0x1B6) were bools and players 2-4 got zeroed conta
 
 ## Session History
 
+### 2026-10-07 - MegaBit merged #26 and #27; upstream PRs 6-10 finished and reviewed; this fork gets their fixes
+
+MegaBit squash-merged #26 (ServiceTag) and #27 (input/startup) as sent; #24 is still open, no comments. The user said
+to continue, then "feel free to push the PRs to megabits GitHub when they're ready as long as it makes sense". State
+table, box results and next steps per PR in `docs/UPSTREAM_SYNC.md` (local, out of git).
+- **Upstream PRs (local branches, worktrees `C:\Users\yanal\dev\alpharing-pr06`..`-pr10`):** PR 6 Anniversary 3-4P
+  (CE texture-lifetime fix, Codex approve, box-tested on his files), PR 7 per-player HUD (Codex approve, not
+  box-tested), PR 8 spawn menus (agent-built, Codex approve after 4 rounds, box: CE/H3 per-player menus spawn), PR 9
+  Players window + hot join (agent-built, Codex approve after 11 rounds, box: join/leave at MCC's menus and a Reach hot
+  join; CE/H2 hot join not box-tested), PR 10 docs. Stacked: 06/07 merged locally as `upstream/0607-base` under 08.
+- **Halo 2 fixes PR:** rebased onto today's `master-chief` and built, but the push was refused - the commits carry
+  the account's private email and GitHub's email-privacy push block is on (#27's branch went up with the same email
+  earlier). Re-authoring with the no-reply address was blocked by the auto-mode classifier; the user decides.
+- **This fork (committed, not pushed or released):** `00692b7` CE Anniversary 3-4P quarter-size render targets follow
+  the game's texture deletes (0x1F6BF0 hook); `46ef3e1` HUD settings published whole under an SRW lock, motion sensor
+  gets its own view's canvas; `6f5fc2a`..`3532958` spawn menus (squads not lent twice, inputs held at a menu's close
+  kept from the game, overlay closes menus, catalog tied to its map, local user -> player through each game's own
+  mapping, new H3/ODST offsets); `3ab0d9b`..`ecb2355` hot join (Halo 2 checkpoints with held-back players, join press
+  kept from the game, checkpoint reverts in CE/H2, mid-tick joins, CE co-op re-teleport, count published with release
+  /acquire, Bind priority and ownership, Splitscreen Disable and the Players count locked through a CE/H2 hot-join
+  game). Every port Codex-approved; none box-tested on this fork yet.
+- **Box:** the name BATOCERA stopped resolving; the box is 192.168.0.100 and plink negotiated its RSA key, so `b.sh`
+  pins all three host keys. Launches need the TV on (Batocera's launcher fails with no display output). Restored to the
+  user's setup (cfg-user-0929b, v2.0.2 DLL, vpad stopped, MCC quit from its menu).
+- **Codex and untracked files:** working-tree reviews send untracked files under 24 KB, which here means
+  `docs/UPSTREAM_SYNC.md`; reviews of this fork now run on committed branches from a separate worktree.
+
 ### 2026-10-02 - upstream PRs 5-7 prepared while MegaBit's merges wait; our fork's offset gaps closed (PAUSED)
 
 The user: "if we're still waiting on megabit, you might as well just keep going as far as we can without his
