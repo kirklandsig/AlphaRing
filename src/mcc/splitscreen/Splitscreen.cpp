@@ -193,7 +193,7 @@ namespace MCC::Splitscreen {
         for (int i = 0; i < 4; i++) {
             XINPUT_STATE state;
             if (AlphaRing::Input::GetXInputGetState(i, &state)) {
-                if (JoinPressHeld(i, state.Gamepad)) continue; // still the press it joined with (Join.cpp)
+                if (PressTaken(i, state.Gamepad)) continue; // the Players window or hot join acted on it (Join.cpp)
                 if (state.Gamepad.wButtons != 0 ||
                     state.Gamepad.bLeftTrigger > 30 ||
                     state.Gamepad.bRightTrigger > 30) {
@@ -207,8 +207,15 @@ namespace MCC::Splitscreen {
     // Binding state: which player slot is waiting for controller input (-1 = none)
     static int s_binding_player = -1;
 
-    // Bind takes a controller only with the overlay shown, where this window is drawn.
-    bool BindPending() { return s_binding_player >= 0 && AlphaRing::Global::Global()->show_imgui; }
+    // Bind takes a controller only on its player's page as it's drawn, with the overlay shown: so only while that page
+    // was drawn waiting the frame before (or this one: before a frame starts the count is still the last one's). A Bind
+    // whose player has gone is dropped.
+    static int s_binding_frame = -2; // the frame the page last drew the Bind waiting
+    bool BindPending() {
+        if (s_binding_player >= PlayerCount()) s_binding_player = -1;
+        return s_binding_player >= 0 && AlphaRing::Global::Global()->show_imgui &&
+               s_binding_frame >= ImGui::GetFrameCount() - 1;
+    }
 
     void ImGuiContext() {
         static bool show_splitscreen;
@@ -271,6 +278,7 @@ namespace MCC::Splitscreen {
                 s_binding_player = index;
             }
         }
+        if (s_binding_player == index) s_binding_frame = ImGui::GetFrameCount(); // BindPending
 
         ImGui::EndDisabled();
 

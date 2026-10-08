@@ -64,12 +64,26 @@ namespace MCC::Splitscreen {
     // else held would act at once (JoinPressHeld, from the game's input poll).
     static std::atomic<bool> s_join_held[kSlots] = {};
 
+    static bool Held(const XINPUT_GAMEPAD& gamepad) {
+        return gamepad.wButtons || gamepad.bLeftTrigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD ||
+               gamepad.bRightTrigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
+    }
+
     bool JoinPressHeld(int pad, const XINPUT_GAMEPAD& gamepad) {
         if (pad < 0 || pad >= kSlots || !s_join_held[pad]) return false;
-        if (gamepad.wButtons || gamepad.bLeftTrigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD ||
-            gamepad.bRightTrigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD)
-            return true;
+        if (Held(gamepad)) return true;
         s_join_held[pad] = false;
+        return false;
+    }
+
+    // A press hot join or the window acted on (a join, a leave), which the Splitscreen window's Bind doesn't also take
+    // until it's let go (PressTaken): Bind can take a press in the same frame, after them (BindPending).
+    static bool s_taken[kSlots] = {};
+
+    bool PressTaken(int pad, const XINPUT_GAMEPAD& gamepad) {
+        if (pad < 0 || pad >= kSlots || !s_taken[pad]) return false;
+        if (Held(gamepad)) return true;
+        s_taken[pad] = false;
         return false;
     }
 
@@ -95,6 +109,7 @@ namespace MCC::Splitscreen {
         while (slot < setting->player_count && CGameManager::get_profile(slot)->controller_index != kNone) ++slot;
         if (slot >= kSlots) return -1;
         s_join_held[pad] = true;
+        s_taken[pad] = true;
         CGameManager::get_profile(slot)->controller_index = pad;
         int count = std::max(setting->player_count, slot + 1);
         if (count > 1) setting->b_override = true;
@@ -158,10 +173,11 @@ namespace MCC::Splitscreen {
             WORD pressed = Pressed(pad, s_last_buttons[pad], reading);
             if (changes && (pressed & XINPUT_GAMEPAD_A)) {
                 if (Join(pad) >= 0) SavePlayers();
-            } else if (changes && (pressed & XINPUT_GAMEPAD_B)) {
-                if (Leave(SlotOf(pad))) SavePlayers();
-            } else if (pressed & XINPUT_GAMEPAD_B) HotJoinLeave(SlotOf(pad));
-            else if ((pressed & XINPUT_GAMEPAD_START) && SlotOf(pad) >= 0) {
+            } else if (pressed & XINPUT_GAMEPAD_B) {
+                s_taken[pad] = true;
+                if (!changes) HotJoinLeave(SlotOf(pad));
+                else if (Leave(SlotOf(pad))) SavePlayers();
+            } else if ((pressed & XINPUT_GAMEPAD_START) && SlotOf(pad) >= 0) {
                 s_show = false;
                 AlphaRing::Global::Global()->show_imgui = false;
             }

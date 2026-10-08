@@ -7,12 +7,15 @@ namespace MCC::Splitscreen {
     void ImGuiContext();
     // The Players window (Join.cpp): controllers join and leave with A and B.
     void JoinContext();
-    // From the game's input poll (CGameManagerSplitscreen.cpp) and the Splitscreen window's Bind: true while controller
-    // `pad` still holds what it joined with, when the game must see it released and Bind not take it - until its
-    // buttons and triggers are all let go.
+    // From the game's input poll (CGameManagerSplitscreen.cpp): true while controller `pad` still holds what it joined
+    // with, when the game must see it released - until its buttons and triggers are all let go.
     bool JoinPressHeld(int pad, const _XINPUT_GAMEPAD& gamepad);
-    // The Splitscreen window's Bind is waiting for a controller, with the overlay shown (Splitscreen.cpp): until it has
-    // one it has the controllers, so the Players window and hot join don't act on them.
+    // From the Splitscreen window's Bind: true while controller `pad` still holds a press the Players window or hot join
+    // acted on (a join, a leave), which Bind doesn't also take - until it's let go.
+    bool PressTaken(int pad, const _XINPUT_GAMEPAD& gamepad);
+    // The Splitscreen window's Bind is waiting for a controller on its player's page, drawn with the overlay shown
+    // (Splitscreen.cpp): until it has one it has the controllers, so the Players window and hot join don't act on them.
+    // Once the page isn't drawn they're theirs again.
     bool BindPending();
     // The player count (Global::MCC::Splitscreen), read with an acquire load: the Players window and hot join put a new
     // player's controller in place before the count, which they publish with a release store, so a reader on the game
