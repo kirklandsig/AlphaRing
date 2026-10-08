@@ -137,6 +137,14 @@ namespace MCC::Splitscreen {
         return MCC::IsInGame() && p_global && ReservingFor(p_global->current_game);
     }
 
+    // In such a game with hot join (its module there) MCC has all four local players from the mission's start until the
+    // session exits, and ends it if they go away; the held-back ones come in only by joining. So until then split screen
+    // stays as it is (Enable/Disable here), and the player count changes only by joining and leaving (not Players here).
+    static bool HotJoinHeld() {
+        auto reserving = HotJoinLocked() ? ReservingFor(GameGlobal()->current_game) : nullptr;
+        return reserving && reserving->available() && g_hot_join.Get();
+    }
+
     bool AnniversaryQuadGame(int game) { return game == CGameGlobal::Halo1 || game == CGameGlobal::Halo2; }
 
     // The game's quad mode has all its offsets in this MCC build (always in the one they were written for).
@@ -340,11 +348,15 @@ namespace MCC::Splitscreen {
 
         if (ImGui::BeginMenuBar()) {
             // ImGui::MenuItem(p_setting->b_override ? "Disable" : "Enable", nullptr, &p_setting->b_override);
+            bool held = HotJoinHeld();
             dirty |= ImGui::MenuItem(
                 p_setting->b_override ? "Disable" : "Enable",
                 nullptr,
-                &p_setting->b_override
+                &p_setting->b_override,
+                !held
             );
+            if (held && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                ImGui::SetTooltip("Kept as it is until this hot-join game ends");
             if (ImGui::BeginMenu("Options")) {
                 // ImGui::MenuItem("Use player1's profile", nullptr, &p_setting->b_use_player0_profile);
                 dirty |= ImGui::MenuItem(
@@ -400,10 +412,12 @@ namespace MCC::Splitscreen {
             //     p_setting->player_count = count;
             // }
             int count = p_setting->player_count;
+            ImGui::BeginDisabled(held); // players join and leave there
             if (ImGui::InputInt("Players", &count) && count >= 1 && count <= 4) {
                 p_setting->player_count = count;
                 dirty = true;
             }
+            ImGui::EndDisabled();
             ImGui::PopItemWidth();
             ImGui::EndMenuBar();
 #pragma endregion
