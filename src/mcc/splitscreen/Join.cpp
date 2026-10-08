@@ -125,7 +125,10 @@ namespace MCC::Splitscreen {
             SavePlayers();
         }
         bool reading = s_hot_polling;
-        s_hot_polling = HotJoinActive() && AlphaRing::Global::MCC::Splitscreen()->player_count < kSlots;
+        // Bind has the controllers while it waits for one: reading starts again from what's held then, so the press it
+        // took is no press here until it's let go
+        s_hot_polling =
+            !BindPending() && HotJoinActive() && AlphaRing::Global::MCC::Splitscreen()->player_count < kSlots;
         if (!s_hot_polling) return;
         for (int pad = 0; pad < kSlots; ++pad) {
             if (SlotOf(pad) >= 0) {
@@ -216,14 +219,16 @@ namespace MCC::Splitscreen {
         if (!s_show) return;
 
         bool changes = !MCC::IsInGame();
-        PollPads(changes);
+        bool bind = BindPending(); // Bind has the controllers; reading starts again from what's held once it's done
+        if (!bind) PollPads(changes);
         ImGui::SetNextWindowSize(ImVec2(960, 250), ImGuiCond_FirstUseEver);
         if (ImGui::Begin("Players", &s_show, ImGuiWindowFlags_NoCollapse)) {
             for (int slot = 0; slot < kSlots; ++slot) {
                 if (slot) ImGui::SameLine();
                 Card(slot, changes);
             }
-            if (changes) ImGui::TextDisabled("A: join   B: leave   Start: done");
+            if (bind) ImGui::TextDisabled("Bind (Splitscreen window) is waiting for a controller");
+            else if (changes) ImGui::TextDisabled("A: join   B: leave   Start: done");
             else if (HotJoinLeaves())
                 ImGui::TextDisabled("Hot join: A on a free controller joins, B leaves (the last player)   Start: done");
             else if (HotJoinActive())

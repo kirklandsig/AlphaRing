@@ -193,6 +193,7 @@ namespace MCC::Splitscreen {
         for (int i = 0; i < 4; i++) {
             XINPUT_STATE state;
             if (AlphaRing::Input::GetXInputGetState(i, &state)) {
+                if (JoinPressHeld(i, state.Gamepad)) continue; // still the press it joined with (Join.cpp)
                 if (state.Gamepad.wButtons != 0 ||
                     state.Gamepad.bLeftTrigger > 30 ||
                     state.Gamepad.bRightTrigger > 30) {
@@ -205,6 +206,9 @@ namespace MCC::Splitscreen {
 
     // Binding state: which player slot is waiting for controller input (-1 = none)
     static int s_binding_player = -1;
+
+    // Bind takes a controller only with the overlay shown, where this window is drawn.
+    bool BindPending() { return s_binding_player >= 0 && AlphaRing::Global::Global()->show_imgui; }
 
     void ImGuiContext() {
         static bool show_splitscreen;
