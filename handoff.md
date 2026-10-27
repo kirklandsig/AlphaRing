@@ -330,6 +330,22 @@ Look sensitivity bytes (0x1B5/0x1B6) were bools and players 2-4 got zeroed conta
 
 ## Session History
 
+### 2026-10-26/27 - MegaBit's 1.4.0 (MenuChange); Reach PR sent; upstream stack rebased onto it
+
+MegaBit merged megabitt01/AlphaRing#29 (Halo 2, 2026-10-18) and plans a major release, 1.4.0, from his
+`feature/MenuChange` (F1 overlay + F4 dashboard on one shared settings store, `MenuSettings`). He'll merge #24 and #34
+(JonahSimon's Halo 2 Classic MP crash: `get_xbox_user_id` gets index -1 at map load - this fork has the same `!index`
+check, not fixed here yet), then MenuChange. Details and the PR state in `docs/UPSTREAM_SYNC.md` (local, out of git).
+- **Sent:** megabitt01/AlphaRing#35 Reach fixes (rebased, no line changes).
+- **Local, not pushed:** PRs 4-9 rebased onto MenuChange + #24 + #34 + #35 (worktree `C:\Users\yanal\dev\alpharing-stack`,
+  branches `upstream2/*`), re-authored with the no-reply email, each built, CI gate check passing. PR 9 (Players window,
+  hot join) reworked onto MenuSettings and Codex-reviewed (2 rounds). PR 10 docs waits for the 1.4.0 scope.
+- **This fork:** `16e38b8` Halo 2 hot join's death accounting counts every player (network co-op teammates were
+  dropped; Codex). Known, open: Halo CE hot join can place a joiner on a spot from slow vehicle flight.
+- **Lost:** session ff7c6d96's scratchpad (Windows cleaned Temp) - local box scripts, PR bodies 4-10, test DLLs. Notes and
+  helper scripts now live in `C:\Users\yanal\dev\notes\`. The box is at 192.168.0.105; harness `b.sh` takes `BOX=`.
+- Not done: box run of the new stack (MenuChange base, #34 control, PR 9 hot join on his build).
+
 ### 2026-10-07 - MegaBit merged #26 and #27; upstream PRs 6-10 finished and reviewed; this fork gets their fixes
 
 MegaBit squash-merged #26 (ServiceTag) and #27 (input/startup) as sent; #24 is still open, no comments. The user said
