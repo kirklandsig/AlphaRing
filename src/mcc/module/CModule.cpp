@@ -100,6 +100,11 @@ void CModule::unload_module() {
     // restore them into whatever is then mapped at the old one.
     if (m_info.title == MCC::Module::MODULE_HALOREACH)
         HaloReach::Entry::Skinning::Unload();
+  
+    if (m_entries)
+        m_entries->remove();
+  
+    m_patches.update(0);
     memset(&m_info, 0, sizeof(module_info_t));
 }
 
