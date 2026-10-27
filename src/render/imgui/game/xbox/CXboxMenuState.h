@@ -15,7 +15,5 @@ struct MenuState {
     bool invert[4];
     int teamIndex[4];
     PlayerColor playerColors[4];
+    bool usePlayer0Profile; // players 2-4 use player 1's profile ("Use Player 1's Armor")
 };
-
-bool saveMenuStateBin(const MenuState& state, const std::string& path);
-bool loadMenuStateBin(MenuState& state, const std::string& path);
