@@ -346,6 +346,16 @@ Look sensitivity bytes (0x1B5/0x1B6) were bools and players 2-4 got zeroed conta
   squeezed into the top/bottom quarter with a black band in the middle (his build alone, the stack, and the stack with
   hot join all show it; this fork's main draws the halves itself and is fine). #23's composite clip doesn't give full
   halves on the box. Our PR 6 dropped main's 2P composite in favour of #23 - candidate fix: bring it back.
+- **Later the same evening (user: "go for it and do the fix"):** PR 4 opened as megabitt01/AlphaRing#38 (branch
+  `upstream/04-offsets`, body `C:\Users\yanal\dev\notes\pr04_body.md`). PR 6 got `29aa97f fix(halo2): two players'
+  Anniversary views each fill their half` (main's 2P composite path back: our shaders draw each half, the game's quad
+  and #23's clip don't run); 0607-base rebuilt as the old merge tree + the fix (2e142dc), 08/09 rebased on it (old
+  hashes: `dev/notes/stack_refs_pre_pr6fix.txt`). Box on the tip: H2A 2P full halves, 4P quad mode unchanged. Codex
+  review of the fix still to do when PR 6 is sent. MegaBit's 1.4.0 carries the 2P bug until PR 6 lands.
+- **Halo 3 "too many bodies" (user report, second-hand):** Reach's mechanism (per-frame skinning bump pool, handles
+  masked into it) isn't in halo3.dll: no allocator match, and a scan for pool-shaped reads (`poolscan.py`, finds
+  Reach's 0xC51C40 at 18 bits) finds nothing in H3. Different cause - needs a box repro. RE helpers in
+  `C:\Users\yanal\dev\notes\re\` (mdis.py, find.py, xref.py, dataref.py, poolscan.py).
 - New harness (Batocera/alpharing-harness): `sdeploy.sh <dll> <players> [fresh]`, `menubin.py` (MenuChange v8 file),
   `vpadup.sh`, `f1.sh` (holds F1 200 ms - a tap misses the poll), `click2.sh`, `campaign_hj.sh`/`h2resume_hj.sh`.
   Box backup of the user's setup: `alpharing-test/cfg-user-1027` (+ `LISTING.txt` of the Win64 folder).
