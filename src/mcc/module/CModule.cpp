@@ -5,6 +5,7 @@
 #include "global/Global.h"
 #include "common.h"
 #include "mcc/module/entry/haloreach/haloreach.h"
+#include "mcc/module/entry/halo3/halo3.h"
 
 CModule::CModule(EntrySet *entrySet, std::initializer_list<CPatch> patches)
 : m_entries(entrySet), m_patches(patches) {};
@@ -92,6 +93,8 @@ void CModule::load_module(const module_info_t *p_info) {
     // (black or missing Spartans in the later views): move it to a bigger buffer.
     if (m_info.title == MCC::Module::MODULE_HALOREACH)
         HaloReach::Entry::Skinning::Enlarge(m_info.hModule);
+    // Halo 3 and ODST have the same pool, smaller.
+    Halo3::Entry::Skinning::Enlarge(m_info.title, m_info.hModule);
 }
 
 void CModule::unload_module() {
@@ -100,6 +103,7 @@ void CModule::unload_module() {
     // restore them into whatever is then mapped at the old one.
     if (m_info.title == MCC::Module::MODULE_HALOREACH)
         HaloReach::Entry::Skinning::Unload();
+    Halo3::Entry::Skinning::Unload(m_info.title);
   
     if (m_entries)
         m_entries->remove();
