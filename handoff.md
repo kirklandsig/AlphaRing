@@ -330,6 +330,26 @@ Look sensitivity bytes (0x1B5/0x1B6) were bools and players 2-4 got zeroed conta
 
 ## Session History
 
+### 2026-10-27 (evening) - MegaBit merged #24, #35, #36, #37 (MenuChange); stack rebased onto master-chief; box run
+
+- **Merged upstream:** #24 (unhook on unload), #35 (Reach), #36 + #37 (MenuChange) on `master-chief` 2c66a60.
+  **#34 is still open** (not merged); this fork and the stack both still have the `!index` check.
+- **Stack:** `upstream2/*` (worktree `C:\Users\yanal\dev\alpharing-stack`) rebased onto `megabit/master-chief`
+  (`--rebase-merges --update-refs`); each branch differs from its pre-rebase version only by master-chief's own delta
+  (his whitespace, `moduleAddress() == 0` guard in `CPatch::apply`, no #34). Pre-rebase tips: `bak1027/*`. Builds clean,
+  CI gate passes. DLLs in `C:\Users\yanal\dev\notes\dlls\` (`stack1027_no34`, `stack1027_34`, `mc_2c66a60`).
+- **Box (stack tip 9d806af):** H2 Classic MP 2P loads and plays (no index -1 asked - #34's crash needs a LAN lobby,
+  two instances, 8 players; not reproducible on one box). H2 hot join: pad 2 joins mid-mission; F1 open+close saves the
+  joined count (menu file 1 -> 2). CE hot join: "controller 2 joins as player 2", both views right; F1 -/+ locked with
+  its tooltip (+ click does nothing). Not done: Reach join, H2 checkpoint revert after a join.
+- **Found, pre-existing on MegaBit's master-chief (not our stack):** Halo 2 Anniversary at 2 players draws each view
+  squeezed into the top/bottom quarter with a black band in the middle (his build alone, the stack, and the stack with
+  hot join all show it; this fork's main draws the halves itself and is fine). #23's composite clip doesn't give full
+  halves on the box. Our PR 6 dropped main's 2P composite in favour of #23 - candidate fix: bring it back.
+- New harness (Batocera/alpharing-harness): `sdeploy.sh <dll> <players> [fresh]`, `menubin.py` (MenuChange v8 file),
+  `vpadup.sh`, `f1.sh` (holds F1 200 ms - a tap misses the poll), `click2.sh`, `campaign_hj.sh`/`h2resume_hj.sh`.
+  Box backup of the user's setup: `alpharing-test/cfg-user-1027` (+ `LISTING.txt` of the Win64 folder).
+
 ### 2026-10-26/27 - MegaBit's 1.4.0 (MenuChange); Reach PR sent; upstream stack rebased onto it
 
 MegaBit merged megabitt01/AlphaRing#29 (Halo 2, 2026-10-18) and plans a major release, 1.4.0, from his
