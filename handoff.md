@@ -352,10 +352,16 @@ Look sensitivity bytes (0x1B5/0x1B6) were bools and players 2-4 got zeroed conta
   and #23's clip don't run); 0607-base rebuilt as the old merge tree + the fix (2e142dc), 08/09 rebased on it (old
   hashes: `dev/notes/stack_refs_pre_pr6fix.txt`). Box on the tip: H2A 2P full halves, 4P quad mode unchanged. Codex
   review of the fix still to do when PR 6 is sent. MegaBit's 1.4.0 carries the 2P bug until PR 6 lands.
-- **Halo 3 "too many bodies" (user report, second-hand):** Reach's mechanism (per-frame skinning bump pool, handles
-  masked into it) isn't in halo3.dll: no allocator match, and a scan for pool-shaped reads (`poolscan.py`, finds
-  Reach's 0xC51C40 at 18 bits) finds nothing in H3. Different cause - needs a box repro. RE helpers in
-  `C:\Users\yanal\dev\notes\re\` (mdis.py, find.py, xref.py, dataref.py, poolscan.py).
+- **Halo 3 "too many bodies" - found and fixed (2026-10-28):** the user reproduced it (MP split screen, spawned
+  characters). It IS Reach's mechanism, in a smaller pool: per-frame skinning pool 0x29000 at halo3+0x4680DC4 (ODST
+  +0x46AC274), allocator 0x2A84F8 / 0x2CCFBC, handles = plain offset & 0xFFFFFFF (poolscan.py missed it: its mask
+  range stopped at 26 bits, now 30). Fix `src/mcc/module/entry/halo3/skinning.cpp` (7/6 leas -> 4 MB buffer, limit
+  raised), docs/REVERSE_ENGINEERING.md section. Box: control (user's DLL) pool pinned at 0x29000, P3/P4 lost their
+  weapons; fix used 0x392E4 with every view drawn; Save & Quit + second H3 load + ODST fine. Upstream branch
+  `upstream/halo3-skinning` (worktree dev/alpharing-h3skin, off master-chief 2c66a60, plain #defines, CModule
+  calls) = megabitt01/AlphaRing#39 (Codex: one medium double-failure finding, left as #35 does). Main: change uncommitted (awaiting the go). Harness: `h3pool.py` (pool probe via
+  mem.py), `restore_user.sh` (restore cfg-user-1027). Codex mishap: `adversarial-review --help` ran a real
+  working-tree review of main (cancelled ~90 s in; UPSTREAM_SYNC.md likely sent).
 - New harness (Batocera/alpharing-harness): `sdeploy.sh <dll> <players> [fresh]`, `menubin.py` (MenuChange v8 file),
   `vpadup.sh`, `f1.sh` (holds F1 200 ms - a tap misses the poll), `click2.sh`, `campaign_hj.sh`/`h2resume_hj.sh`.
   Box backup of the user's setup: `alpharing-test/cfg-user-1027` (+ `LISTING.txt` of the Win64 folder).

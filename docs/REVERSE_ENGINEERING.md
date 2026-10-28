@@ -381,6 +381,18 @@ Multipliers: high `3.0` (light-count group `10.0`), mid `1.0`, low `0.5` (water 
 
 **Superseded (v1.9.1): lowering the collector's limits.** A hook on `0x47B76C` (the collector's only caller) set the imm8s at `0x4FF314`/`0x4FEF10` to 60/55 (2P) or 40/35 (3-4P) in local split screen, which kept the pile below the pool's limit at the price of bodies and fresh drops vanishing in view. Verified then: 4P and 2P, 100 deaths, every view fine.
 
+## Halo 3 and ODST split screen: later views stop drawing objects as bodies pile up
+
+**Symptom** (user report, reproduced on the box 2026-10-28): with many characters in one area at 4 players, the later views draw characters and first-person weapons black, over-bright or not at all, as in Reach. Box (Sierra 117, 4P, AlphaRing's spawn menu): 30 ODSTs + 20 Marines in front of player 1 pinned the pool's high-water mark at its limit, and players 3 and 4 lost their first-person weapons while players 1 and 2 kept theirs.
+
+**The limit: the same per-frame skinning pool as Reach's, smaller.** `0x29000` bytes (168 KB) at `halo3+0x4680DC4` (ODST `0x46AC274`):
+- Allocator `0x2A84F8` (ODST `0x2CCFBC`; a leaf function, no `.pdata`): rounds the size to 4, `cmp edx, 0x29000` (`0x2A8522`), returns `used & 0xFFFFFFF` or -1 once full. No frame bits in the handle (Reach packs `frame << 18`). The used count is just before the pool (`0x4680DC0`), the high-water mark just after (`0x46A9DC4`, `cmovg`).
+- Callers `0x20B67F` and `0x295B83` ask for `nodes x 0x30 + 0x44` bytes and skip the bones on -1.
+- Users: every `lea reg, [rip + pool]` - Halo 3 has 7 (6 followed by `and reg, 0xFFFFFFF`, plus the startup `memset(pool, 0, 0x29004)` at `0x272F34`), ODST 6 (5 + the clear at `0x2A0341`). No other RIP-relative operand or base relocation points into either pool (ODST's `0x24900F` compares an end pointer of the array before it).
+- Missed at first: `poolscan.py` stopped at 26-bit masks (the handle mask here is 28 bits). Found with a linear-sweep bump-allocator scan (`dev/notes/re/bumpscan.py`: a store of a dword global loaded earlier with an immediate limit nearby), which also lists Reach's `0x25093C`.
+
+**Fix (`halo3/skinning.cpp`).** As each DLL loads, a 4 MB buffer within 2 GB after the module, the users' `lea`s pointed at it and the limit raised to `0x400000` (leas first, limit last; restored last-first on unload). A build without exactly that layout is left alone. Box: the log shows both pools moved; at 4P with 50 spawned characters the pool used `0x392E4` bytes in a frame (stock limit `0x29000`) and player 3 drew its weapon and every Marine (player 4's death camera drew the whole pile). Save & Quit and a second Halo 3 load in the same MCC process moved it again at the new address; ODST played at 4P on its moved pool.
+
 ## Halo 2 Anniversary graphics in split screen (v2.0)
 
 **Two players were black.** With Anniversary graphics and two local players (stacked or side by side) both views were black under the HUD on the box, v1.9.1 included: the game's composite quad (`0x1D2A00` -> immediate draw `0x194EC0`) leaves no pixels, as it does with 3-4 players (v1.9's quad mode sidesteps it). megabitt01 found and fixed the same black screen in megabitt01/AlphaRing#23 (a D3D11 viewport clip on the composite draw, with a Wine check). v2.0 reuses quad mode's own drawer instead: at two players the composite is collapsed and each view's image drawn into its half by `CellShaders.h`. Box-verified: both halves drawn, pad 1 turns only the top one, P2's menu opens in the bottom one.

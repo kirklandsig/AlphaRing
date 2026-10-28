@@ -39,6 +39,12 @@ const OffsetPatterns kHalo3Patterns[] = {
     {&OFFSET_HALO3_PF_PLAYERS_CONTROL_CAMERA, 0x1313c8, Code, {
         At("48 89 5C 24 08 48 89 6C 24 10 48 89 74 24 18 57 48 83 EC 20 65 48 8B 04 25 58 00 00 00 40 8A F9", 0x0),
         Rel("E8 ?? ?? ?? ?? 44 88 A3 98 02 00 00 B8 40 00 00 00 48 8B 04 38", 0x1, 0x5, 0x0)}},
+    {&OFFSET_HALO3_DAT_SKINNING_POOL, 0x4680dc4, Data, {
+        Rel("48 8D 0D ?? ?? ?? ?? 25 FF FF FF 0F 48 03 C1 4C 8B 44 24 40", 0x3, 0x7, 0x0),
+        Rel("48 8D 05 ?? ?? ?? ?? 81 E1 FF FF FF 0F 48 03 C8 41 8B 14 24", 0x3, 0x7, 0x0)}},
+    {&OFFSET_HALO3_PF_SKINNING_POOL_ALLOCATE, 0x2a84f8, Code, {
+        At("41 83 C9 FF 41 8B C0 25 03 00 00 80 7D ?? FF C8 83 C8 FC", 0x0),
+        Rel("E8 ?? ?? ?? ?? 89 43 08 83 F8 FF 74 ?? 49 8B CF 85 C0 78 ?? 8B C8", 0x1, 0x5, 0x0)}},
     {&OFFSET_HALO3_PV_TAG_NAMES, 0xa49148, Data, {
         Rel("48 8B 1D ?? ?? ?? ?? 0F B7 CD 48 63 04 8B 48 05 00 00 02 00", 0x3, 0x7, 0x0),
         Rel("48 8B 0D ?? ?? ?? ?? B8 08 00 00 00 66 09 47 04 0F B7 47 0C", 0x3, 0x7, 0x0)}},

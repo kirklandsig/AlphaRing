@@ -18,6 +18,12 @@ const OffsetPatterns kHalo3odstPatterns[] = {
     {&OFFSET_HALO3ODST_PF_ADD_LOCAL_PLAYER, 0xfbfe4, Code, {
         At("48 89 5C 24 08 48 89 6C 24 10 48 89 74 24 18 57 48 83 EC 20 44 8B 0D ?? ?? ?? ?? 48 8B FA", 0x0),
         Rel("44 8A 47 21 48 8D 55 97 41 8B CE E8 ?? ?? ?? ?? 3B C6 74 ?? EB", 0xc, 0x10, 0x0)}},
+    {&OFFSET_HALO3ODST_DAT_SKINNING_POOL, 0x46ac274, Data, {
+        Rel("48 8D 0D ?? ?? ?? ?? 25 FF FF FF 0F 48 03 C1 4C 8B 44 24 50", 0x3, 0x7, 0x0),
+        Rel("48 8D 05 ?? ?? ?? ?? 81 E2 FF FF FF 0F 48 03 D0 80 7F 2E 02", 0x3, 0x7, 0x0)}},
+    {&OFFSET_HALO3ODST_PF_SKINNING_POOL_ALLOCATE, 0x2ccfbc, Code, {
+        At("41 83 C9 FF 41 8B C0 25 03 00 00 80 7D ?? FF C8 83 C8 FC", 0x0),
+        Rel("E8 ?? ?? ?? ?? 89 43 08 83 F8 FF 0F 84 ?? ?? ?? ?? 48 8B 53 48 8B C8 48 85 D2", 0x1, 0x5, 0x0)}},
     {&OFFSET_HALO3ODST_PV_TAGS_HEADER, 0x20f3068, Data, {
         Rel("48 8B 1D ?? ?? ?? ?? 45 33 D2 0F BF C2 45 8B DA 3B 43 10 73", 0x3, 0x7, 0x0),
         Rel("48 8B 0D ?? ?? ?? ?? FF C7 48 83 C3 10 3B 79 30 7C ?? 48 8B 15", 0x3, 0x7, 0x0)}},
