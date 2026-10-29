@@ -7,6 +7,9 @@
 // respawns. On Legendary or with the Iron skull it doesn't, and counts a co-op player waiting for one as dead, which
 // reverts to the checkpoint: there they keep waiting for a starting location, as before.
 namespace Halo2::Entry::Players {
+    EntryFeature("Halo 2 co-op respawn", OFFSET_HALO2_PV_RESPAWN, OFFSET_HALO2_PV_PLAYERS, OFFSET_HALO2_PV_SCENARIO,
+                 OFFSET_HALO2_PF_COOP_CAMPAIGN, OFFSET_HALO2_PF_COOP_RESPAWN_ALLOWED);
+
     // players globals: player handle per local player, int[4] at +0xC (-1: none)
     int Handle(__int64 module, int local) {
         char* globals = *(char**)(module + OFFSET_HALO2_PV_RESPAWN);

@@ -6,10 +6,10 @@
 // (table index, field name) instead of (module, patch name) since the table
 // itself has no config file section of its own.
 namespace AlphaRing::SplitscreenConfigStore {
-    // c_splitscreen_config::m_config_table layout in haloreach.dll. Table index
+    // c_splitscreen_config::m_config_table layout in haloreach.dll
+    // (OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE). Table index
     // is (block * SLOT_COUNT + slot), where block is the player-count variant
     // (0: alias of 4p, 1: 1p, 2: 2p, 3: 3p, 4: 4p).
-    constexpr __int64 TABLE_OFFSET = 0xB43C40;
     constexpr int     ENTRY_SIZE   = 20;
     constexpr int     BLOCK_COUNT  = 5;
     constexpr int     SLOT_COUNT   = 4;
@@ -44,6 +44,12 @@ namespace AlphaRing::SplitscreenConfigStore {
     TwoPlayerLayout GetTwoPlayerLayout();
     void SetTwoPlayerLayout(TwoPlayerLayout layout, __int64 hModule);
 
+    // This haloreach.dll build has every hook that draws Left/Right: the full-height views' render targets and
+    // their rebuild on a live switch, the CUI variant, the HUD, the black bars, and the render hook that re-applies
+    // the table. On an MCC update where one isn't found (src/offsets) the saved preference is kept, but the stock
+    // split is used: Apply leaves the Left/Right entries alone and ResolveActiveLayout says Native.
+    bool LeftRightAvailable();
+
     enum class ActiveLayout {
         Native,
         LeftRight,
@@ -52,7 +58,8 @@ namespace AlphaRing::SplitscreenConfigStore {
     // The layout actually in effect for a live local-player count, which the
     // caller must read on the game thread (GetSplitscreenPlayerCount is
     // TLS-rooted and returns 1 outside gameplay). This is the one place that
-    // knows which player counts have a Left/Right implementation: 2 and 3.
+    // knows which player counts have a Left/Right implementation: 2 and 3
+    // (and only where LeftRightAvailable).
     ActiveLayout ResolveActiveLayout(int playerCount);
 
     // True while Left/Right is active and this slot's Left/Right region is a
