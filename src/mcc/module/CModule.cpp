@@ -6,6 +6,11 @@
 #include "common.h"
 #include "mcc/module/entry/haloreach/haloreach.h"
 #include "mcc/module/entry/halo3/halo3.h"
+#include "offsets/Offsets.h"
+
+// load_module passes the title to Offsets::Prepare, whose tables are in eModule order (src/offsets/Tables.h).
+static_assert(AlphaRing::Offsets::kModuleCount == MCC::Module::MODULE_MCC + 1 &&
+              AlphaRing::Offsets::kModuleMCC == MCC::Module::MODULE_MCC);
 
 CModule::CModule(EntrySet *entrySet, std::initializer_list<CPatch> patches)
 : m_entries(entrySet), m_patches(patches) {};
@@ -13,11 +18,24 @@ CModule::CModule(EntrySet *entrySet, std::initializer_list<CPatch> patches)
 void CModule::load_module(const module_info_t *p_info) {
     if (p_info == nullptr) return;
 
+    if (p_info->hModule == 0 || p_info->errorCode != 0) {
+        m_info = *p_info;
+        return;
+    }
+
+    // A build the offsets weren't written for (an MCC update) has them looked up before anything uses them.
+    bool known_build = AlphaRing::Offsets::Prepare(p_info->title, p_info->hModule);
+
     m_info = *p_info;
 
-    if (m_info.hModule == 0 || m_info.errorCode != 0) return;
+    m_patches.update(m_info.hModule, known_build);
 
-    m_patches.update(m_info.hModule);
+    if (!known_build) {
+        for (auto patch : m_patches.embed_patches())
+            if (!patch->usable()) LOG_WARNING("[Offsets] patch \"{}\" stays off: it, or what it needs, isn't in this build", patch->name());
+        for (auto patch : m_patches.patches())
+            if (!patch->usable()) LOG_WARNING("[Offsets] patch.xml \"{}\" stays off: its offset is for another build", patch->name());
+    }
 
     // Restore any Dev Tools patch states saved from a previous session before
     // applying - this must happen before apply() so restored "on" states
@@ -50,6 +68,11 @@ void CModule::load_module(const module_info_t *p_info) {
     // "already correct before the first frame" half.
     if (m_info.title == MCC::Module::MODULE_HALOREACH) {
         AlphaRing::SplitscreenConfigStore::Load();
+        if (AlphaRing::SplitscreenConfigStore::GetTwoPlayerLayout() ==
+                    AlphaRing::SplitscreenConfigStore::TwoPlayerLayout::LeftRight &&
+            !AlphaRing::SplitscreenConfigStore::LeftRightAvailable())
+            LOG_WARNING("[Offsets] Reach Left/Right layout stays off: a hook it needs isn't in this build - "
+                        "the stock split is used");
 
         // User debug setting only. The Left/Right layout's own painter bypass is
         // derived per frame in blackbars.cpp, so it never overwrites this.
@@ -120,6 +143,28 @@ void CModule::unload_module() {
 #include "mcc/module/entry/halo4/halo4.h"
 #include "mcc/module/entry/groundhog/groundhog.h"
 
+// The black-bar patches rewrite split-screen table entries (c_splitscreen_config::m_config_table): the two-player
+// views and the first of the three-player views.
+using AlphaRing::SplitscreenConfigStore::ENTRY_SIZE, AlphaRing::SplitscreenConfigStore::SLOT_COUNT;
+constexpr __int64 kBlackBar1 = (2 * SLOT_COUNT) * ENTRY_SIZE, kBlackBar2 = (2 * SLOT_COUNT + 1) * ENTRY_SIZE,
+                  kBlackBar3 = (3 * SLOT_COUNT) * ENTRY_SIZE;
+
+// In Reach, the views they widen rely on the per-slot painter (BlackBars) and the CUI variant (Loadout).
+namespace HaloReach::Entry {
+    namespace BlackBars { bool Available(); }
+    namespace Loadout { bool Available(); }
+}
+static bool ReachBarsAvailable() {
+    return HaloReach::Entry::BlackBars::Available() && HaloReach::Entry::Loadout::Available();
+}
+
+// Halo 2's four-player unlock only works whole - the player check, both counts and the views' hand-over test -
+// so on a build without one of them none is applied, and Halo 2 admits the players it does by itself.
+static bool Halo2FourPlayers() {
+    return AlphaRing::Found({OFFSET_HALO2_PF_PLAYER_VALID, OFFSET_HALO2_PF_PLAYER_COUNT1, OFFSET_HALO2_PF_PLAYER_COUNT2,
+                             OFFSET_HALO2_TWO_PLAYERS_TEST_HAND_OVER});
+}
+
 static struct {
     CModule halo1;
     CModule halo2;
@@ -134,10 +179,10 @@ static struct {
         {"splitscreen_patch2", "", OFFSET_HALO1_PF_PAUSE, "\xEB", true},
         {"splitscreen_patch3", "", OFFSET_HALO1_PF_IDK, "\x90\x90\x90\x90\x90\x90", true}, // fix [issue](https://github.com/WinterSquire/AlphaRing/issues/19)
 }}, {Halo2EntrySet(), {
-        {"splitscreen_patch1", "", OFFSET_HALO2_PF_PLAYER_VALID, "\x31\xC0\xB0\x01\xC3\x90", true},
-        {"splitscreen_patch2", "", OFFSET_HALO2_PF_PLAYER_COUNT1, "\x04", true},
-        {"splitscreen_patch3", "", OFFSET_HALO2_PF_PLAYER_COUNT2, "\x04", true},
-        {"splitscreen_patch4", "force making splitscreen works with more than 2 players", 0x5153E, "\x83\xF8\x01\x74\x04", true},
+        {"splitscreen_patch1", "", OFFSET_HALO2_PF_PLAYER_VALID, "\x31\xC0\xB0\x01\xC3\x90", true, &Halo2FourPlayers},
+        {"splitscreen_patch2", "", OFFSET_HALO2_PF_PLAYER_COUNT1, "\x04", true, &Halo2FourPlayers},
+        {"splitscreen_patch3", "", OFFSET_HALO2_PF_PLAYER_COUNT2, "\x04", true, &Halo2FourPlayers},
+        {"splitscreen_patch4", "force making splitscreen works with more than 2 players", OFFSET_HALO2_TWO_PLAYERS_TEST_HAND_OVER, "\x83\xF8\x01\x74\x04", true, &Halo2FourPlayers},
         // Save & Quit from a modded campaign with 2+ players hung on the loading screen (reported by SR388): Halo 2
         // decided the game came from its own lobby and went back to it by loading its main-menu map, which MCC
         // doesn't have. MCC is the lobby, so quitting always goes back to it.
@@ -145,33 +190,33 @@ static struct {
          "campaigns with 2+ players)", OFFSET_HALO2_PF_QUIT_TO_LOBBY_TEST, "\x31\xC0\x90\x90\x90", true},
 }}, {Halo3EntrySet(), {
         {"splitscreen_patch1", "", OFFSET_HALO3_PF_COOP_JOIN, "\x31\xC0\xC3\x90", true},
-        {"Remove Black Bar1", "remove black bar", 0x8AE150/*0x8AD160*/, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
-        {"Remove Black Bar2", "remove black bar", 0x8AE164/*0x8AD174*/, "\x00\x00\x00\x00\x00\x00\x00\x3F\x00\x00\x80\x3F\x00\x00\x80\x3F\x01\x00\x00\x00", false},
-        {"Remove Black Bar3", "remove black bar", 0x8AE1A0/*0x8AD1B0*/, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
+        {"Remove Black Bar1", "remove black bar", OFFSET_HALO3_PV_SPLITSCREEN_TABLE, kBlackBar1, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
+        {"Remove Black Bar2", "remove black bar", OFFSET_HALO3_PV_SPLITSCREEN_TABLE, kBlackBar2, "\x00\x00\x00\x00\x00\x00\x00\x3F\x00\x00\x80\x3F\x00\x00\x80\x3F\x01\x00\x00\x00", false},
+        {"Remove Black Bar3", "remove black bar", OFFSET_HALO3_PV_SPLITSCREEN_TABLE, kBlackBar3, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
 }}, {nullptr, {
         {"splitscreen_patch1", "", OFFSET_HALO4_PF_COOP_JOIN, "\x31\xC0\xC3\x90", true},
         {"splitscreen_patch2", "", OFFSET_HALO4_PF_COOP_REJOIN, "\xEB", true},
         {"splitscreen_patch3", "", OFFSET_HALO4_PF_COOP_PLAYER_LIMIT, "\x90\x90\x90\x90\x90\x90", true},
-        {"Remove Black Bar1", "remove black bar", 0xE84E50/*0xE84E40*/, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
-        {"Remove Black Bar2", "remove black bar", 0xE84E64/*0xE84E54*/, "\x00\x00\x00\x00\x00\x00\x00\x3F\x00\x00\x80\x3F\x00\x00\x80\x3F\x01\x00\x00\x00", false},
-        {"Remove Black Bar3", "remove black bar", 0xE84EA0/*0xE84E90*/, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
+        {"Remove Black Bar1", "remove black bar", OFFSET_HALO4_PV_SPLITSCREEN_TABLE, kBlackBar1, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
+        {"Remove Black Bar2", "remove black bar", OFFSET_HALO4_PV_SPLITSCREEN_TABLE, kBlackBar2, "\x00\x00\x00\x00\x00\x00\x00\x3F\x00\x00\x80\x3F\x00\x00\x80\x3F\x01\x00\x00\x00", false},
+        {"Remove Black Bar3", "remove black bar", OFFSET_HALO4_PV_SPLITSCREEN_TABLE, kBlackBar3, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
 }}, {nullptr, {
         {"splitscreen_patch1", "", OFFSET_GROUNDHOG_PF_COOP_JOIN, "\x31\xC0\xC3\x90", true},
         {"splitscreen_patch2", "", OFFSET_GROUNDHOG_PF_REJOIN, "\xEB", true},
-        {"Remove Black Bar1", "remove black bar", OFFSET_GROUNDHOG_BLACKBAR_1 , "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
-        {"Remove Black Bar2", "remove black bar", OFFSET_GROUNDHOG_BLACKBAR_2 , "\x00\x00\x00\x00\x00\x00\x00\x3F\x00\x00\x80\x3F\x00\x00\x80\x3F\x01\x00\x00\x00", false},
-        {"Remove Black Bar3", "remove black bar", OFFSET_GROUNDHOG_BLACKBAR_3 , "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
+        {"Remove Black Bar1", "remove black bar", OFFSET_GROUNDHOG_PV_SPLITSCREEN_TABLE, kBlackBar1, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
+        {"Remove Black Bar2", "remove black bar", OFFSET_GROUNDHOG_PV_SPLITSCREEN_TABLE, kBlackBar2, "\x00\x00\x00\x00\x00\x00\x00\x3F\x00\x00\x80\x3F\x00\x00\x80\x3F\x01\x00\x00\x00", false},
+        {"Remove Black Bar3", "remove black bar", OFFSET_GROUNDHOG_PV_SPLITSCREEN_TABLE, kBlackBar3, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
 }}, {nullptr, {
         {"splitscreen_patch1", "", OFFSET_HALO3ODST_PF_COOP_JOIN, "\x31\xC0\xC3\x90", true},
-        {"Remove Black Bar1", "remove black bar", 0x8F1FB0/*0x8F1FC0*/, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
-        {"Remove Black Bar2", "remove black bar", 0x8F1FC4/*0x8F1FD4*/, "\x00\x00\x00\x00\x00\x00\x00\x3F\x00\x00\x80\x3F\x00\x00\x80\x3F\x01\x00\x00\x00", false},
-        {"Remove Black Bar3", "remove black bar", 0x8F2000/*0x8F2010*/, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
+        {"Remove Black Bar1", "remove black bar", OFFSET_HALO3ODST_PV_SPLITSCREEN_TABLE, kBlackBar1, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
+        {"Remove Black Bar2", "remove black bar", OFFSET_HALO3ODST_PV_SPLITSCREEN_TABLE, kBlackBar2, "\x00\x00\x00\x00\x00\x00\x00\x3F\x00\x00\x80\x3F\x00\x00\x80\x3F\x01\x00\x00\x00", false},
+        {"Remove Black Bar3", "remove black bar", OFFSET_HALO3ODST_PV_SPLITSCREEN_TABLE, kBlackBar3, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
 }}, {HaloReachEntrySet(), {
         {"splitscreen_patch1", "", OFFSET_HALOREACH_PF_COOP_JOIN, "\x31\xC0\xC3\x90", true},
         {"splitscreen_patch2", "", OFFSET_HALOREACH_PF_COOP_REJOIN, "\xEB", true},
-        {"Remove Black Bar1", "remove black bar", 0xB43CE0/*0xB43D10*/, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
-        {"Remove Black Bar2", "remove black bar", 0xB43CF4/*0xB43D24*/, "\x00\x00\x00\x00\x00\x00\x00\x3F\x00\x00\x80\x3F\x00\x00\x80\x3F\x01\x00\x00\x00", false},
-        {"Remove Black Bar3", "remove black bar", 0xB43D30/*0xB43D60*/, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false},
+        {"Remove Black Bar1", "remove black bar", OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE, kBlackBar1, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false, &ReachBarsAvailable},
+        {"Remove Black Bar2", "remove black bar", OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE, kBlackBar2, "\x00\x00\x00\x00\x00\x00\x00\x3F\x00\x00\x80\x3F\x00\x00\x80\x3F\x01\x00\x00\x00", false, &ReachBarsAvailable},
+        {"Remove Black Bar3", "remove black bar", OFFSET_HALOREACH_PV_SPLITSCREEN_TABLE, kBlackBar3, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F\x00\x00\x00\x3F\x01\x00\x00\x00", false, &ReachBarsAvailable},
         // The black-bar/divider painter at 0x2C6D84 is now handled by a proper
         // per-slot-aware detour (HaloReach::Entry::BlackBars, blackbars.cpp)
         // instead of being NOP'd out wholesale - a raw byte-patch here would
