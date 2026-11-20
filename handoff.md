@@ -338,12 +338,15 @@ Look sensitivity bytes (0x1B5/0x1B6) were bools and players 2-4 got zeroed conta
   the series (0a-10, plus #39 and the #45 build fix carried by #46) is in. Development continues in his repo.
 - **Wind-down:** README notice pointing at megabitt01/AlphaRing and the launcher; v2.0.2 is this fork's last release.
   Local PR worktrees (`~/dev/alpharing-*`) and branches removed, tips kept as `archive/*` tags;
-  `alpharing-mc` kept, on his master-chief. Deleting the 15 merged branches on GitHub was left to the user (blocked
-  for me). Fork main isn't getting #44's Halo 2 two-player safety fix (no more releases here).
+  `alpharing-mc` kept, on his master-chief. The 15 merged branches on GitHub deleted (only `main` and
+  `experimental/proton-compat` remain). Fork main isn't getting #44's Halo 2 two-player safety fix (no more releases
+  here). Issue #6 closed (not planned) with a pointer to his repo. The 2026-09-28 agent worktree's uncommitted work is
+  committed as 3c795ec (tag `archive/local/agent-af65fb0253f2a1f85-wip`), then the worktree and its branch removed.
 - **For MegaBit:** a Windows test checklist (`~/dev/notes/windows_test_checklist.md`) and a review of
   outside PR #42 (`~/dev/notes/pr42_review.md`), both drafted for the user to post.
-- **Left:** fork issue #6 (H2A 1P black screen, not reproduced); the box-only follow-ups (CE hot-join trail in the
-  air, Halo 4 ultrawide side-by-side HUD) go to his repo once the box is back.
+- **Left:** the box-only follow-ups (CE hot-join trail in the air, Halo 4 ultrawide side-by-side HUD) go to his repo
+  once the box is back. Posted with the user's permission: the Windows test checklist as megabitt01/AlphaRing#49, and
+  the #42 review as a comment there.
 
 ### 2026-11-20 - #46 merged (build fixed); PR 9 (#47) and PR 10 (#48) sent - series complete
 
