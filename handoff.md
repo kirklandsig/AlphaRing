@@ -34,8 +34,10 @@
 |--------|---------|
 | `main` | Primary branch (GitHub default since 2026-07-17) — day-to-day work happens here; releases are tagged from it |
 | `experimental/proton-compat` | Historical — the v1.4.x development line, now folded into `main` |
-| `fix/servicetag-buffer-overread` | Upstream PR branch (megabitt01/AlphaRing PR #6), delete after the PR resolves |
-| `fix/unhook-on-module-unload` | Upstream PR branch (megabitt01/AlphaRing PR #24, based on his active `master-chief`), delete after the PR resolves |
+| `backup/main-before-noreply`, `backup/main-before-purge` | Local only: main before the 2026-10-08 email re-authoring |
+
+The upstream PR branches (`fix/*`, `upstream/*`, `upstream2/*`, `bak10xx/*`) were deleted locally on 2026-11-20 after
+the whole series merged; each tip is kept as a local tag `archive/<branch>` (as pushed) or `archive/local/<branch>`.
 
 Repo cleanup 2026-07-17: old unrelated-history `dev` and superseded `feature/controller-bind-and-default-mappings` deleted from GitHub (feature branch kept locally); inherited upstream tags pruned locally; all published release tags kept.
 
@@ -330,14 +332,58 @@ Look sensitivity bytes (0x1B5/0x1B6) were bools and players 2-4 got zeroed conta
 
 ## Session History
 
+### 2026-11-20 - series merged; wind-down started
+
+- **Upstream:** #47 (Players + hot join) and #48 (docs) merged; master-chief 32c1594 == our last PR tip. Every PR in
+  the series (0a-10, plus #39 and the #45 build fix carried by #46) is in. Development continues in his repo.
+- **Wind-down:** README notice pointing at megabitt01/AlphaRing and the launcher; v2.0.2 is this fork's last release.
+  Local PR worktrees (`~/dev/alpharing-*`) and branches removed, tips kept as `archive/*` tags;
+  `alpharing-mc` kept, on his master-chief. Deleting the 15 merged branches on GitHub was left to the user (blocked
+  for me). Fork main isn't getting #44's Halo 2 two-player safety fix (no more releases here).
+- **For MegaBit:** a Windows test checklist (`~/dev/notes/windows_test_checklist.md`) and a review of
+  outside PR #42 (`~/dev/notes/pr42_review.md`), both drafted for the user to post.
+- **Left:** fork issue #6 (H2A 1P black screen, not reproduced); the box-only follow-ups (CE hot-join trail in the
+  air, Halo 4 ultrawide side-by-side HUD) go to his repo once the box is back.
+
+### 2026-11-20 - #46 merged (build fixed); PR 9 (#47) and PR 10 (#48) sent - series complete
+
+- **Merged upstream:** #46 (spawn menus) at cea8227, carrying #45's build fix; #45 closed as superseded.
+- **Sent:** megabitt01/AlphaRing#47 (Players window + hot join; Codex round 3 approve; Hot join tooltip now wraps).
+- **PR 10 (docs) sent as #48**, rewritten against his current README and MenuSettings, on top of #47. The whole
+  series is now sent; open: #47, #48. Details in `docs/UPSTREAM_SYNC.md`.
+
+### 2026-11-19 - #40, #43, #44 merged; build fix #45 and PR 8 (#46) sent
+
+- **Merged upstream:** #40 (split screen) on 2026-11-17 as `0335fe3`, identical to what we sent.
+- **Stack** `upstream2/*` rebased onto 0335fe3 (trees unchanged; backups `bak1119/*` tags).
+- **Sent:** megabitt01/AlphaRing#43 (per-player HUD, `upstream/07-hud`) and #44 (Anniversary 3-4P + Halo 2 Anniversary
+  2P halves, `upstream/06-anniversary`). No box available: the bodies say what was box-tested earlier and what wasn't.
+  PR 6's 2P fix got Codex rounds 1-3 (two gaps fixed in 6050f4b, approve). The two PRs conflict in the CE/H2 offset
+  headers; rebase whichever merges second.
+- **Pending on fork main:** the same 2P composite gaps (shaders not ready -> black half; null texture -> stale image)
+  exist in `src/mcc/module/entry/halo2/anniversary.cpp`; port 6050f4b's change. Details in `docs/UPSTREAM_SYNC.md`.
+- **Later:** #44 and #43 merged; his GitHub conflict resolution for #43 dropped the CE/H2 HUD offsets, so master-chief
+  (ee8ff52) doesn't compile. Fix sent as megabitt01/AlphaRing#45 (+34 lines, the lost block). PR 8 (spawn menus) sent
+  as #46 on top of #45. Next: PR 9 after those merge.
+
+### 2026-10-29 - MegaBit merged #38 (offsets) and #39 (Halo 3/ODST skinning pool); PR 5 prepared
+
+- **Merged upstream:** #38 (dbfb908) and #39 (3c5520b) on `master-chief`; CI green. Fork main pushed (0274bfc, the
+  same Halo 3/ODST fix in the DefOffset/`Found()` form - upstream's `skinning.cpp` keeps plain `#define`s).
+- **#34 dropped** from our list: JonahSimon's PR, still open upstream; this fork keeps its `!index` check.
+- **Stack** `upstream2/*` rebased onto 3c5520b: PRs 5-9 changed lines identical, PR 5 builds clean, gate check passes.
+  Box (now 192.168.0.103): H3 and H4 2P Left/Right pass, H4 Top/Bottom control stock. **PR 5 sent as
+  megabitt01/AlphaRing#40** (body `~/dev/notes/pr05_body.md`). Next: PR 6 once #40 merges. Details in
+  `docs/UPSTREAM_SYNC.md`.
+
 ### 2026-10-27 (evening) - MegaBit merged #24, #35, #36, #37 (MenuChange); stack rebased onto master-chief; box run
 
 - **Merged upstream:** #24 (unhook on unload), #35 (Reach), #36 + #37 (MenuChange) on `master-chief` 2c66a60.
   **#34 is still open** (not merged); this fork and the stack both still have the `!index` check.
-- **Stack:** `upstream2/*` (worktree `C:\Users\yanal\dev\alpharing-stack`) rebased onto `megabit/master-chief`
+- **Stack:** `upstream2/*` (worktree `~/dev/alpharing-stack`) rebased onto `megabit/master-chief`
   (`--rebase-merges --update-refs`); each branch differs from its pre-rebase version only by master-chief's own delta
   (his whitespace, `moduleAddress() == 0` guard in `CPatch::apply`, no #34). Pre-rebase tips: `bak1027/*`. Builds clean,
-  CI gate passes. DLLs in `C:\Users\yanal\dev\notes\dlls\` (`stack1027_no34`, `stack1027_34`, `mc_2c66a60`).
+  CI gate passes. DLLs in `~/dev/notes/dlls/` (`stack1027_no34`, `stack1027_34`, `mc_2c66a60`).
 - **Box (stack tip 9d806af):** H2 Classic MP 2P loads and plays (no index -1 asked - #34's crash needs a LAN lobby,
   two instances, 8 players; not reproducible on one box). H2 hot join: pad 2 joins mid-mission; F1 open+close saves the
   joined count (menu file 1 -> 2). CE hot join: "controller 2 joins as player 2", both views right; F1 -/+ locked with
@@ -347,7 +393,7 @@ Look sensitivity bytes (0x1B5/0x1B6) were bools and players 2-4 got zeroed conta
   hot join all show it; this fork's main draws the halves itself and is fine). #23's composite clip doesn't give full
   halves on the box. Our PR 6 dropped main's 2P composite in favour of #23 - candidate fix: bring it back.
 - **Later the same evening (user: "go for it and do the fix"):** PR 4 opened as megabitt01/AlphaRing#38 (branch
-  `upstream/04-offsets`, body `C:\Users\yanal\dev\notes\pr04_body.md`). PR 6 got `29aa97f fix(halo2): two players'
+  `upstream/04-offsets`, body `~/dev/notes/pr04_body.md`). PR 6 got `29aa97f fix(halo2): two players'
   Anniversary views each fill their half` (main's 2P composite path back: our shaders draw each half, the game's quad
   and #23's clip don't run); 0607-base rebuilt as the old merge tree + the fix (2e142dc), 08/09 rebased on it (old
   hashes: `dev/notes/stack_refs_pre_pr6fix.txt`). Box on the tip: H2A 2P full halves, 4P quad mode unchanged. Codex
@@ -373,13 +419,13 @@ MegaBit merged megabitt01/AlphaRing#29 (Halo 2, 2026-10-18) and plans a major re
 (JonahSimon's Halo 2 Classic MP crash: `get_xbox_user_id` gets index -1 at map load - this fork has the same `!index`
 check, not fixed here yet), then MenuChange. Details and the PR state in `docs/UPSTREAM_SYNC.md` (local, out of git).
 - **Sent:** megabitt01/AlphaRing#35 Reach fixes (rebased, no line changes).
-- **Local, not pushed:** PRs 4-9 rebased onto MenuChange + #24 + #34 + #35 (worktree `C:\Users\yanal\dev\alpharing-stack`,
+- **Local, not pushed:** PRs 4-9 rebased onto MenuChange + #24 + #34 + #35 (worktree `~/dev/alpharing-stack`,
   branches `upstream2/*`), re-authored with the no-reply email, each built, CI gate check passing. PR 9 (Players window,
   hot join) reworked onto MenuSettings and Codex-reviewed (2 rounds). PR 10 docs waits for the 1.4.0 scope.
 - **This fork:** `16e38b8` Halo 2 hot join's death accounting counts every player (network co-op teammates were
   dropped; Codex). Known, open: Halo CE hot join can place a joiner on a spot from slow vehicle flight.
 - **Lost:** session ff7c6d96's scratchpad (Windows cleaned Temp) - local box scripts, PR bodies 4-10, test DLLs. Notes and
-  helper scripts now live in `C:\Users\yanal\dev\notes\`. The box is at 192.168.0.105; harness `b.sh` takes `BOX=`.
+  helper scripts now live in `~/dev/notes/`. The box is at 192.168.0.105; harness `b.sh` takes `BOX=`.
 - Not done: box run of the new stack (MenuChange base, #34 control, PR 9 hot join on his build).
 
 ### 2026-10-07 - MegaBit merged #26 and #27; upstream PRs 6-10 finished and reviewed; this fork gets their fixes
@@ -387,7 +433,7 @@ check, not fixed here yet), then MenuChange. Details and the PR state in `docs/U
 MegaBit squash-merged #26 (ServiceTag) and #27 (input/startup) as sent; #24 is still open, no comments. The user said
 to continue, then "feel free to push the PRs to megabits GitHub when they're ready as long as it makes sense". State
 table, box results and next steps per PR in `docs/UPSTREAM_SYNC.md` (local, out of git).
-- **Upstream PRs (local branches, worktrees `C:\Users\yanal\dev\alpharing-pr06`..`-pr10`):** PR 6 Anniversary 3-4P
+- **Upstream PRs (local branches, worktrees `~/dev/alpharing-pr06`..`-pr10`):** PR 6 Anniversary 3-4P
   (CE texture-lifetime fix, Codex approve, box-tested on his files), PR 7 per-player HUD (Codex approve, not
   box-tested), PR 8 spawn menus (agent-built, Codex approve after 4 rounds, box: CE/H3 per-player menus spawn), PR 9
   Players window + hot join (agent-built, Codex approve after 11 rounds, box: join/leave at MCC's menus and a Reach hot
@@ -414,7 +460,7 @@ table, box results and next steps per PR in `docs/UPSTREAM_SYNC.md` (local, out 
 The user: "if we're still waiting on megabit, you might as well just keep going as far as we can without his
 input/action", then (evening) "take a break, button up what you have". Nothing new from MegaBit on #24/#26/#27. PR
 branches are stacked locally (`upstream/05-splitscreen` on `upstream/04-offsets`; `-06-anniversary` and `-07-hud` on
-05; worktrees `C:\Users\yanal\dev\alpharing-pr05/06/07`), each to be rebased as the earlier ones merge; state table
+05; worktrees `~/dev/alpharing-pr05/06/07`), each to be rebased as the earlier ones merge; state table
 and next steps in `docs/UPSTREAM_SYNC.md` (local, out of git).
 - **This fork (committed, not pushed or released):** `10fb351` the four offset gaps the upstream review found (XUID
   lookup required; Reach's Left/Right only with all its hooks - gated on Reach's own paths, the other games'
@@ -438,8 +484,8 @@ and next steps in `docs/UPSTREAM_SYNC.md` (local, out of git).
 ### 2026-10-01 - upstream PR prep for MegaBit; v2.0.2 (Halo 2 Legendary/Iron checkpoint loop, #8)
 
 The user sent MegaBit the join-forces reply and is in his dev channel; MegaBit answered the open questions there -
-his answers are in `docs/UPSTREAM_SYNC.md` (local, out of git). PRs go to `master-chief`. Local prep (user's go): vcpkg at `C:\Users\yanal\dev\vcpkg`; his tree in a worktree
-`C:\Users\yanal\dev\alpharing-mc` builds clean with `-DCMAKE_TOOLCHAIN_FILE=.../vcpkg.cmake
+his answers are in `docs/UPSTREAM_SYNC.md` (local, out of git). PRs go to `master-chief`. Local prep (user's go): vcpkg at `~/dev/vcpkg`; his tree in a worktree
+`~/dev/alpharing-mc` builds clean with `-DCMAKE_TOOLCHAIN_FILE=.../vcpkg.cmake
 -DVCPKG_TARGET_TRIPLET=x64-windows-static-md`; PR branches (worktrees `alpharing-pr`, `-pr02`, `-pr03`):
 `upstream/00b-servicetag` (pushed as `fix/servicetag-master-chief`, opened as megabitt01/AlphaRing#26; #6 closed with
 a pointer - a force-push re-point was blocked by the auto-mode classifier), `upstream/01-halo2-fixes` (Save & Quit
@@ -460,7 +506,7 @@ the menu key's characters taken out of the queue (`DropChar`), the skinning pool
 (`Unload` on module removal), and `CPatch::inheritBackup` for patch.xml reloads over applied patches. Box: X server hit 255 clients
 after many restarts (Steam leak) - cleared by killing Steam/Wine by PID.
 **Upstream PR 4 (offsets that survive MCC updates)** - branch `upstream/04-offsets` on a local base with the five
-pending PRs merged (`upstream/base-pending`, worktree `C:\Users\yanal\dev\alpharing-pr04`): 15 commits, ready to send
+pending PRs merged (`upstream/base-pending`, worktree `~/dev/alpharing-pr04`): 15 commits, ready to send
 once those five are merged (rebase then; body in the session scratchpad, `pr04_body.md`). Codex approved on the 5th pass;
 the passes before found four gaps that only matter on an MCC update, and **our v2.0 has all four too (port pending)**:
 the XUID lookup was optional in pattern mode (without its hook a split-screen player changing team freezes the game);

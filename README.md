@@ -1,5 +1,12 @@
 # AlphaRing - kirklandsig Fork
 
+> **AlphaRing development has moved to [megabitt01/AlphaRing](https://github.com/megabitt01/AlphaRing).** Everything
+> from this fork is merged there: side-by-side split screen in every game, Anniversary graphics with 3-4 players, the
+> per-player HUD, the spawn menus, the Players window and hot join, offsets that survive MCC updates, and the fixes.
+> Its next release carries all of it, and MegaBit's [AlphaRing Launcher](https://github.com/megabitt01/alpharing-launcher-v2)
+> installs it. Please report bugs on [megabitt01/AlphaRing](https://github.com/megabitt01/AlphaRing/issues) or the
+> [AlphaRing Discord](https://discord.gg/TUyAnCrpuz). v2.0.2 below is this fork's last release.
+
 > **This is a personal fork of [thejackbitt/AlphaRing](https://github.com/thejackbitt/AlphaRing) for testing and development.**
 >
 > **Based on:** JackBitt's AlphaRing v1.2.1 (commit `bdad7eb`)
